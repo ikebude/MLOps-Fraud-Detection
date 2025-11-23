@@ -190,7 +190,12 @@ class FraudDetectionTraining:
                 sasl_plain_password=self.config['kafka']['password'],
                 value_deserializer=lambda x: json.loads(x.decode('utf-8')),
                 auto_offset_reset='earliest',
-                consumer_timeout_ms=self.config['kafka'].get('timeout', 10000)
+                consumer_timeout_ms=self.config['kafka'].get('timeout', 10000),
+                # Force API version to match the Kafka broker (Confluent Cloud reported 2.6)
+                # This avoids attempting unsupported legacy FetchRequest versions.
+                api_version=(2, 6, 0),
+                # Allow a short timeout for api version auto-negotiation if needed
+                api_version_auto_timeout_ms=3000
             )
 
             messages = [msg.value for msg in consumer]
