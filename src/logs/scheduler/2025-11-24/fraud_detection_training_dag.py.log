@@ -3201,3 +3201,17 @@ Please take a look at these docs to improve your DAG import time:
 [2025-11-24T15:49:17.752+0000] {logging_mixin.py:190} INFO - [2025-11-24T15:49:17.751+0000] {dag.py:3239} INFO - Sync 1 DAGs
 [2025-11-24T15:49:17.819+0000] {logging_mixin.py:190} INFO - [2025-11-24T15:49:17.819+0000] {dag.py:4180} INFO - Setting next_dagrun for fraud_detection_training to 2025-11-23 12:00:00+00:00, run_after=2025-11-24 12:00:00+00:00
 [2025-11-24T15:49:17.866+0000] {processor.py:208} INFO - Processing /opt/airflow/dags/fraud_detection_training_dag.py took 0.249 seconds
+[2025-11-24T15:49:50.321+0000] {processor.py:186} INFO - Started process (PID=340) to work on /opt/airflow/dags/fraud_detection_training_dag.py
+[2025-11-24T15:49:50.323+0000] {processor.py:914} INFO - Processing file /opt/airflow/dags/fraud_detection_training_dag.py for tasks to queue
+[2025-11-24T15:49:50.326+0000] {logging_mixin.py:190} INFO - [2025-11-24T15:49:50.325+0000] {dagbag.py:588} INFO - Filling up the DagBag from /opt/airflow/dags/fraud_detection_training_dag.py
+[2025-11-24T15:49:50.385+0000] {processor.py:925} INFO - DAG(s) 'fraud_detection_training' retrieved from /opt/airflow/dags/fraud_detection_training_dag.py
+[2025-11-24T15:49:50.418+0000] {logging_mixin.py:190} INFO - [2025-11-24T15:49:50.417+0000] {dag.py:3239} INFO - Sync 1 DAGs
+[2025-11-24T15:49:50.467+0000] {logging_mixin.py:190} INFO - [2025-11-24T15:49:50.466+0000] {dag.py:4180} INFO - Setting next_dagrun for fraud_detection_training to 2025-11-23 12:00:00+00:00, run_after=2025-11-24 12:00:00+00:00
+[2025-11-24T15:49:50.507+0000] {processor.py:208} INFO - Processing /opt/airflow/dags/fraud_detection_training_dag.py took 0.197 seconds
+[2025-11-24T15:50:23.034+0000] {processor.py:186} INFO - Started process (PID=349) to work on /opt/airflow/dags/fraud_detection_training_dag.py
+[2025-11-24T15:50:23.038+0000] {processor.py:914} INFO - Processing file /opt/airflow/dags/fraud_detection_training_dag.py for tasks to queue
+[2025-11-24T15:50:23.042+0000] {logging_mixin.py:190} INFO - [2025-11-24T15:50:23.041+0000] {dagbag.py:588} INFO - Filling up the DagBag from /opt/airflow/dags/fraud_detection_training_dag.py
+[2025-11-24T15:50:23.208+0000] {processor.py:925} INFO - DAG(s) 'fraud_detection_training' retrieved from /opt/airflow/dags/fraud_detection_training_dag.py
+[2025-11-24T15:50:23.256+0000] {logging_mixin.py:190} INFO - [2025-11-24T15:50:23.255+0000] {dag.py:3239} INFO - Sync 1 DAGs
+[2025-11-24T15:50:23.323+0000] {logging_mixin.py:190} INFO - [2025-11-24T15:50:23.322+0000] {dag.py:4180} INFO - Setting next_dagrun for fraud_detection_training to 2025-11-23 12:00:00+00:00, run_after=2025-11-24 12:00:00+00:00
+[2025-11-24T15:50:23.382+0000] {processor.py:208} INFO - Processing /opt/airflow/dags/fraud_detection_training_dag.py took 0.372 seconds
