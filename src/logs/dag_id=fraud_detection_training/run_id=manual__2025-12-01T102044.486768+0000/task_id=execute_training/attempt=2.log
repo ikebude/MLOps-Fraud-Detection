@@ -1,0 +1,251 @@
+[2025-12-01T11:33:40.833+0000] {local_task_job_runner.py:123} INFO - ::group::Pre task execution logs
+[2025-12-01T11:33:40.882+0000] {taskinstance.py:2614} INFO - Dependencies all met for dep_context=non-requeueable deps ti=<TaskInstance: fraud_detection_training.execute_training manual__2025-12-01T10:20:44.486768+00:00 [queued]>
+[2025-12-01T11:33:40.912+0000] {taskinstance.py:2614} INFO - Dependencies all met for dep_context=requeueable deps ti=<TaskInstance: fraud_detection_training.execute_training manual__2025-12-01T10:20:44.486768+00:00 [queued]>
+[2025-12-01T11:33:40.920+0000] {taskinstance.py:2867} INFO - Starting attempt 2 of 2
+[2025-12-01T11:33:41.018+0000] {taskinstance.py:2890} INFO - Executing <Task(PythonOperator): execute_training> on 2025-12-01 10:20:44.486768+00:00
+[2025-12-01T11:33:41.055+0000] {warnings.py:112} WARNING - /home/***/.local/lib/python3.12/site-packages/***/task/task_runner/standard_task_runner.py:70: DeprecationWarning: This process (pid=620) is multi-threaded, use of fork() may lead to deadlocks in the child.
+  pid = os.fork()
+
+[2025-12-01T11:33:41.058+0000] {standard_task_runner.py:72} INFO - Started process 628 to run task
+[2025-12-01T11:33:41.060+0000] {standard_task_runner.py:104} INFO - Running: ['***', 'tasks', 'run', 'fraud_detection_training', 'execute_training', 'manual__2025-12-01T10:20:44.486768+00:00', '--job-id', '250', '--raw', '--subdir', 'DAGS_FOLDER/fraud_detection_training_dag.py', '--cfg-path', '/tmp/tmpaixb5zho']
+[2025-12-01T11:33:41.063+0000] {standard_task_runner.py:105} INFO - Job 250: Subtask execute_training
+[2025-12-01T11:33:41.344+0000] {task_command.py:467} INFO - Running <TaskInstance: fraud_detection_training.execute_training manual__2025-12-01T10:20:44.486768+00:00 [running]> on host e824c689d3dd
+[2025-12-01T11:33:41.653+0000] {taskinstance.py:3134} INFO - Exporting env vars: AIRFLOW_CTX_DAG_OWNER='datamasterylab.com' AIRFLOW_CTX_DAG_ID='fraud_detection_training' AIRFLOW_CTX_TASK_ID='execute_training' AIRFLOW_CTX_EXECUTION_DATE='2025-12-01T10:20:44.486768+00:00' AIRFLOW_CTX_TRY_NUMBER='2' AIRFLOW_CTX_DAG_RUN_ID='manual__2025-12-01T10:20:44.486768+00:00'
+[2025-12-01T11:33:41.660+0000] {taskinstance.py:732} INFO - ::endgroup::
+[2025-12-01T11:33:41.865+0000] {fraud_detection_training_dag.py:57} INFO - Initializing fraud detection training (transactions_table=transactions)
+[2025-12-01T11:33:41.960+0000] {fraud_detection_training.py:106} INFO - Configuration loaded successfully
+[2025-12-01T11:33:44.322+0000] {fraud_detection_training.py:152} INFO - Minio connection verified. Buckets: ['mlflow']
+[2025-12-01T11:34:06.115+0000] {fraud_detection_training.py:611} INFO - Starting model training process
+[2025-12-01T11:34:06.118+0000] {fraud_detection_training.py:316} INFO - Initiating Kafka data ingestion (stream-based consumer)
+[2025-12-01T11:34:06.352+0000] {fraud_detection_training.py:186} INFO - Starting stream-based Kafka consumer for topic ecommerce_fraud2
+[2025-12-01T11:34:06.354+0000] {fraud_detection_training.py:199} INFO - Stream read attempt 1/3 (micro_batch_size=10000)
+[2025-12-01T11:34:06.358+0000] {client_async.py:277} WARNING - Configured api_version (2, 6, 0) not supported; using (2, 6)
+[2025-12-01T11:34:06.813+0000] {conn.py:400} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=bootstrap-0 host=pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('3.128.0.163', 9092)]>: connecting to pkc-921jm.us-east-2.aws.confluent.cloud:9092 [('3.128.0.163', 9092) IPv4]
+[2025-12-01T11:34:07.115+0000] {conn.py:501} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=bootstrap-0 host=pkc-921jm.us-east-2.aws.confluent.cloud:9092 <handshake> [IPv4 ('3.128.0.163', 9092)]>: Loading system default SSL CAs from ('/usr/lib/ssl/cert.pem', '/usr/lib/ssl/certs', 'SSL_CERT_FILE', '/usr/lib/ssl/cert.pem', 'SSL_CERT_DIR', '/usr/lib/ssl/certs')
+[2025-12-01T11:34:08.475+0000] {conn.py:826} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=bootstrap-0 host=pkc-921jm.us-east-2.aws.confluent.cloud:9092 <authenticating> [IPv4 ('3.128.0.163', 9092)]>: Authenticated as 5OIHYGHTVCSUQ4TH via SASL / Plain
+[2025-12-01T11:34:08.481+0000] {conn.py:471} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=bootstrap-0 host=pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connected> [IPv4 ('3.128.0.163', 9092)]>: Connection complete.
+[2025-12-01T11:34:08.786+0000] {fraud_detection_training.py:220} INFO - Assigned and seeked to beginning for 6 partitions
+[2025-12-01T11:34:09.160+0000] {conn.py:400} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=6 host=b6-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('18.116.185.152', 9092)]>: connecting to b6-pkc-921jm.us-east-2.aws.confluent.cloud:9092 [('18.116.185.152', 9092) IPv4]
+[2025-12-01T11:34:09.523+0000] {conn.py:400} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=7 host=b7-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('13.58.60.6', 9092)]>: connecting to b7-pkc-921jm.us-east-2.aws.confluent.cloud:9092 [('13.58.60.6', 9092) IPv4]
+[2025-12-01T11:34:09.917+0000] {conn.py:400} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=8 host=b8-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('3.139.173.109', 9092)]>: connecting to b8-pkc-921jm.us-east-2.aws.confluent.cloud:9092 [('3.139.173.109', 9092) IPv4]
+[2025-12-01T11:34:10.125+0000] {conn.py:400} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=9 host=b9-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('3.12.229.239', 9092)]>: connecting to b9-pkc-921jm.us-east-2.aws.confluent.cloud:9092 [('3.12.229.239', 9092) IPv4]
+[2025-12-01T11:34:10.498+0000] {conn.py:400} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=10 host=b10-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('3.131.234.56', 9092)]>: connecting to b10-pkc-921jm.us-east-2.aws.confluent.cloud:9092 [('3.131.234.56', 9092) IPv4]
+[2025-12-01T11:34:10.883+0000] {conn.py:400} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=11 host=b11-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('18.217.182.105', 9092)]>: connecting to b11-pkc-921jm.us-east-2.aws.confluent.cloud:9092 [('18.217.182.105', 9092) IPv4]
+[2025-12-01T11:34:10.885+0000] {conn.py:501} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=6 host=b6-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <handshake> [IPv4 ('18.116.185.152', 9092)]>: Loading system default SSL CAs from ('/usr/lib/ssl/cert.pem', '/usr/lib/ssl/certs', 'SSL_CERT_FILE', '/usr/lib/ssl/cert.pem', 'SSL_CERT_DIR', '/usr/lib/ssl/certs')
+[2025-12-01T11:34:10.930+0000] {conn.py:501} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=7 host=b7-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <handshake> [IPv4 ('13.58.60.6', 9092)]>: Loading system default SSL CAs from ('/usr/lib/ssl/cert.pem', '/usr/lib/ssl/certs', 'SSL_CERT_FILE', '/usr/lib/ssl/cert.pem', 'SSL_CERT_DIR', '/usr/lib/ssl/certs')
+[2025-12-01T11:34:11.070+0000] {conn.py:501} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=8 host=b8-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <handshake> [IPv4 ('3.139.173.109', 9092)]>: Loading system default SSL CAs from ('/usr/lib/ssl/cert.pem', '/usr/lib/ssl/certs', 'SSL_CERT_FILE', '/usr/lib/ssl/cert.pem', 'SSL_CERT_DIR', '/usr/lib/ssl/certs')
+[2025-12-01T11:34:11.129+0000] {conn.py:501} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=9 host=b9-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <handshake> [IPv4 ('3.12.229.239', 9092)]>: Loading system default SSL CAs from ('/usr/lib/ssl/cert.pem', '/usr/lib/ssl/certs', 'SSL_CERT_FILE', '/usr/lib/ssl/cert.pem', 'SSL_CERT_DIR', '/usr/lib/ssl/certs')
+[2025-12-01T11:34:11.202+0000] {conn.py:501} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=10 host=b10-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <handshake> [IPv4 ('3.131.234.56', 9092)]>: Loading system default SSL CAs from ('/usr/lib/ssl/cert.pem', '/usr/lib/ssl/certs', 'SSL_CERT_FILE', '/usr/lib/ssl/cert.pem', 'SSL_CERT_DIR', '/usr/lib/ssl/certs')
+[2025-12-01T11:34:11.272+0000] {conn.py:501} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=11 host=b11-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <handshake> [IPv4 ('18.217.182.105', 9092)]>: Loading system default SSL CAs from ('/usr/lib/ssl/cert.pem', '/usr/lib/ssl/certs', 'SSL_CERT_FILE', '/usr/lib/ssl/cert.pem', 'SSL_CERT_DIR', '/usr/lib/ssl/certs')
+[2025-12-01T11:34:12.108+0000] {conn.py:826} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=6 host=b6-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <authenticating> [IPv4 ('18.116.185.152', 9092)]>: Authenticated as 5OIHYGHTVCSUQ4TH via SASL / Plain
+[2025-12-01T11:34:12.109+0000] {conn.py:471} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=6 host=b6-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connected> [IPv4 ('18.116.185.152', 9092)]>: Connection complete.
+[2025-12-01T11:34:12.110+0000] {conn.py:951} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=bootstrap-0 host=pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connected> [IPv4 ('3.128.0.163', 9092)]>: Closing connection. 
+[2025-12-01T11:34:12.443+0000] {conn.py:826} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=10 host=b10-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <authenticating> [IPv4 ('3.131.234.56', 9092)]>: Authenticated as 5OIHYGHTVCSUQ4TH via SASL / Plain
+[2025-12-01T11:34:12.444+0000] {conn.py:471} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=10 host=b10-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connected> [IPv4 ('3.131.234.56', 9092)]>: Connection complete.
+[2025-12-01T11:34:12.833+0000] {conn.py:826} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=7 host=b7-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <authenticating> [IPv4 ('13.58.60.6', 9092)]>: Authenticated as 5OIHYGHTVCSUQ4TH via SASL / Plain
+[2025-12-01T11:34:12.840+0000] {conn.py:471} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=7 host=b7-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connected> [IPv4 ('13.58.60.6', 9092)]>: Connection complete.
+[2025-12-01T11:34:13.186+0000] {conn.py:826} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=9 host=b9-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <authenticating> [IPv4 ('3.12.229.239', 9092)]>: Authenticated as 5OIHYGHTVCSUQ4TH via SASL / Plain
+[2025-12-01T11:34:13.190+0000] {conn.py:471} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=9 host=b9-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connected> [IPv4 ('3.12.229.239', 9092)]>: Connection complete.
+[2025-12-01T11:34:13.533+0000] {conn.py:826} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=8 host=b8-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <authenticating> [IPv4 ('3.139.173.109', 9092)]>: Authenticated as 5OIHYGHTVCSUQ4TH via SASL / Plain
+[2025-12-01T11:34:13.534+0000] {conn.py:471} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=8 host=b8-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connected> [IPv4 ('3.139.173.109', 9092)]>: Connection complete.
+[2025-12-01T11:34:13.802+0000] {conn.py:826} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=11 host=b11-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <authenticating> [IPv4 ('18.217.182.105', 9092)]>: Authenticated as 5OIHYGHTVCSUQ4TH via SASL / Plain
+[2025-12-01T11:34:13.803+0000] {conn.py:471} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=11 host=b11-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connected> [IPv4 ('18.217.182.105', 9092)]>: Connection complete.
+[2025-12-01T11:34:14.485+0000] {fetcher.py:418} INFO - Resetting offset for partition ('ecommerce_fraud2', 1) to offset 0.
+[2025-12-01T11:34:14.492+0000] {fetcher.py:418} INFO - Resetting offset for partition ('ecommerce_fraud2', 2) to offset 0.
+[2025-12-01T11:34:14.493+0000] {fetcher.py:418} INFO - Resetting offset for partition ('ecommerce_fraud2', 0) to offset 0.
+[2025-12-01T11:34:14.494+0000] {fetcher.py:418} INFO - Resetting offset for partition ('ecommerce_fraud2', 3) to offset 0.
+[2025-12-01T11:34:14.495+0000] {fetcher.py:418} INFO - Resetting offset for partition ('ecommerce_fraud2', 4) to offset 0.
+[2025-12-01T11:34:14.495+0000] {fetcher.py:418} INFO - Resetting offset for partition ('ecommerce_fraud2', 5) to offset 0.
+[2025-12-01T11:34:35.429+0000] {fraud_detection_training.py:252} INFO - Stream: Processed batch 1 with 10000 messages (total: 10000 messages)
+[2025-12-01T11:34:45.312+0000] {fraud_detection_training.py:252} INFO - Stream: Processed batch 2 with 10000 messages (total: 20000 messages)
+[2025-12-01T11:34:51.149+0000] {fraud_detection_training.py:252} INFO - Stream: Processed batch 3 with 10000 messages (total: 30000 messages)
+[2025-12-01T11:34:56.829+0000] {fraud_detection_training.py:252} INFO - Stream: Processed batch 4 with 10000 messages (total: 40000 messages)
+[2025-12-01T11:35:03.484+0000] {fraud_detection_training.py:252} INFO - Stream: Processed batch 5 with 10000 messages (total: 50000 messages)
+[2025-12-01T11:35:14.386+0000] {fraud_detection_training.py:252} INFO - Stream: Processed batch 6 with 10000 messages (total: 60000 messages)
+[2025-12-01T11:35:20.404+0000] {fraud_detection_training.py:252} INFO - Stream: Processed batch 7 with 10000 messages (total: 70000 messages)
+[2025-12-01T11:35:25.613+0000] {fraud_detection_training.py:252} INFO - Stream: Processed batch 8 with 10000 messages (total: 80000 messages)
+[2025-12-01T11:35:32.536+0000] {fraud_detection_training.py:252} INFO - Stream: Processed batch 9 with 10000 messages (total: 90000 messages)
+[2025-12-01T11:35:38.262+0000] {fraud_detection_training.py:252} INFO - Stream: Processed batch 10 with 10000 messages (total: 100000 messages)
+[2025-12-01T11:35:45.975+0000] {fraud_detection_training.py:252} INFO - Stream: Processed batch 11 with 10000 messages (total: 110000 messages)
+[2025-12-01T11:35:57.352+0000] {fraud_detection_training.py:252} INFO - Stream: Processed batch 12 with 10000 messages (total: 120000 messages)
+[2025-12-01T11:36:03.098+0000] {fraud_detection_training.py:252} INFO - Stream: Processed batch 13 with 10000 messages (total: 130000 messages)
+[2025-12-01T11:36:08.359+0000] {fraud_detection_training.py:252} INFO - Stream: Processed batch 14 with 10000 messages (total: 140000 messages)
+[2025-12-01T11:36:13.439+0000] {fraud_detection_training.py:252} INFO - Stream: Processed batch 15 with 10000 messages (total: 150000 messages)
+[2025-12-01T11:36:19.604+0000] {fraud_detection_training.py:252} INFO - Stream: Processed batch 16 with 10000 messages (total: 160000 messages)
+[2025-12-01T11:36:29.417+0000] {fraud_detection_training.py:252} INFO - Stream: Processed batch 17 with 10000 messages (total: 170000 messages)
+[2025-12-01T11:36:40.633+0000] {fraud_detection_training.py:252} INFO - Stream: Processed batch 18 with 10000 messages (total: 180000 messages)
+[2025-12-01T11:36:46.840+0000] {fraud_detection_training.py:252} INFO - Stream: Processed batch 19 with 10000 messages (total: 190000 messages)
+[2025-12-01T11:36:54.977+0000] {fraud_detection_training.py:252} INFO - Stream: Processed batch 20 with 10000 messages (total: 200000 messages)
+[2025-12-01T11:37:01.775+0000] {fraud_detection_training.py:252} INFO - Stream: Processed batch 21 with 10000 messages (total: 210000 messages)
+[2025-12-01T11:37:47.368+0000] {job.py:239} ERROR - Job heartbeat failed with error
+Traceback (most recent call last):
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 3371, in _wrap_pool_connect
+    return fn()
+           ^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/pool/base.py", line 327, in connect
+    return _ConnectionFairy._checkout(self)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/pool/base.py", line 894, in _checkout
+    fairy = _ConnectionRecord.checkout(pool)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/pool/base.py", line 493, in checkout
+    rec = pool._do_get()
+          ^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/pool/impl.py", line 256, in _do_get
+    return self._create_connection()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/pool/base.py", line 273, in _create_connection
+    return _ConnectionRecord(self)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/pool/base.py", line 388, in __init__
+    self.__connect()
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/pool/base.py", line 690, in __connect
+    with util.safe_reraise():
+         ^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/util/langhelpers.py", line 70, in __exit__
+    compat.raise_(
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/util/compat.py", line 211, in raise_
+    raise exception
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/pool/base.py", line 686, in __connect
+    self.dbapi_connection = connection = pool._invoke_creator(self)
+                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/engine/create.py", line 574, in connect
+    return dialect.connect(*cargs, **cparams)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/engine/default.py", line 598, in connect
+    return self.dbapi.connect(*cargs, **cparams)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/psycopg2/__init__.py", line 122, in connect
+    conn = _connect(dsn, connection_factory=connection_factory, **kwasync)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+psycopg2.OperationalError: could not translate host name "postgres" to address: Temporary failure in name resolution
+
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/jobs/job.py", line 207, in heartbeat
+    self._merge_from(Job._fetch_from_db(self, session))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/api_internal/internal_api_call.py", line 166, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/utils/session.py", line 94, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/utils/retries.py", line 93, in wrapped_function
+    for attempt in run_with_db_retries(max_retries=retries, logger=logger, **retry_kwargs):
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/tenacity/__init__.py", line 443, in __iter__
+    do = self.iter(retry_state=retry_state)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/tenacity/__init__.py", line 376, in iter
+    result = action(retry_state)
+             ^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/tenacity/__init__.py", line 418, in exc_check
+    raise retry_exc.reraise()
+          ^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/tenacity/__init__.py", line 185, in reraise
+    raise self.last_attempt.result()
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/concurrent/futures/_base.py", line 449, in result
+    return self.__get_result()
+           ^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/concurrent/futures/_base.py", line 401, in __get_result
+    raise self._exception
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/utils/retries.py", line 102, in wrapped_function
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/jobs/job.py", line 335, in _fetch_from_db
+    session.merge(job)
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 3056, in merge
+    return self._merge(
+           ^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 3136, in _merge
+    merged = self.get(
+             ^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 2853, in get
+    return self._get_impl(
+           ^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 2975, in _get_impl
+    return db_load_fn(
+           ^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/orm/loading.py", line 530, in load_on_pk_identity
+    session.execute(
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 1716, in execute
+    conn = self._connection_for_bind(bind)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 1555, in _connection_for_bind
+    return self._transaction._connection_for_bind(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 750, in _connection_for_bind
+    conn = bind.connect()
+           ^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/future/engine.py", line 412, in connect
+    return super(Engine, self).connect()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 3325, in connect
+    return self._connection_cls(self, close_with_result=close_with_result)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 96, in __init__
+    else engine.raw_connection()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 3404, in raw_connection
+    return self._wrap_pool_connect(self.pool.connect, _connection)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 3374, in _wrap_pool_connect
+    Connection._handle_dbapi_exception_noconnection(
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 2208, in _handle_dbapi_exception_noconnection
+    util.raise_(
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/util/compat.py", line 211, in raise_
+    raise exception
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 3371, in _wrap_pool_connect
+    return fn()
+           ^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/pool/base.py", line 327, in connect
+    return _ConnectionFairy._checkout(self)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/pool/base.py", line 894, in _checkout
+    fairy = _ConnectionRecord.checkout(pool)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/pool/base.py", line 493, in checkout
+    rec = pool._do_get()
+          ^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/pool/impl.py", line 256, in _do_get
+    return self._create_connection()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/pool/base.py", line 273, in _create_connection
+    return _ConnectionRecord(self)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/pool/base.py", line 388, in __init__
+    self.__connect()
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/pool/base.py", line 690, in __connect
+    with util.safe_reraise():
+         ^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/util/langhelpers.py", line 70, in __exit__
+    compat.raise_(
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/util/compat.py", line 211, in raise_
+    raise exception
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/pool/base.py", line 686, in __connect
+    self.dbapi_connection = connection = pool._invoke_creator(self)
+                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/engine/create.py", line 574, in connect
+    return dialect.connect(*cargs, **cparams)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/engine/default.py", line 598, in connect
+    return self.dbapi.connect(*cargs, **cparams)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/psycopg2/__init__.py", line 122, in connect
+    conn = _connect(dsn, connection_factory=connection_factory, **kwasync)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) could not translate host name "postgres" to address: Temporary failure in name resolution
+
+(Background on this error at: https://sqlalche.me/e/14/e3q8)
+[2025-12-01T11:37:51.355+0000] {job.py:254} ERROR - Job heartbeat failed with error. Scheduler is in unhealthy state
+[2025-12-01T11:39:12.043+0000] {job.py:254} ERROR - Job heartbeat failed with error. Scheduler is in unhealthy state
+[2025-12-01T11:39:34.956+0000] {conn.py:1530} WARNING - DNS lookup failed for b4-pkc-921jm.us-east-2.aws.confluent.cloud:9092, exception was [Errno -3] Temporary failure in name resolution. Is your advertised.listeners (called advertised.host.name before Kafka 9) correct and resolvable?
+[2025-12-01T11:39:36.448+0000] {conn.py:323} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=4 host=b4-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [unspecified None]>: DNS lookup failed for b4-pkc-921jm.us-east-2.aws.confluent.cloud:9092 (0)
+[2025-12-01T11:39:40.919+0000] {job.py:229} INFO - Heartbeat recovered after 155.88 seconds
+[2025-12-01T11:39:40.951+0000] {local_task_job_runner.py:266} INFO - Task exited with return code -9. For more information, see https://***.apache.org/docs/apache-***/stable/troubleshooting.html#LocalTaskJob-killed
+[2025-12-01T11:39:41.089+0000] {taskinstance.py:3901} INFO - 0 downstream tasks scheduled from follow-on schedule check
+[2025-12-01T11:39:41.106+0000] {local_task_job_runner.py:245} INFO - ::endgroup::

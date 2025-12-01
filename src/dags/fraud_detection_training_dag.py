@@ -96,6 +96,21 @@ def _cleanup_resources(**context):
     logger.info('Cleanup removed %d files', len(removed))
 
 
+def _validate_environment(**context):
+    """Validate runtime environment at task execution time.
+
+    Reads `config_path` from Airflow Variables at runtime so this check does
+    not run during DAG parse.
+    """
+    cfg_path = Variable.get('config_path', default_var='/app/config.yaml')
+    logger.info('Validating environment...')
+    if os.path.exists(cfg_path):
+        logger.info('Config found: %s', cfg_path)
+    else:
+        logger.warning('Config not found at %s', cfg_path)
+    logger.info('Environment validation complete')
+
+
 with DAG(
     'fraud_detection_training',
     default_args=default_args,
@@ -107,14 +122,9 @@ with DAG(
 ) as dag:
     # Validate the runtime environment. This check is intentionally permissive,
     # because different deploys may place `config.yaml` or env files in different locations.
-    validate_environment = BashOperator(
+    validate_environment = PythonOperator(
         task_id='validate_environment',
-        bash_command='''
-        echo "Validating environment..."
-        test -f ${CONFIG_PATH:-/app/config.yaml} || echo "config not found"
-        echo "Environment validation complete"
-        ''',
-        env={'CONFIG_PATH': Variable.get('config_path', default_var='/app/config.yaml')}
+        python_callable=_validate_environment,
     )
 
     training_task = PythonOperator(

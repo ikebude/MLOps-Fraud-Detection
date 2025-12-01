@@ -31,6 +31,8 @@ the following architectural considerations:
 import json
 import logging
 import os
+import signal
+import sys
 import yaml
 from dotenv import load_dotenv
 
@@ -44,6 +46,18 @@ logging.basicConfig(
     ]
 )
 logger = logging.getLogger(__name__)
+
+# Global flag for graceful shutdown on SIGTERM
+_shutdown_requested = False
+
+def _sigterm_handler(signum, frame):
+    """Handle SIGTERM gracefully by setting shutdown flag."""
+    global _shutdown_requested
+    logger.warning('Received SIGTERM signal. Gracefully shutting down Kafka consumer...')
+    _shutdown_requested = True
+
+# Register signal handler for graceful shutdown
+signal.signal(signal.SIGTERM, _sigterm_handler)
 
 
 class FraudDetectionTraining:
@@ -159,7 +173,7 @@ class FraudDetectionTraining:
         except Exception as e:
             logger.error('Minio connection failed: %s', str(e))
 
-    def read_from_kafka_stream(self, micro_batch_size=10000, max_total_messages=None) -> "pd.DataFrame":
+    def read_from_kafka_stream(self, micro_batch_size=20000, max_total_messages=None) -> "pd.DataFrame":
         """
         Stream-based Kafka consumer for unbounded data processing.
         
@@ -206,7 +220,11 @@ class FraudDetectionTraining:
                     sasl_plain_password=self.config['kafka']['password'],
                     value_deserializer=lambda x: json.loads(x.decode('utf-8')),
                     consumer_timeout_ms=consumer_timeout_ms,
-                    enable_auto_commit=False
+                    enable_auto_commit=False,
+                    api_version=(2, 6, 0),  # Confluent Cloud broker version
+                    connections_max_idle_ms=540000,  # 9 min, allow for long kafka reads
+                    request_timeout_ms=60000,  # 60s request timeout instead of default 40s
+                    session_timeout_ms=45000   # Increase session timeout for long operations
                 )
 
                 try:
@@ -227,8 +245,29 @@ class FraudDetectionTraining:
                     poll_count = 0
 
                     while True:
-                        # Poll with timeout for each micro-batch
-                        polled = consumer.poll(timeout_ms=5000, max_records=min(1000, remaining_for_batch))
+                        # Check for graceful shutdown signal
+                        if _shutdown_requested:
+                            logger.info('Shutdown requested. Exiting Kafka consumer loop after %d batches.', total_batches + 1 if batch_messages else total_batches)
+                            break
+
+                        # Poll with timeout for each micro-batch—retry on transient errors
+                        poll_attempt = 0
+                        max_poll_attempts = 3
+                        polled = None
+                        
+                        while poll_attempt < max_poll_attempts and polled is None:
+                            try:
+                                polled = consumer.poll(timeout_ms=5000, max_records=min(1000, remaining_for_batch))
+                                break
+                            except (OSError, IOError) as e:
+                                # Transient network/DNS errors during poll
+                                poll_attempt += 1
+                                logger.warning('Transient error during Kafka poll (attempt %d/%d): %s. Retrying...', poll_attempt, max_poll_attempts, str(e))
+                                if poll_attempt < max_poll_attempts:
+                                    time.sleep(2)
+                                else:
+                                    raise
+                        
                         poll_count += 1
 
                         if polled:

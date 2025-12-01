@@ -24,6 +24,9 @@ x-airflow-common: &airflow-common
     # AIRFLOW_CONFIG: '/opt/airflow/config/airflow.cfg'
     MLFLOW_TRACKING_URI: 'http://mlflow-server:5500'
     MLFLOW_S3_ENDPOINT_URL: 'http://minio:9000'
+    # Increase heartbeat interval and timeout to tolerate transient DB/network issues in long-running tasks
+    AIRFLOW__JOBS__JOB_HEARTBEAT_SEC: '30'
+    AIRFLOW__JOBS__JOB_HEARTBEAT_FAILURE_THRESHOLD: '10'
     # Ensure Airflow constructs valid served-log URLs (host + port)
     # Set to a resolvable service name inside the docker network. Adjust if you want workers to serve logs.
     AIRFLOW__LOGGING__LOG_SERVER_HOST: "airflow-webserver"
@@ -86,6 +89,7 @@ services:
     command: webserver
     ports:
       - "8080:8080"
+      - "8793:8793"
     environment:
       <<: *airflow-common-env
       # Increase gunicorn timeout significantly - DAG parsing is very slow
@@ -95,6 +99,8 @@ services:
       AIRFLOW__WEBSERVER__WORKERS: "2"
       # Configure Flask-Limiter to use Redis instead of in-memory storage
       RATELIMIT_STORAGE_URL: "redis://:@redis:6379/1"
+      # Expose served-log host to the UI (override common setting to a host reachable from browser)
+      AIRFLOW__LOGGING__LOG_SERVER_HOST: "localhost"
     healthcheck:
       test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
       interval: 30s
