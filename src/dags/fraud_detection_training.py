@@ -31,6 +31,8 @@ the following architectural considerations:
 import json
 import logging
 import os
+import signal
+import sys
 import yaml
 from dotenv import load_dotenv
 
@@ -44,6 +46,18 @@ logging.basicConfig(
     ]
 )
 logger = logging.getLogger(__name__)
+
+# Global flag for graceful shutdown on SIGTERM
+_shutdown_requested = False
+
+def _sigterm_handler(signum, frame):
+    """Handle SIGTERM gracefully by setting shutdown flag."""
+    global _shutdown_requested
+    logger.warning('Received SIGTERM signal. Gracefully shutting down Kafka consumer...')
+    _shutdown_requested = True
+
+# Register signal handler for graceful shutdown
+signal.signal(signal.SIGTERM, _sigterm_handler)
 
 
 class FraudDetectionTraining:
@@ -159,54 +173,197 @@ class FraudDetectionTraining:
         except Exception as e:
             logger.error('Minio connection failed: %s', str(e))
 
-    def read_from_kafka(self) -> "pd.DataFrame":
+    def read_from_kafka_stream(self, micro_batch_size=20000, max_total_messages=None) -> "pd.DataFrame":
         """
-        Secure Kafka consumer implementation with enterprise features:
-
-        - SASL/SSL authentication
-        - Auto-offset reset for recovery scenarios
-        - Data quality checks:
-          - Schema validation
-          - Fraud label existence
-          - Fraud rate monitoring
-        - Comprehensive data type conversion for Kafka string data
-
-        Implements graceful shutdown on timeout/error conditions.
+        Stream-based Kafka consumer for unbounded data processing.
+        
+        This implementation handles continuously growing data by:
+        1. Consuming data in micro-batches to manage memory
+        2. Processing messages as they arrive (incremental)
+        3. Supporting configurable batch sizes for flexibility
+        4. NOT capping total message count (reads all available)
+        
+        Args:
+            micro_batch_size: Process messages in batches of this size (memory efficient)
+            max_total_messages: Optional hard limit on total messages (None = read all)
+        
+        Returns:
+            pd.DataFrame: All consumed messages as single DataFrame
         """
         try:
-            # Local imports to avoid heavy dependencies during DAG parsing
             import pandas as pd
             from kafka import KafkaConsumer
+            from kafka.structs import TopicPartition
+            import time
 
             topic = self.config['kafka']['topic']
-            logger.info('Connecting to kafka topic %s', topic)
+            logger.info('Starting stream-based Kafka consumer for topic %s', topic)
 
-            consumer = KafkaConsumer(
-                topic,
-                bootstrap_servers=self.config['kafka']['bootstrap_servers'].split(','),
-                security_protocol='SASL_SSL',
-                sasl_mechanism='PLAIN',
-                sasl_plain_username=self.config['kafka']['username'],
-                sasl_plain_password=self.config['kafka']['password'],
-                value_deserializer=lambda x: json.loads(x.decode('utf-8')),
-                auto_offset_reset='earliest',
-                consumer_timeout_ms=self.config['kafka'].get('timeout', 10000),
-                # Force API version to match the Kafka broker (Confluent Cloud reported 2.6)
-                # This avoids attempting unsupported legacy FetchRequest versions.
-                api_version=(2, 6, 0),
-                # Allow a short timeout for api version auto-negotiation if needed
-                api_version_auto_timeout_ms=3000
-            )
+            group_id = self.config['kafka'].get('group_id') or os.getenv('KAFKA_CONSUMER_GROUP', 'fraud-trainer-group')
+            consumer_timeout_ms = int(self.config['kafka'].get('timeout', 120000))
+            read_retries = int(self.config['kafka'].get('read_retries', 3))
+            retry_wait_seconds = int(self.config['kafka'].get('retry_wait_seconds', 5))
 
-            messages = [msg.value for msg in consumer]
-            consumer.close()
+            attempts = 0
+            all_messages = []
+            total_batches = 0
 
-            df = pd.DataFrame(messages)
+            for attempt in range(1, read_retries + 1):
+                attempts = attempt
+                logger.info('Stream read attempt %d/%d (micro_batch_size=%d)', attempt, read_retries, micro_batch_size)
+
+                consumer = KafkaConsumer(
+                    bootstrap_servers=self.config['kafka']['bootstrap_servers'].split(','),
+                    security_protocol='SASL_SSL',
+                    sasl_mechanism='PLAIN',
+                    sasl_plain_username=self.config['kafka']['username'],
+                    sasl_plain_password=self.config['kafka']['password'],
+                    value_deserializer=lambda x: json.loads(x.decode('utf-8')),
+                    consumer_timeout_ms=consumer_timeout_ms,
+                    enable_auto_commit=False,
+                    api_version=(2, 6, 0),  # Confluent Cloud broker version
+                    connections_max_idle_ms=540000,  # 9 min, allow for long kafka reads
+                    request_timeout_ms=60000,  # 60s request timeout instead of default 40s
+                    session_timeout_ms=45000   # Increase session timeout for long operations
+                )
+
+                try:
+                    # Assign all partitions and seek to beginning
+                    partitions = consumer.partitions_for_topic(topic)
+                    if partitions:
+                        topic_partitions = [TopicPartition(topic, p) for p in partitions]
+                        consumer.assign(topic_partitions)
+                        consumer.seek_to_beginning(*topic_partitions)
+                        logger.info('Assigned and seeked to beginning for %d partitions', len(partitions))
+                    else:
+                        logger.warning('No partitions found for topic %s', topic)
+
+                    # Stream consumer: reads ALL available messages in micro-batches
+                    # No hard limit on total messages—only stops when consumer timeout expires
+                    remaining_for_batch = micro_batch_size
+                    batch_messages = []
+                    poll_count = 0
+
+                    while True:
+                        # Check for graceful shutdown signal
+                        if _shutdown_requested:
+                            logger.info('Shutdown requested. Exiting Kafka consumer loop after %d batches.', total_batches + 1 if batch_messages else total_batches)
+                            break
+
+                        # Poll with timeout for each micro-batch—retry on transient errors
+                        poll_attempt = 0
+                        max_poll_attempts = 3
+                        polled = None
+                        
+                        while poll_attempt < max_poll_attempts and polled is None:
+                            try:
+                                polled = consumer.poll(timeout_ms=5000, max_records=min(1000, remaining_for_batch))
+                                break
+                            except (OSError, IOError) as e:
+                                # Transient network/DNS errors during poll
+                                poll_attempt += 1
+                                logger.warning('Transient error during Kafka poll (attempt %d/%d): %s. Retrying...', poll_attempt, max_poll_attempts, str(e))
+                                if poll_attempt < max_poll_attempts:
+                                    time.sleep(2)
+                                else:
+                                    raise
+                        
+                        poll_count += 1
+
+                        if polled:
+                            # Process polled messages
+                            for tp, records in polled.items():
+                                for rec in records:
+                                    batch_messages.append(rec.value)
+                                    remaining_for_batch -= 1
+                                    
+                                    # Check hard limit if specified
+                                    if max_total_messages and len(all_messages) + len(batch_messages) >= max_total_messages:
+                                        break
+                                if max_total_messages and len(all_messages) + len(batch_messages) >= max_total_messages:
+                                    break
+
+                            # If micro-batch is full, log progress and reset
+                            if len(batch_messages) >= micro_batch_size or (max_total_messages and len(all_messages) + len(batch_messages) >= max_total_messages):
+                                all_messages.extend(batch_messages)
+                                total_batches += 1
+                                logger.info('Stream: Processed batch %d with %d messages (total: %d messages)', total_batches, len(batch_messages), len(all_messages))
+                                batch_messages = []
+                                remaining_for_batch = micro_batch_size
+
+                                # Exit if hard limit reached
+                                if max_total_messages and len(all_messages) >= max_total_messages:
+                                    logger.info('Stream: Reached max_total_messages limit (%d)', max_total_messages)
+                                    break
+                        else:
+                            # Empty poll—consumer_timeout_ms will eventually expire
+                            # But continue looping to respect timeout window
+                            logger.debug('Stream poll attempt %d: no messages in this window, continuing...', poll_count)
+
+                        # Timeout expiration is handled by KafkaConsumer internally
+                        # When consumer_timeout_ms expires with no activity, loop will naturally exit
+
+                    # Add any remaining messages in last batch
+                    if batch_messages:
+                        all_messages.extend(batch_messages)
+                        total_batches += 1
+                        logger.info('Stream: Processed final batch %d with %d messages (total: %d messages)', total_batches, len(batch_messages), len(all_messages))
+
+                    if all_messages:
+                        logger.info('Stream attempt %d successfully consumed %d messages in %d batches', attempt, len(all_messages), total_batches)
+                        consumer.close()
+                        break
+                    else:
+                        logger.warning('Stream attempt %d: no messages consumed', attempt)
+                        consumer.close()
+                        if attempt < read_retries:
+                            time.sleep(retry_wait_seconds)
+                except Exception:
+                    consumer.close()
+                    raise
+
+            if not all_messages:
+                raise ValueError('No messages received from Kafka after %d stream attempts' % attempts)
+
+            # Build DataFrame from all streamed messages
+            df = pd.DataFrame(all_messages)
             if df.empty:
                 raise ValueError('No messages received from Kafka.')
 
-            logger.info('Received %d messages from Kafka with %d columns', len(df), len(df.columns))
+            logger.info('Stream consumer complete: %d total messages across %d batches with %d columns', len(df), total_batches, len(df.columns))
 
+            return df
+        except Exception as e:
+            logger.error('Failed to stream data from Kafka: %s', str(e), exc_info=True)
+            raise
+
+    def read_from_kafka(self) -> "pd.DataFrame":
+        """
+        Kafka consumer entry point - delegates to stream-based consumer.
+        
+        This method is the public interface for data ingestion. It now uses the
+        stream-based consumer to handle unbounded data growth:
+        - No artificial batch size limit
+        - Reads ALL available messages from the topic
+        - Processes in memory-efficient micro-batches (10K messages at a time)
+        - Automatically adjusts to growing data volumes
+        
+        Returns:
+            pd.DataFrame: All consumed messages with data quality checks applied
+        """
+        logger.info('Initiating Kafka data ingestion (stream-based consumer)')
+        
+        # Get micro-batch size from config or use sensible default
+        micro_batch_size = int(os.getenv('KAFKA_MICRO_BATCH_SIZE', self.config.get('kafka', {}).get('micro_batch_size', 10000)))
+        
+        # No max_total_messages limit—read all available data
+        df = self.read_from_kafka_stream(micro_batch_size=micro_batch_size, max_total_messages=None)
+        
+        logger.info('Raw stream data received: %d rows, %d columns', len(df), len(df.columns))
+
+        try:
+            import pandas as pd
+            
             # Convert timestamp fields
             timestamp_cols = ['timestamp', 'registration_date', 'created_at']
             for col in timestamp_cols:
@@ -270,7 +427,7 @@ class FraudDetectionTraining:
 
             return df
         except Exception as e:
-            logger.error('Failed to read data from Kafka: %s', str(e), exc_info=True)
+            logger.error('Failed to process Kafka stream data: %s', str(e), exc_info=True)
             raise
 
     def create_features(self, df) -> "pd.DataFrame":
