@@ -25,12 +25,29 @@ x-airflow-common: &airflow-common
     MLFLOW_TRACKING_URI: 'http://mlflow-server:5500'
     MLFLOW_S3_ENDPOINT_URL: 'http://minio:9000'
     # Increase heartbeat interval and timeout to tolerate transient DB/network issues in long-running tasks
-    AIRFLOW__JOBS__JOB_HEARTBEAT_SEC: '30'
-    AIRFLOW__JOBS__JOB_HEARTBEAT_FAILURE_THRESHOLD: '10'
+    AIRFLOW__JOBS__JOB_HEARTBEAT_SEC: '60'
+    AIRFLOW__JOBS__JOB_HEARTBEAT_FAILURE_THRESHOLD: '15'
+    # Celery broker connection settings
+    AIRFLOW__CELERY__BROKER_CONNECTION_RETRY_ON_STARTUP: 'true'
+    AIRFLOW__CELERY__BROKER_CONNECTION_MAX_RETRIES: '10'
+    # Celery visibility timeout (task can run longer before being considered lost)
+    AIRFLOW__CELERY__VISIBILITY_TIMEOUT: '3600'
+    # Database connection pool settings to prevent connection exhaustion
+    AIRFLOW__DATABASE__SQL_ALCHEMY_POOL_SIZE: '20'
+    AIRFLOW__DATABASE__SQL_ALCHEMY_MAX_OVERFLOW: '10'
+    AIRFLOW__DATABASE__SQL_ALCHEMY_POOL_RECYCLE: '3600'
+    AIRFLOW__DATABASE__SQL_ALCHEMY_POOL_PRE_PING: 'true'
     # Ensure Airflow constructs valid served-log URLs (host + port)
-    # Set to a resolvable service name inside the docker network. Adjust if you want workers to serve logs.
-    AIRFLOW__LOGGING__LOG_SERVER_HOST: "airflow-webserver"
+    # Set to the host that the browser will use to access Airflow webserver.
+    # For local development use 'localhost'. For multi-host deployments set this
+    # to a resolvable hostname reachable by your browser.
+    AIRFLOW__LOGGING__LOG_SERVER_HOST: "localhost"
     AIRFLOW__LOGGING__LOG_SERVER_PORT: "8793"
+    # Fraud Detection API configuration
+    FRAUD_API_URL: ${FRAUD_API_URL:-https://3consult-ng.com/fraud_api.php}
+    # Cap records at 150k for comprehensive training on recent fraud data.
+    # 150k records = ~3GB peak during feature engineering + training.
+    FRAUD_API_MAX_RECORDS: ${FRAUD_API_MAX_RECORDS:-100000}
   volumes:
     - ${AIRFLOW_PROJ_DIR:-.}/dags:/opt/airflow/dags
     - ${AIRFLOW_PROJ_DIR:-.}/logs:/opt/airflow/logs
@@ -99,8 +116,11 @@ services:
       AIRFLOW__WEBSERVER__WORKERS: "2"
       # Configure Flask-Limiter to use Redis instead of in-memory storage
       RATELIMIT_STORAGE_URL: "redis://:@redis:6379/1"
-      # Expose served-log host to the UI (override common setting to a host reachable from browser)
+      # Expose served-log host and port to the UI
       AIRFLOW__LOGGING__LOG_SERVER_HOST: "localhost"
+      AIRFLOW__LOGGING__LOG_SERVER_PORT: "8793"
+      # Base URL for webserver used when constructing absolute links
+      AIRFLOW__WEBSERVER__BASE_URL: "http://localhost:8080"
     healthcheck:
       test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
       interval: 30s
@@ -112,6 +132,12 @@ services:
       <<: *airflow-common-depends-on
       airflow-init:
         condition: service_completed_successfully
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 1.5G
     networks:
       - fraud-detection
 
@@ -129,6 +155,12 @@ services:
       <<: *airflow-common-depends-on
       airflow-init:
         condition: service_completed_successfully
+    deploy:
+      resources:
+        limits:
+          memory: 3G
+        reservations:
+          memory: 2G
     networks:
       - fraud-detection
 
@@ -149,6 +181,16 @@ services:
       # Required to handle warm shutdown of the celery workers properly
       # See https://airflow.apache.org/docs/docker-stack/entrypoint.html#signal-propagation
       DUMB_INIT_SETSID: "0"
+      # Celery worker memory and task timeout settings
+      # Task timeout: 45 minutes (fraud detection training can take ~10-15 min on 80k records)
+      AIRFLOW__CELERY__TASK_SOFT_TIME_LIMIT: "2700"
+      AIRFLOW__CELERY__TASK_TIME_LIMIT: "2800"
+      # Celery worker pool size and prefetch (reduce memory pressure)
+      AIRFLOW__CELERY__WORKER_PREFETCH_MULTIPLIER: "1"
+      AIRFLOW__CELERY__WORKER_MAX_TASKS_PER_CHILD: "50"
+      # Celery heartbeat and worker settings
+      AIRFLOW__CELERY__WORKER_HEARTBEAT_SEC: "60"
+      AIRFLOW__CELERY__BROKER_POOL_LIMIT: "10"
     restart: always
     depends_on:
       <<: *airflow-common-depends-on
@@ -157,6 +199,11 @@ services:
     deploy:
       mode: replicated
       replicas: 2
+      resources:
+        limits:
+          memory: 4G
+        reservations:
+          memory: 3G
     networks:
       - fraud-detection
 

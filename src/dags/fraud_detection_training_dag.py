@@ -64,6 +64,7 @@ def _train_model(**context):
         # The training implementation in this repo exposes train_model() with
         # no parameters and returns (best_model, metrics_dict). Call it and
         # extract a precision metric if available.
+        logger.info('Starting model training...')
         model, metrics = trainer.train_model()
         precision = None
         if isinstance(metrics, dict):
