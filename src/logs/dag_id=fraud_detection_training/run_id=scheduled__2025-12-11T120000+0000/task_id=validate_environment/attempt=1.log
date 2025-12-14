@@ -1,0 +1,71 @@
+[2025-12-12T13:36:51.863+0000] {local_task_job_runner.py:123} INFO - ::group::Pre task execution logs
+[2025-12-12T13:36:52.319+0000] {taskinstance.py:2614} INFO - Dependencies all met for dep_context=non-requeueable deps ti=<TaskInstance: fraud_detection_training.validate_environment scheduled__2025-12-11T12:00:00+00:00 [queued]>
+[2025-12-12T13:36:52.382+0000] {taskinstance.py:2614} INFO - Dependencies all met for dep_context=requeueable deps ti=<TaskInstance: fraud_detection_training.validate_environment scheduled__2025-12-11T12:00:00+00:00 [queued]>
+[2025-12-12T13:36:52.395+0000] {taskinstance.py:2867} INFO - Starting attempt 1 of 2
+[2025-12-12T13:36:52.546+0000] {taskinstance.py:2890} INFO - Executing <Task(PythonOperator): validate_environment> on 2025-12-11 12:00:00+00:00
+[2025-12-12T13:36:52.578+0000] {warnings.py:112} WARNING - /home/***/.local/lib/python3.12/site-packages/***/task/task_runner/standard_task_runner.py:70: DeprecationWarning: This process (pid=143) is multi-threaded, use of fork() may lead to deadlocks in the child.
+  pid = os.fork()
+
+[2025-12-12T13:36:52.637+0000] {standard_task_runner.py:72} INFO - Started process 150 to run task
+[2025-12-12T13:36:52.612+0000] {standard_task_runner.py:104} INFO - Running: ['***', 'tasks', 'run', 'fraud_detection_training', 'validate_environment', 'scheduled__2025-12-11T12:00:00+00:00', '--job-id', '40', '--raw', '--subdir', 'DAGS_FOLDER/fraud_detection_training_dag.py', '--cfg-path', '/tmp/tmpdtl8bw1m']
+[2025-12-12T13:36:52.654+0000] {standard_task_runner.py:105} INFO - Job 40: Subtask validate_environment
+[2025-12-12T13:36:53.595+0000] {task_command.py:467} INFO - Running <TaskInstance: fraud_detection_training.validate_environment scheduled__2025-12-11T12:00:00+00:00 [running]> on host 1a72e0c9662f
+[2025-12-12T13:37:03.136+0000] {job.py:229} INFO - Heartbeat recovered after 12.63 seconds
+[2025-12-12T13:37:06.733+0000] {taskinstance.py:3134} INFO - Exporting env vars: AIRFLOW_CTX_DAG_OWNER='datamasterylab.com' AIRFLOW_CTX_DAG_ID='fraud_detection_training' AIRFLOW_CTX_TASK_ID='validate_environment' AIRFLOW_CTX_EXECUTION_DATE='2025-12-11T12:00:00+00:00' AIRFLOW_CTX_TRY_NUMBER='1' AIRFLOW_CTX_DAG_RUN_ID='scheduled__2025-12-11T12:00:00+00:00'
+[2025-12-12T13:37:06.737+0000] {taskinstance.py:732} INFO - ::endgroup::
+[2025-12-12T13:37:09.408+0000] {fraud_detection_training_dag.py:107} INFO - Validating environment...
+[2025-12-12T13:37:09.427+0000] {fraud_detection_training_dag.py:109} INFO - Config found: /app/config.yaml
+[2025-12-12T13:37:09.444+0000] {fraud_detection_training_dag.py:112} INFO - Environment validation complete
+[2025-12-12T13:37:09.458+0000] {python.py:240} INFO - Done. Returned value was: None
+[2025-12-12T13:37:09.535+0000] {taskinstance.py:341} INFO - ::group::Post task execution logs
+[2025-12-12T13:37:09.539+0000] {taskinstance.py:353} INFO - Marking task as SUCCESS. dag_id=fraud_detection_training, task_id=validate_environment, run_id=scheduled__2025-12-11T12:00:00+00:00, execution_date=20251211T120000, start_date=20251212T133652, end_date=20251212T133709
+[2025-12-12T13:37:09.642+0000] {job.py:229} INFO - Heartbeat recovered after 10.86 seconds
+[2025-12-12T13:37:09.932+0000] {local_task_job_runner.py:266} INFO - Task exited with return code 0
+[2025-12-12T13:37:10.453+0000] {taskinstance.py:3901} INFO - 1 downstream tasks scheduled from follow-on schedule check
+[2025-12-12T13:37:10.493+0000] {local_task_job_runner.py:245} INFO - ::endgroup::
+[2025-12-12T23:32:57.421+0000] {local_task_job_runner.py:123} INFO - ::group::Pre task execution logs
+[2025-12-12T23:32:57.730+0000] {taskinstance.py:2614} INFO - Dependencies all met for dep_context=non-requeueable deps ti=<TaskInstance: fraud_detection_training.validate_environment scheduled__2025-12-11T12:00:00+00:00 [queued]>
+[2025-12-12T23:32:57.856+0000] {taskinstance.py:2614} INFO - Dependencies all met for dep_context=requeueable deps ti=<TaskInstance: fraud_detection_training.validate_environment scheduled__2025-12-11T12:00:00+00:00 [queued]>
+[2025-12-12T23:32:57.857+0000] {taskinstance.py:2867} INFO - Starting attempt 1 of 2
+[2025-12-12T23:32:58.711+0000] {taskinstance.py:2890} INFO - Executing <Task(PythonOperator): validate_environment> on 2025-12-11 12:00:00+00:00
+[2025-12-12T23:32:58.822+0000] {warnings.py:112} WARNING - /home/***/.local/lib/python3.12/site-packages/***/task/task_runner/standard_task_runner.py:70: DeprecationWarning: This process (pid=179) is multi-threaded, use of fork() may lead to deadlocks in the child.
+  pid = os.fork()
+
+[2025-12-12T23:32:58.844+0000] {standard_task_runner.py:72} INFO - Started process 180 to run task
+[2025-12-12T23:32:58.907+0000] {standard_task_runner.py:104} INFO - Running: ['***', 'tasks', 'run', 'fraud_detection_training', 'validate_environment', 'scheduled__2025-12-11T12:00:00+00:00', '--job-id', '3', '--raw', '--subdir', 'DAGS_FOLDER/fraud_detection_training_dag.py', '--cfg-path', '/tmp/tmpdjfelsab']
+[2025-12-12T23:32:58.924+0000] {standard_task_runner.py:105} INFO - Job 3: Subtask validate_environment
+[2025-12-12T23:32:59.677+0000] {task_command.py:467} INFO - Running <TaskInstance: fraud_detection_training.validate_environment scheduled__2025-12-11T12:00:00+00:00 [running]> on host 22f9f7871cb9
+[2025-12-12T23:33:00.924+0000] {taskinstance.py:3134} INFO - Exporting env vars: AIRFLOW_CTX_DAG_OWNER='datamasterylab.com' AIRFLOW_CTX_DAG_ID='fraud_detection_training' AIRFLOW_CTX_TASK_ID='validate_environment' AIRFLOW_CTX_EXECUTION_DATE='2025-12-11T12:00:00+00:00' AIRFLOW_CTX_TRY_NUMBER='1' AIRFLOW_CTX_DAG_RUN_ID='scheduled__2025-12-11T12:00:00+00:00'
+[2025-12-12T23:33:00.935+0000] {taskinstance.py:732} INFO - ::endgroup::
+[2025-12-12T23:33:02.960+0000] {fraud_detection_training_dag.py:107} INFO - Validating environment...
+[2025-12-12T23:33:02.992+0000] {fraud_detection_training_dag.py:109} INFO - Config found: /app/config.yaml
+[2025-12-12T23:33:02.994+0000] {fraud_detection_training_dag.py:112} INFO - Environment validation complete
+[2025-12-12T23:33:02.998+0000] {python.py:240} INFO - Done. Returned value was: None
+[2025-12-12T23:33:03.294+0000] {taskinstance.py:341} INFO - ::group::Post task execution logs
+[2025-12-12T23:33:03.314+0000] {taskinstance.py:353} INFO - Marking task as SUCCESS. dag_id=fraud_detection_training, task_id=validate_environment, run_id=scheduled__2025-12-11T12:00:00+00:00, execution_date=20251211T120000, start_date=20251212T233257, end_date=20251212T233303
+[2025-12-12T23:33:04.901+0000] {local_task_job_runner.py:266} INFO - Task exited with return code 0
+[2025-12-12T23:33:05.962+0000] {taskinstance.py:3901} INFO - 1 downstream tasks scheduled from follow-on schedule check
+[2025-12-12T23:33:05.993+0000] {local_task_job_runner.py:245} INFO - ::endgroup::
+[2025-12-13T09:51:41.358+0000] {local_task_job_runner.py:123} INFO - ::group::Pre task execution logs
+[2025-12-13T09:51:41.393+0000] {taskinstance.py:2614} INFO - Dependencies all met for dep_context=non-requeueable deps ti=<TaskInstance: fraud_detection_training.validate_environment scheduled__2025-12-11T12:00:00+00:00 [queued]>
+[2025-12-13T09:51:41.410+0000] {taskinstance.py:2614} INFO - Dependencies all met for dep_context=requeueable deps ti=<TaskInstance: fraud_detection_training.validate_environment scheduled__2025-12-11T12:00:00+00:00 [queued]>
+[2025-12-13T09:51:41.411+0000] {taskinstance.py:2867} INFO - Starting attempt 1 of 2
+[2025-12-13T09:51:41.435+0000] {taskinstance.py:2890} INFO - Executing <Task(PythonOperator): validate_environment> on 2025-12-11 12:00:00+00:00
+[2025-12-13T09:51:41.444+0000] {warnings.py:112} WARNING - /home/***/.local/lib/python3.12/site-packages/***/task/task_runner/standard_task_runner.py:70: DeprecationWarning: This process (pid=204) is multi-threaded, use of fork() may lead to deadlocks in the child.
+  pid = os.fork()
+
+[2025-12-13T09:51:41.447+0000] {standard_task_runner.py:72} INFO - Started process 205 to run task
+[2025-12-13T09:51:41.448+0000] {standard_task_runner.py:104} INFO - Running: ['***', 'tasks', 'run', 'fraud_detection_training', 'validate_environment', 'scheduled__2025-12-11T12:00:00+00:00', '--job-id', '22', '--raw', '--subdir', 'DAGS_FOLDER/fraud_detection_training_dag.py', '--cfg-path', '/tmp/tmp4gvfyo45']
+[2025-12-13T09:51:41.451+0000] {standard_task_runner.py:105} INFO - Job 22: Subtask validate_environment
+[2025-12-13T09:51:41.524+0000] {task_command.py:467} INFO - Running <TaskInstance: fraud_detection_training.validate_environment scheduled__2025-12-11T12:00:00+00:00 [running]> on host e7b2b5bd3a71
+[2025-12-13T09:51:41.649+0000] {taskinstance.py:3134} INFO - Exporting env vars: AIRFLOW_CTX_DAG_OWNER='datamasterylab.com' AIRFLOW_CTX_DAG_ID='fraud_detection_training' AIRFLOW_CTX_TASK_ID='validate_environment' AIRFLOW_CTX_EXECUTION_DATE='2025-12-11T12:00:00+00:00' AIRFLOW_CTX_TRY_NUMBER='1' AIRFLOW_CTX_DAG_RUN_ID='scheduled__2025-12-11T12:00:00+00:00'
+[2025-12-13T09:51:41.651+0000] {taskinstance.py:732} INFO - ::endgroup::
+[2025-12-13T09:51:41.683+0000] {fraud_detection_training_dag.py:107} INFO - Validating environment...
+[2025-12-13T09:51:41.684+0000] {fraud_detection_training_dag.py:109} INFO - Config found: /app/config.yaml
+[2025-12-13T09:51:41.685+0000] {fraud_detection_training_dag.py:112} INFO - Environment validation complete
+[2025-12-13T09:51:41.686+0000] {python.py:240} INFO - Done. Returned value was: None
+[2025-12-13T09:51:41.703+0000] {taskinstance.py:341} INFO - ::group::Post task execution logs
+[2025-12-13T09:51:41.704+0000] {taskinstance.py:353} INFO - Marking task as SUCCESS. dag_id=fraud_detection_training, task_id=validate_environment, run_id=scheduled__2025-12-11T12:00:00+00:00, execution_date=20251211T120000, start_date=20251213T095141, end_date=20251213T095141
+[2025-12-13T09:51:41.786+0000] {local_task_job_runner.py:266} INFO - Task exited with return code 0
+[2025-12-13T09:51:41.845+0000] {taskinstance.py:3901} INFO - 1 downstream tasks scheduled from follow-on schedule check
+[2025-12-13T09:51:41.849+0000] {local_task_job_runner.py:245} INFO - ::endgroup::

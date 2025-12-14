@@ -6,17 +6,19 @@ mlflow:
   s3_endpoint_url: "http://minio:9000"
   bucket: "mlflow"
 
-kafka:
-  bootstrap_servers: "pkc-921jm.us-east-2.aws.confluent.cloud:9092"
-  username: "5OIHYGHTVCSUQ4TH"
-  password: "cfltd/xTtRzuw3ooRxgqtMcHb5Y6we/PgxnvExk2JeuJiPCo8EuJGV1kqn0xM3MA"
-  topic: "ecommerce_fraud2"
-  output_topic: "fraud_predictions"
-  security_protocol: 'SASL_SSL'
+# API configuration for inference service
+api:
+  url: ${FRAUD_API_URL:-https://3consult-ng.com/fraud_api.php}
+  max_batch_size: 10000
+  max_records_per_run: 100000
+  timeout_seconds: 60
+  retries: 5
+  backoff_factor: 2
 
 model:
   test_size: 0.2
   seed: 42
+  threshold: 0.5  # Classification threshold for inference (tuned based on F-beta score)
   params:
     n_estimators: 300
     learning_rate: 0.05
@@ -26,9 +28,3 @@ model:
     scale_pos_weight: 1
     tree_method: "hist"
   path: "/app/models/fraud_detection_model.pkl"
-
-spark:
-  app_name: "FraudDetectionInference"
-  packages: "org.mlflow:mlflow-spark:2.6.0,com.google.guava:guava:30.1.1-jre,org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.4,org.apache.hadoop:hadoop-aws:3.3.0,com.amazonaws:aws-java-sdk:1.11.469"
-  shuffle_partition: 200
-  checkpoint_location: 'checkpoints'

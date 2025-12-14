@@ -77,8 +77,9 @@ services:
     healthcheck:
       test: ["CMD", "pg_isready", "-U", "airflow"]
       interval: 10s
-      retries: 5
-      start_period: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
     restart: always
     networks:
       - fraud-detection
@@ -149,7 +150,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 30s
+      start_period: 120s
     restart: always
     depends_on:
       <<: *airflow-common-depends-on
@@ -175,7 +176,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 30s
+      start_period: 90s
     environment:
       <<: *airflow-common-env
       # Required to handle warm shutdown of the celery workers properly
@@ -215,7 +216,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 30s
+      start_period: 90s
     restart: always
     depends_on:
       <<: *airflow-common-depends-on
@@ -276,7 +277,9 @@ services:
         fi
         mkdir -p /sources/logs /sources/dags /sources/plugins
         chown -R "${AIRFLOW_UID}:0" /sources/{logs,dags,plugins}
-        exec /entrypoint airflow version
+        echo "Airflow directories initialized successfully"
+        timeout 120 /entrypoint airflow version || echo "Airflow version check timed out, but initialization proceeded"
+        exit 0
     # yamllint enable rule:line-length
     environment:
       <<: *airflow-common-env

@@ -1,9 +1,8 @@
-mlflow
-pyspark
-python-dotenv
-xgboost
-grpcio>=1.48.1
-googleapis-common-protos>=1.56.2
-imblearn
-scikit-learn
-dill
+joblib>=1.3.0
+pandas>=1.5.0
+numpy>=1.24.0
+requests>=2.31.0
+pyyaml>=6.0
+python-dotenv>=1.0.0
+scikit-learn>=1.3.0
+xgboost>=2.0.0

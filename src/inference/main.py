@@ -1,127 +1,132 @@
 """
-Real-time Fraud Detection Inference Pipeline
+Fraud Detection Inference Service
 
-This script consumes transaction data from Kafka, processes it using Spark Streaming,
-applies a pre-trained machine learning model to detect fraudulent transactions,
-and writes predictions back to Kafka.
+This script reads transaction data from the Fraud Detection API,
+applies a pre-trained XGBoost model to detect fraudulent transactions,
+and logs predictions with confidence scores.
+
+Data Flow:
+1. Fetch transactions from FRAUD_API_URL with pagination
+2. Apply feature engineering (same features used in training)
+3. Load the trained fraud detection model
+4. Generate predictions and probability scores
+5. Log results to console and optionally to database/file
+6. Return fraud detection results with confidence metrics
+
+The inference pipeline is designed for batch processing and can be:
+- Scheduled periodically via Airflow
+- Called via REST API endpoint
+- Run as a standalone batch job
 """
 
-# Standard library imports
+import json
 import logging
 import os
+import sys
+from datetime import datetime
+from typing import Dict, List, Tuple, Optional
 
-# Third-party imports
-import joblib  # For loading serialized ML models
-import yaml  # For parsing YAML configuration files
-from dotenv import load_dotenv  # For loading environment variables from .env file
+import joblib
+import numpy as np
+import pandas as pd
+import requests
+import yaml
+from dotenv import load_dotenv
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
-# PySpark imports
-from pyspark.sql import SparkSession
-from pyspark.sql.functions import (from_json, col, hour, dayofmonth,
-                                  dayofweek, when, lit, coalesce)
-from pyspark.sql.pandas.functions import pandas_udf  # For Pandas vectorized UDFs
-from pyspark.sql.types import (StructType, StructField, StringType,
-                              IntegerType, DoubleType, TimestampType)
-
-# Configure logging to track pipeline operations and errors
+# Configure structured logging with timestamps and level indicators
 logging.basicConfig(
-    level=logging.INFO,  # Set logging level to INFO for operational messages
-    format="%(asctime)s [%(levelname)s] %(message)s"  # Structured log format
+    format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
+    level=logging.INFO,
+    handlers=[
+        logging.FileHandler('./fraud_detection_inference.log'),
+        logging.StreamHandler(sys.stdout)
+    ]
 )
-logger = logging.getLogger(__name__)  # Create logger instance for the module
+logger = logging.getLogger(__name__)
 
 
 class FraudDetectionInference:
     """
-    Fraud detection inference pipeline class that handles:
-    - Configuration loading
-    - Spark session management
-    - Kafka stream processing
-    - Feature engineering
-    - Model inference
-    - Results publishing
+    Fraud detection inference pipeline for HTTP API-based data sources.
+
+    This class handles the complete inference workflow:
+    - Configuration management from YAML
+    - API data ingestion with resilient pagination
+    - Feature engineering (matching training pipeline)
+    - Model loading and prediction
+    - Results aggregation and reporting
+
+    Architecture Design:
+    - Stateless: No message queue dependencies (unlike Kafka approach)
+    - Batch processing: Handles paginated API responses efficiently
+    - Feature parity: Uses identical feature engineering as training pipeline
+    - Model compatibility: Works with sklearn/XGBoost pipeline serialized via joblib
 
     Attributes:
-        config (dict): Pipeline configuration parameters
-        spark (SparkSession): Spark session instance
-        model: Loaded ML model for fraud detection
-        broadcast_model: Model broadcast to Spark workers for distributed inference
+        config (dict): Configuration parameters from YAML
+        model: Loaded scikit-learn/XGBoost pipeline
+        api_url (str): Fraud Detection API endpoint
+        max_batch_size (int): Maximum records per API request
     """
 
-    # Class variables for Kafka configuration
-    bootstrap_servers = None
-    topic = None
-    security_protocol = None
-    sasl_mechanism = None
-    username = None
-    password = None
-    sasl_jaas_config = None
-
-    def __init__(self, config_path="/app/config.yaml"):
-        """Initialize pipeline with configuration and dependencies
+    def __init__(self, config_path: str = '/app/config.yaml'):
+        """
+        Initialize inference pipeline with configuration.
 
         Args:
             config_path (str): Path to YAML configuration file
         """
         # Load environment variables from .env file
-        load_dotenv(dotenv_path="/app/.env")
+        load_dotenv(dotenv_path='/app/.env')
 
-        # Load pipeline configuration from YAML file
+        # Load configuration from YAML
         self.config = self._load_config(config_path)
 
-        # Initialize Spark session with Kafka integration packages
-        self.spark = self._init_spark_session()
+        # Initialize API and model parameters
+        self.api_url = os.getenv('FRAUD_API_URL', self.config['api']['url'])
+        self.max_batch_size = int(os.getenv('FRAUD_API_MAX_BATCH_SIZE', 
+                                            self.config['api'].get('max_batch_size', 10000)))
 
-        # Load and broadcast ML model to worker nodes for distributed inference
-        self.model = self._load_model(self.config["model"]["path"])
-        self.broadcast_model = self.spark.sparkContext.broadcast(self.model)
+        # Load pre-trained fraud detection model
+        self.model = self._load_model(self.config['model']['path'])
 
-        # Debug: Log loaded environment variables (sensitive values should be masked in production)
-        logger.debug("Environment variables loaded: %s", dict(os.environ))
+        # Classification threshold (tuned during training)
+        self.threshold = float(self.config['model'].get('threshold', 0.5))
 
-    def _load_model(self, model_path):
-        """Load pre-trained fraud detection model from disk
+        logger.info('Inference pipeline initialized with config: %s', config_path)
+        logger.info('Using API: %s', self.api_url[:60] + '...')
+        logger.info('Classification threshold: %.4f', self.threshold)
+
+    def _load_model(self, model_path: str):
+        """
+        Load pre-trained fraud detection model from disk.
 
         Args:
-            model_path (str): Path to serialized model file
+            model_path (str): Path to serialized model file (joblib format)
 
         Returns:
-            model: Loaded ML model
+            model: Loaded scikit-learn/XGBoost pipeline
 
         Raises:
             Exception: If model loading fails
         """
         try:
             model = joblib.load(model_path)
-            logger.info("Model loaded from %s", model_path)
+            logger.info('Model loaded successfully from %s', model_path)
             return model
         except FileNotFoundError:
-            # Graceful fallback: if no model file is present (common in fresh deploys),
-            # provide a dummy model that returns all non-fraudulent predictions.
-            logger.warning("Model file not found at %s — using dummy model fallback.", model_path)
-            class DummyModel:
-                def predict_proba(self, X):
-                    # Return zero probability for fraud class for all rows
-                    try:
-                        import numpy as _np
-                        n = len(X) if hasattr(X, '__len__') else 1
-                        # shape (n, 2) where column 1 is probability of fraud
-                        probs = _np.zeros((n, 2), dtype=float)
-                        probs[:, 0] = 1.0  # class 0 probability
-                        probs[:, 1] = 0.0  # class 1 probability
-                        return probs
-                    except Exception:
-                        # Fallback when X is not array-like
-                        return [[1.0, 0.0]]
-
-            return DummyModel()
+            logger.error('Model file not found at %s. Have you trained the model yet?', model_path)
+            raise FileNotFoundError(f'Model file not found: {model_path}')
         except Exception as e:
-            logger.error("Error loading model: %s", str(e))
+            logger.error('Error loading model: %s', str(e))
             raise
 
     @staticmethod
-    def _load_config(config_path):
-        """Load YAML configuration file
+    def _load_config(config_path: str) -> dict:
+        """
+        Load YAML configuration file.
 
         Args:
             config_path (str): Path to configuration file
@@ -133,234 +138,468 @@ class FraudDetectionInference:
             Exception: If file loading or parsing fails
         """
         try:
-            with open(config_path, "r") as f:
-                return yaml.safe_load(f)
+            with open(config_path, 'r') as f:
+                config = yaml.safe_load(f)
+            logger.info('Configuration loaded successfully from %s', config_path)
+            return config
+        except FileNotFoundError:
+            logger.error('Configuration file not found: %s', config_path)
+            raise
+        except yaml.YAMLError as e:
+            logger.error('Error parsing YAML configuration: %s', str(e))
+            raise
         except Exception as e:
-            logger.error(f"Error loading config: {str(e)}")
+            logger.error('Unexpected error loading configuration: %s', str(e))
             raise
 
-    def _init_spark_session(self):
-        """Initialize Spark session with Kafka dependencies
-
-        Returns:
-            SparkSession: Configured Spark session
-
-        Raises:
-            Exception: If Spark initialization fails
+    def fetch_transactions_from_api(self, offset: int = 0, limit: int = None) -> Tuple[List[Dict], bool]:
         """
-        try:
-            # Get required packages from config (typically Kafka integration packages)
-            packages = self.config.get("spark", {}).get("packages", "")
+        Fetch transaction data from Fraud Detection API with pagination.
 
-            # Build Spark session with application name and packages
-            builder = SparkSession.builder.appName("FraudDetectionInferenceStreaming")
+        Handles multiple API response shapes:
+        - JSON array of records
+        - JSON object with 'data' or 'transactions' key containing array
+        - Single record (wrapped in array)
 
-            # Add Maven packages if specified in config
-            if packages:
-                builder = builder.config("spark.jars.packages", packages)
-
-            spark = builder.getOrCreate()
-            logger.info("Spark Session initialized.")
-            return spark
-        except Exception as e:
-            logger.error("Error initializing Spark Session: %s", str(e))
-            raise
-
-    def read_from_kafka(self):
-        """Read streaming data from Kafka topic and parse JSON payload
-
-        Returns:
-            DataFrame: Spark DataFrame containing parsed transaction data
-        """
-        logger.info("Reading data from Kafka topic %s", self.config["kafka"]["topic"])
-
-        # Load Kafka configuration parameters with fallback values
-        kafka_config = self.config["kafka"]
-        kafka_bootstrap_servers = kafka_config.get("bootstrap_servers", "localhost:9092")
-        kafka_topic = kafka_config["topic"]
-        kafka_security_protocol = kafka_config.get("security_protocol", "SASL_SSL")
-        kafka_sasl_mechanism = kafka_config.get("sasl_mechanism", "PLAIN")
-        kafka_username = kafka_config.get("username")
-        kafka_password = kafka_config.get("password")
-
-        # Configure Kafka SASL authentication string
-        kafka_sasl_jaas_config = (
-            f'org.apache.kafka.common.security.plain.PlainLoginModule required '
-            f'username="{kafka_username}" password="{kafka_password}";'
-        )
-
-        # Store Kafka configuration in instance variables for reuse
-        self.bootstrap_servers = kafka_bootstrap_servers
-        self.topic = kafka_topic
-        self.security_protocol = kafka_security_protocol
-        self.sasl_mechanism = kafka_sasl_mechanism
-        self.username = kafka_username
-        self.password = kafka_password
-        self.sasl_jaas_config = kafka_sasl_jaas_config
-
-        # Define schema for incoming JSON transaction data
-        json_schema = StructType([
-            StructField("transaction_id", StringType(), True),
-            StructField("user_id", IntegerType(), True),
-            StructField("amount", DoubleType(), True),
-            StructField("currency", StringType(), True),
-            StructField("merchant", StringType(), True),
-            StructField("timestamp", TimestampType(), True),
-            StructField("location", StringType(), True),
-        ])
-
-        # Create streaming DataFrame from Kafka source
-        df = self.spark.readStream \
-            .format("kafka") \
-            .option("kafka.bootstrap.servers", kafka_bootstrap_servers) \
-            .option("subscribe", kafka_topic) \
-            .option("startingOffsets", "latest") \
-            .option("kafka.security.protocol", kafka_security_protocol) \
-            .option("kafka.sasl.mechanism", kafka_sasl_mechanism) \
-            .option("kafka.sasl.jaas.config", kafka_sasl_jaas_config) \
-            .load()
-
-        # Parse JSON payload using defined schema
-        parsed_df = df.selectExpr("CAST(value AS STRING)") \
-            .select(from_json(col("value"), json_schema).alias("data")) \
-            .select("data.*")
-
-        return parsed_df
-
-    def add_features(self, df):
-        """Add engineered features for model inference
+        Implements exponential backoff for transient failures.
 
         Args:
-            df (DataFrame): Input DataFrame with raw transaction data
+            offset (int): Starting record offset for pagination
+            limit (int): Maximum records to fetch (defaults to max_batch_size)
 
         Returns:
-            DataFrame: DataFrame with additional feature columns
+            Tuple[List[Dict], bool]: (records fetched, end_of_data_reached)
+
+        Raises:
+            Exception: If API call fails after retries
         """
-        # Temporal features from transaction timestamp
-        df = df.withColumn("transaction_hour", hour(col("timestamp")))
-        df = df.withColumn("is_night",
-                           when((col("transaction_hour") >= 22) | (col("transaction_hour") < 5), 1).otherwise(0))
-        df = df.withColumn("is_weekend",
-                           when((dayofweek(col("timestamp")) == 1) | (dayofweek(col("timestamp")) == 7),
-                                1).otherwise(0))
-        df = df.withColumn("transaction_day", dayofmonth(col("timestamp")))
+        if limit is None:
+            limit = self.max_batch_size
 
-        # Transaction pattern features (placeholders - would normally come from historical data)
-        # In production, these would be calculated using window functions or join with historical data
-        df = df.withColumn("time_since_last_txn", lit(0.0))  # Placeholder value
-        df = df.withColumn("user_activity_24h", lit(1000))  # Placeholder value
-        df = df.withColumn("rolling_avg_7d", lit(1000.0))  # Placeholder value
+        session = requests.Session()
+        retries = Retry(total=5, backoff_factor=2, status_forcelist=(500, 502, 503, 504))
+        session.mount('https://', HTTPAdapter(max_retries=retries))
+        session.mount('http://', HTTPAdapter(max_retries=retries))
 
-        # Ratio features to capture transaction amount patterns
-        df = df.withColumn("amount_to_avg_ratio", col("amount") / col("rolling_avg_7d"))
-        df = df.withColumn("amount_to_avg_ratio", coalesce(col("amount_to_avg_ratio"), lit(1.0)))
+        try:
+            params = {'offset': offset, 'limit': limit}
+            logger.debug('Fetching from API with params: %s', params)
 
-        # Merchant risk features from configurable list of high-risk merchants
-        high_risk_merchants = self.config.get('high_risk_merchants', ['QuickCash', 'GlobalDigital', 'FastMoneyX'])
-        df = df.withColumn("merchant_risk", col("merchant").isin(high_risk_merchants).cast("int"))
+            response = session.get(self.api_url, params=params, timeout=60)
+            response.raise_for_status()
 
-        # Debug: Output schema of processed data for verification
-        df.printSchema()
+            payload = response.json()
+
+            # Normalize response shape
+            if isinstance(payload, dict):
+                if 'data' in payload and isinstance(payload['data'], list):
+                    records = payload['data']
+                elif 'transactions' in payload and isinstance(payload['transactions'], list):
+                    records = payload['transactions']
+                else:
+                    lists = [v for v in payload.values() if isinstance(v, list)]
+                    records = lists[0] if lists else [payload]
+            elif isinstance(payload, list):
+                records = payload
+            else:
+                records = [payload]
+
+            # Determine if we've reached end of data
+            end_of_data = len(records) < limit
+
+            logger.info('Fetched %d records from API (offset=%d, end_of_data=%s)', 
+                       len(records), offset, end_of_data)
+
+            return records, end_of_data
+
+        except requests.exceptions.RequestException as e:
+            logger.error('API request failed: %s', str(e))
+            raise
+
+    def ingest_data(self, max_records: int = None) -> pd.DataFrame:
+        """
+        Ingest transaction data from API via pagination until exhausted or max reached.
+
+        Args:
+            max_records (int): Optional hard limit on total records to fetch
+
+        Returns:
+            pd.DataFrame: Aggregated transaction data
+
+        Raises:
+            Exception: If data ingestion fails
+        """
+        all_records = []
+        offset = 0
+        max_records = max_records or int(os.getenv('FRAUD_API_INFERENCE_MAX_RECORDS', 10000))
+
+        logger.info('Starting data ingestion from API (max_records=%d)', max_records)
+
+        while True:
+            try:
+                records, end_of_data = self.fetch_transactions_from_api(offset=offset)
+
+                if not records:
+                    logger.info('No records returned from API at offset %d', offset)
+                    break
+
+                all_records.extend(records)
+
+                # Stop if we've reached max records or end of API data
+                if len(all_records) >= max_records:
+                    all_records = all_records[:max_records]
+                    logger.info('Reached max_records limit (%d)', max_records)
+                    break
+
+                if end_of_data:
+                    logger.info('Reached end of API data at total records: %d', len(all_records))
+                    break
+
+                offset += len(records)
+
+            except Exception as e:
+                logger.error('Data ingestion failed at offset %d: %s', offset, str(e))
+                if all_records:
+                    logger.info('Proceeding with %d records ingested so far', len(all_records))
+                    break
+                else:
+                    raise
+
+        if not all_records:
+            raise ValueError('No transaction data received from API')
+
+        # Convert to DataFrame
+        df = pd.DataFrame(all_records)
+        logger.info('Data ingestion complete: %d rows, %d columns', len(df), len(df.columns))
+
         return df
 
-    def run_inference(self):
-        """Main pipeline execution flow: process stream and run predictions"""
-        # Local import for Spark executor compatibility
-        import pandas as pd
+    def preprocess_data(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Apply data type conversions matching training pipeline.
 
-        # Process streaming data from Kafka
-        df = self.read_from_kafka()
+        Converts:
+        - Timestamps to datetime objects
+        - Numeric strings to numbers
+        - Boolean strings to integers
+        - Handles missing values gracefully
 
-        # Define watermark to handle late-arriving data (24 hour tolerance)
-        df = df.withWatermark("timestamp", "24 hours")
+        Args:
+            df (pd.DataFrame): Raw transaction data
 
-        # Add engineered features to raw data
-        feature_df = self.add_features(df)
+        Returns:
+            pd.DataFrame: Preprocessed data with correct dtypes
+        """
+        try:
+            df = df.copy()
 
-        # Get broadcasted model reference for use in UDF
-        broadcast_model = self.broadcast_model
+            # Convert timestamp fields
+            timestamp_cols = ['timestamp', 'registration_date', 'created_at']
+            for col in timestamp_cols:
+                if col in df.columns:
+                    df[col] = pd.to_datetime(df[col], errors='coerce', utc=True)
 
-        # Define prediction UDF using Pandas for vectorized operations
-        @pandas_udf("int")
-        def predict_udf(
-                user_id: pd.Series,
-                amount: pd.Series,
-                currency: pd.Series,
-                transaction_hour: pd.Series,
-                is_weekend: pd.Series,
-                time_since_last_txn: pd.Series,
-                merchant_risk: pd.Series,
-                amount_to_avg_ratio: pd.Series,
-                is_night: pd.Series,
-                transaction_day: pd.Series,
-                user_activity_24h: pd.Series,
-                merchant: pd.Series
-        ) -> pd.Series:
-            """Vectorized UDF for batch prediction using pre-trained model
+            # Convert integer/numeric fields
+            numeric_cols = [
+                'id', 'age', 'session_duration', 'price', 'discount', 'quantity',
+                'amount', 'rating', 'account_age_days', 'sim_card_age_days',
+                'vendor_age_days', 'discount_velocity_24h', 'transaction_velocity_1h',
+                'transaction_velocity_24h', 'payment_velocity_1h', 'payment_velocity_24h',
+                'shared_address_count', 'shared_phone_number_count', 'shared_ip_count',
+                'linked_accounts', 'login_frequency', 'complaint_frequency'
+            ]
+            for col in numeric_cols:
+                if col in df.columns:
+                    df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
 
-            Args:
-                Various Pandas Series containing feature values
+            # Convert float/score fields
+            float_cols = [
+                'identity_mismatch_score', 'identity_verification_score', 'sim_swap_probability',
+                'device_fingerprint_score', 'product_price_anomaly_score', 'browser_integrity_score',
+                'failed_payment_ratio', 'avg_order_value', 'current_order_value_ratio',
+                'address_risk_score', 'location_distance_score', 'address_reuse_rate',
+                'delivery_delay_ratio', 'rider_collusion_risk', 'refund_abuse_score',
+                'refund_to_purchase_ratio', 'return_inspection_score', 'product_swap_probability',
+                'fraud_ring_score', 'account_link_density', 'device_change_rate',
+                'device_trust_score', 'ip_risk_score', 'user_reputation_score',
+                'activity_timing_score', 'anomaly_frequency_score', 'behavioral_consistency_score',
+                'vendor_risk_score', 'fake_review_score', 'delivery_dispute_rate'
+            ]
+            for col in float_cols:
+                if col in df.columns:
+                    df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0.0)
 
-            Returns:
-                pd.Series: Binary predictions (0=legitimate, 1=fraud)
-            """
-            # Create input DataFrame from feature columns
-            input_df = pd.DataFrame({
-                "user_id": user_id,
-                "amount": amount,
-                "currency": currency,
-                "transaction_hour": transaction_hour,
-                "is_weekend": is_weekend,
-                "time_since_last_txn": time_since_last_txn,
-                "merchant_risk": merchant_risk,
-                "amount_to_avg_ratio": amount_to_avg_ratio,
-                "is_night": is_night,
-                "transaction_day": transaction_day,
-                "user_activity_24h": user_activity_24h,
-                "merchant": merchant
-            })
+            # Convert boolean fields (string 't'/'f' to 0/1)
+            boolean_cols = [
+                'return_request', 'phone_verified', 'android_emulator_detection',
+                'unusual_discount_flag', 'cart_tampering_detection', 'payment_method_anomaly',
+                'is_linked_card', 'bank_transfer_verification', 'partial_payment_requirement',
+                'ip_location_mismatch_flag', 'failed_delivery_pattern', 'otp_delivery_verification',
+                'gps_delivery_confirmation', 'serial_number_mismatch', 'multi_device_login_flag',
+                'proxy_detection_flag', 'vpn_usage_flag', 'rating_burst_detection',
+                'email_disposable_flag'
+            ]
+            for col in boolean_cols:
+                if col in df.columns:
+                    df[col] = (df[col].astype(str).str.lower() == 't').astype(int)
 
-            # Get fraud probabilities and apply classification threshold
-            probabilities = broadcast_model.value.predict_proba(input_df)[:, 1]
-            threshold = 0.60  # Tuned based on precision/recall requirements
-            predictions = (probabilities >= threshold).astype(int)
-            return pd.Series(predictions)
+            logger.info('Data preprocessing complete. Shape: %d rows, %d columns', len(df), len(df.columns))
+            return df
 
-        # Apply predictions to streaming DataFrame
-        prediction_df = feature_df.withColumn("prediction", predict_udf(
-            *[col(f) for f in [
-                "user_id", "amount", "currency", "transaction_hour",
-                "is_weekend", "time_since_last_txn", "merchant_risk",
-                "amount_to_avg_ratio", "is_night", "transaction_day",
-                "user_activity_24h", "merchant"
-            ]]
-        ))
+        except Exception as e:
+            logger.error('Data preprocessing failed: %s', str(e))
+            raise
 
-        # Filter to only include high-confidence fraud predictions
-        fraud_predictions = prediction_df.filter(col("prediction") == 1)
+    def engineer_features(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Apply feature engineering matching training pipeline.
 
-        # Write results back to Kafka topic
-        (fraud_predictions.selectExpr(
-            "CAST(transaction_id AS STRING) AS key",
-            "to_json(struct(*)) AS value"  # Serialize all fields as JSON
-        )
-         .writeStream
-         .format("kafka")
-         .option("kafka.bootstrap.servers", self.bootstrap_servers)
-         .option("topic", 'fraud_predictions')  # Output topic for fraud alerts
-         .option("kafka.security.protocol", self.security_protocol)
-         .option("kafka.sasl.mechanism", self.sasl_mechanism)
-         .option("kafka.sasl.jaas.config", self.sasl_jaas_config)
-         .option("checkpointLocation", "checkpoints/checkpoint")  # For fault tolerance and recovery
-         .outputMode("update")  # Only write updated records
-         .start()
-         .awaitTermination())  # Keep the streaming context alive
+        Constructs features from raw transaction data for model input:
+        - Temporal features (hour, day, weekend)
+        - Account age and session duration
+        - Transaction velocity patterns
+        - Payment and delivery patterns
+        - Risk scores from data
+
+        Args:
+            df (pd.DataFrame): Preprocessed transaction data
+
+        Returns:
+            pd.DataFrame: Features ready for model prediction
+        """
+        try:
+            df = df.copy()
+
+            # Temporal features
+            if 'timestamp' in df.columns:
+                df['transaction_hour'] = df['timestamp'].dt.hour
+                df['is_night'] = ((df['transaction_hour'] >= 22) | (df['transaction_hour'] < 5)).astype(int)
+                df['is_weekend'] = (df['timestamp'].dt.dayofweek >= 5).astype(int)
+                df['transaction_day'] = df['timestamp'].dt.day
+            else:
+                df['transaction_hour'] = 0
+                df['is_night'] = 0
+                df['is_weekend'] = 0
+                df['transaction_day'] = 0
+
+            # Fill missing numeric defaults
+            for col in ['account_age_days', 'session_duration']:
+                if col not in df.columns:
+                    df[col] = 0
+
+            # Behavioral features (use pre-computed values from API data)
+            for col in ['transaction_velocity_24h', 'payment_velocity_24h', 
+                       'discount_velocity_24h', 'login_frequency', 'complaint_frequency']:
+                if col not in df.columns:
+                    df[col] = 0
+
+            # Financial features
+            for col in ['amount', 'price', 'discount', 'quantity', 'current_order_value_ratio']:
+                if col not in df.columns:
+                    df[col] = 0.0
+
+            # Risk and score features
+            risk_cols = [
+                'identity_mismatch_score', 'identity_verification_score', 'sim_swap_probability',
+                'device_fingerprint_score', 'product_price_anomaly_score', 'browser_integrity_score',
+                'failed_payment_ratio', 'avg_order_value', 'address_risk_score',
+                'location_distance_score', 'address_reuse_rate', 'delivery_delay_ratio',
+                'rider_collusion_risk', 'refund_abuse_score', 'refund_to_purchase_ratio',
+                'return_inspection_score', 'product_swap_probability', 'fraud_ring_score',
+                'account_link_density', 'device_change_rate', 'device_trust_score',
+                'ip_risk_score', 'user_reputation_score', 'activity_timing_score',
+                'anomaly_frequency_score', 'behavioral_consistency_score', 'vendor_risk_score',
+                'fake_review_score', 'delivery_dispute_rate'
+            ]
+            for col in risk_cols:
+                if col not in df.columns:
+                    df[col] = 0.0
+
+            # Categorical/boolean features
+            bool_cols = [
+                'return_request', 'phone_verified', 'android_emulator_detection',
+                'unusual_discount_flag', 'cart_tampering_detection', 'payment_method_anomaly',
+                'is_linked_card', 'bank_transfer_verification', 'partial_payment_requirement',
+                'ip_location_mismatch_flag', 'failed_delivery_pattern', 'otp_delivery_verification',
+                'gps_delivery_confirmation', 'serial_number_mismatch', 'multi_device_login_flag',
+                'proxy_detection_flag', 'vpn_usage_flag', 'rating_burst_detection',
+                'email_disposable_flag'
+            ]
+            for col in bool_cols:
+                if col not in df.columns:
+                    df[col] = 0
+
+            # Shared/linked account features
+            for col in ['shared_address_count', 'shared_phone_number_count', 'shared_ip_count', 'linked_accounts']:
+                if col not in df.columns:
+                    df[col] = 0
+
+            logger.info('Feature engineering complete. Total features: %d', len(df.columns))
+            return df
+
+        except Exception as e:
+            logger.error('Feature engineering failed: %s', str(e))
+            raise
+
+    def predict(self, X: pd.DataFrame) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """
+        Generate fraud predictions for input features.
+
+        Args:
+            X (pd.DataFrame): Feature matrix for prediction
+
+        Returns:
+            Tuple containing:
+            - predictions (np.ndarray): Binary predictions (0=legitimate, 1=fraud)
+            - probabilities (np.ndarray): Fraud class probabilities
+            - confidence (np.ndarray): Confidence scores (max probability)
+        """
+        try:
+            # Get fraud probabilities from model
+            probabilities = self.model.predict_proba(X)[:, 1]
+
+            # Apply classification threshold
+            predictions = (probabilities >= self.threshold).astype(int)
+
+            # Calculate confidence as max probability across classes
+            confidence = np.max(self.model.predict_proba(X), axis=1)
+
+            logger.info('Generated predictions for %d records', len(X))
+            logger.info('Fraud predictions: %d (%.2f%%)', 
+                       predictions.sum(), 100 * predictions.mean())
+
+            return predictions, probabilities, confidence
+
+        except Exception as e:
+            logger.error('Prediction failed: %s', str(e))
+            raise
+
+    def run_inference(self, max_records: int = None) -> pd.DataFrame:
+        """
+        Execute complete inference pipeline: ingest → preprocess → engineer → predict.
+
+        Args:
+            max_records (int): Optional limit on records to process
+
+        Returns:
+            pd.DataFrame: Results with predictions and probabilities
+        """
+        logger.info('Starting fraud detection inference pipeline')
+        start_time = datetime.now()
+
+        try:
+            # Step 1: Ingest data from API
+            df = self.ingest_data(max_records=max_records)
+            logger.info('Data ingestion: %d records in %.2f seconds', 
+                       len(df), (datetime.now() - start_time).total_seconds())
+
+            # Step 2: Preprocess data types
+            df = self.preprocess_data(df)
+
+            # Step 3: Engineer features
+            df = self.engineer_features(df)
+
+            # Step 4: Select features for model
+            # Get feature names from trained model
+            feature_cols = self.model.feature_names_in_.tolist()
+            missing_cols = [col for col in feature_cols if col not in df.columns]
+            if missing_cols:
+                logger.warning('Missing features: %s. Will use zeros for these columns.', missing_cols)
+                for col in missing_cols:
+                    df[col] = 0
+
+            X = df[feature_cols]
+
+            # Step 5: Generate predictions
+            predictions, probabilities, confidence = self.predict(X)
+
+            # Step 6: Combine results
+            results = df[['transaction_id', 'user_id', 'amount', 'timestamp'] 
+                        if all(c in df.columns for c in ['transaction_id', 'user_id', 'amount', 'timestamp'])
+                        else df.columns[:4]].copy()
+
+            results['fraud_prediction'] = predictions
+            results['fraud_probability'] = probabilities
+            results['confidence'] = confidence
+            results['prediction_timestamp'] = datetime.now()
+            results['threshold'] = self.threshold
+
+            # Log summary statistics
+            elapsed = (datetime.now() - start_time).total_seconds()
+            logger.info('Inference complete in %.2f seconds', elapsed)
+            logger.info('Results: %d records, %d frauds (%.2f%%), %.2f records/sec',
+                       len(results), predictions.sum(), 100 * predictions.mean(),
+                       len(results) / elapsed if elapsed > 0 else 0)
+
+            return results
+
+        except Exception as e:
+            logger.error('Inference pipeline failed: %s', str(e), exc_info=True)
+            raise
+
+    def save_results(self, results: pd.DataFrame, output_path: str = None) -> str:
+        """
+        Save inference results to JSON file.
+
+        Args:
+            results (pd.DataFrame): Results dataframe
+            output_path (str): Output file path (defaults to timestamped file)
+
+        Returns:
+            str: Path to saved file
+        """
+        try:
+            if output_path is None:
+                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+                output_path = f'fraud_predictions_{timestamp}.json'
+
+            # Convert datetime columns to strings for JSON serialization
+            results_copy = results.copy()
+            for col in results_copy.select_dtypes(include=['datetime64']).columns:
+                results_copy[col] = results_copy[col].astype(str)
+
+            with open(output_path, 'w') as f:
+                json.dump(results_copy.to_dict('records'), f, indent=2)
+
+            logger.info('Results saved to %s', output_path)
+            return output_path
+
+        except Exception as e:
+            logger.error('Error saving results: %s', str(e))
+            raise
 
 
-if __name__ == "__main__":
-    """Main entry point for the inference pipeline"""
-    # Initialize pipeline with configuration
-    inference = FraudDetectionInference("/app/config.yaml")
+def main():
+    """Main entry point for inference pipeline."""
+    try:
+        # Initialize inference pipeline
+        inference = FraudDetectionInference(config_path='/app/config.yaml')
 
-    # Start streaming processing and block until termination
-    inference.run_inference()
+        # Run inference pipeline
+        results = inference.run_inference(max_records=int(os.getenv('FRAUD_API_INFERENCE_MAX_RECORDS', 10000)))
+
+        # Save results
+        output_file = inference.save_results(results)
+
+        # Display summary
+        fraud_count = results['fraud_prediction'].sum()
+        total_count = len(results)
+        fraud_rate = 100 * fraud_count / total_count if total_count > 0 else 0
+
+        logger.info('=' * 60)
+        logger.info('INFERENCE SUMMARY')
+        logger.info('=' * 60)
+        logger.info('Total records: %d', total_count)
+        logger.info('Fraud detections: %d (%.2f%%)', fraud_count, fraud_rate)
+        logger.info('Results saved to: %s', output_file)
+        logger.info('=' * 60)
+
+        return 0
+
+    except Exception as e:
+        logger.error('Fatal error in inference pipeline: %s', str(e), exc_info=True)
+        return 1
+
+
+if __name__ == '__main__':
+    sys.exit(main())

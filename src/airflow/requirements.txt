@@ -5,13 +5,14 @@ pyyaml
 catboost
 pyspark
 lightgbm
-imblearn
+imbalanced-learn>=0.13.0
 pandas
-scikit-learn
+scikit-learn==1.7.2
 boto3
 tqdm
 tqdm-joblib
 flower
 python-snappy
-redis==5.2.1
+redis==3.5.3
+kombu>=5.3.0
 requests>=2.28.0
