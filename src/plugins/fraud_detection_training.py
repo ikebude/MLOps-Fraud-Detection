@@ -11,6 +11,9 @@ import logging
 import os
 import signal
 import sys
+import time
+import socket
+import urllib.parse
 import yaml
 from dotenv import load_dotenv
 
@@ -66,6 +69,18 @@ class FraudDetectionTraining:
         # MLflow configuration for experiment tracking (imported locally to avoid DAG parse issues)
         try:
             import mlflow
+            # Wait for MLflow server hostname to resolve to mitigate transient Docker DNS failures
+            try:
+                tracking_uri = self.config.get('mlflow', {}).get('tracking_uri')
+                if tracking_uri:
+                    parsed = urllib.parse.urlparse(tracking_uri)
+                    host = parsed.hostname
+                    port = parsed.port or (80 if parsed.scheme == 'http' else 443)
+                    if host:
+                        self._wait_for_hostname(host, port=port, timeout=60)
+            except Exception:
+                logger.debug('MLflow hostname check failed or timed out; continuing')
+
             mlflow.set_tracking_uri(self.config['mlflow']['tracking_uri'])
             mlflow.set_experiment(self.config['mlflow']['experiment_name'])
         except Exception:
@@ -93,6 +108,14 @@ class FraudDetectionTraining:
         # Keep object storage check for MLflow artifacts
         self._check_minio_connection()
 
+        # Ensure key services are resolvable before starting heavy work (helps with transient Docker DNS issues)
+        try:
+            pg_host = os.getenv('POSTGRES_HOST')
+            if pg_host:
+                self._wait_for_hostname(pg_host, timeout=60)
+        except Exception:
+            logger.debug('Postgres hostname check skipped or failed; continuing')
+
     def _check_minio_connection(self):
         """Validate object storage connectivity and bucket configuration."""
         try:
@@ -116,6 +139,28 @@ class FraudDetectionTraining:
                 logger.info('Created missing MLFlow bucket: %s', mlflow_bucket)
         except Exception as e:
             logger.error('Minio connection failed: %s', str(e))
+
+    def _wait_for_hostname(self, host: str, port: int | None = None, timeout: int = 30, interval: float = 2.0):
+        """Wait until the given hostname resolves (and optionally the TCP port is reachable).
+
+        This helps mitigate transient Docker DNS/name-resolution issues inside Compose.
+        Raises TimeoutError if the host cannot be resolved within timeout seconds.
+        """
+        start = time.time()
+        while True:
+            try:
+                # Try DNS resolution
+                socket.getaddrinfo(host, port or 0)
+                # Optionally check TCP port
+                if port:
+                    with socket.create_connection((host, port), timeout=3):
+                        return True
+                return True
+            except Exception as e:
+                if time.time() - start > timeout:
+                    logger.warning('Timed out waiting for host %s:%s (%s)', host, port, e)
+                    raise TimeoutError(f'Could not resolve host {host}') from e
+                time.sleep(interval)
 
     def ingest_data(self) -> "pd.DataFrame":
         """
@@ -156,9 +201,19 @@ class FraudDetectionTraining:
                        base_url, micro_batch_size, max_total_messages)
 
             session = requests.Session()
-            retries = Retry(total=5, backoff_factor=2, status_forcelist=(500, 502, 503, 504))
+            retries = Retry(
+                total=5,
+                backoff_factor=2,
+                status_forcelist=(500, 502, 503, 504),
+                respect_retry_after_header=True,  # Respect server retry hints
+                raise_on_status=False  # Don't raise immediately, we handle it
+            )
             session.mount('https://', HTTPAdapter(max_retries=retries))
             session.mount('http://', HTTPAdapter(max_retries=retries))
+            
+            # Configure read timeout and connection timeout
+            # timeout=(connect_timeout, read_timeout)
+            timeout = (10, 120)  # 10s connect, 120s read
 
             offset = 0
             limit = micro_batch_size
@@ -173,8 +228,20 @@ class FraudDetectionTraining:
 
                 params = {'offset': offset, 'limit': limit}
                 try:
-                    resp = session.get(base_url, params=params, timeout=60)
+                    resp = session.get(base_url, params=params, timeout=timeout)
                     attempt_backoff = 1
+                except requests.exceptions.Timeout as e:
+                    logger.warning('Request timeout at offset %d after %.1fs. Retrying with backoff...', 
+                                 offset, timeout[1])
+                    time.sleep(attempt_backoff)
+                    attempt_backoff = min(max_attempt_backoff, attempt_backoff * 2)
+                    continue
+                except requests.exceptions.ConnectionError as e:
+                    logger.warning('Connection error at offset %d: %s. Retrying with backoff...', 
+                                 offset, str(e))
+                    time.sleep(attempt_backoff)
+                    attempt_backoff = min(max_attempt_backoff, attempt_backoff * 2)
+                    continue
                 except Exception as e:
                     logger.warning('Transient error fetching API page at offset %d: %s', offset, str(e))
                     time.sleep(attempt_backoff)
@@ -475,7 +542,21 @@ class FraudDetectionTraining:
                 random_state=self.config.get('model', {}).get('seed', 42)
             )
 
-            with mlflow.start_run():
+            # Robustly start an MLflow run with retries to handle transient name-resolution/connectivity issues
+            run = None
+            max_mlflow_retries = self.config.get('api', {}).get('retries', 5)
+            backoff = self.config.get('api', {}).get('backoff_factor', 2)
+            for attempt in range(1, max_mlflow_retries + 1):
+                try:
+                    run = mlflow.start_run()
+                    break
+                except Exception as e:
+                    logger.warning('MLflow start_run attempt %d/%d failed: %s', attempt, max_mlflow_retries, e)
+                    if attempt == max_mlflow_retries:
+                        raise
+                    time.sleep(backoff ** (attempt - 1))
+
+            try:
                 mlflow.log_metrics({
                     'train_samples': X_train.shape[0],
                     'positive_samples': int(y_train.sum()),
@@ -515,11 +596,13 @@ class FraudDetectionTraining:
                     tree_method=self.config.get('model', {}).get('tree_method', 'hist')
                 )
 
+                # Use sequential processing (n_jobs=1) to avoid DB connection pool exhaustion
+                # during cross-validation. Parallel joblib subprocesses consume all available connections.
                 pipeline = ImbPipeline([
                     ('preprocessor', preprocessor),
                     ('smote', SMOTE(random_state=self.config.get('model', {}).get('seed', 42))),
                     ('classifier', xgb)
-                ], memory='./cache')
+                ])
 
                 param_dist = {
                     'classifier__max_depth': [3, 5, 7],
@@ -536,10 +619,11 @@ class FraudDetectionTraining:
                     n_iter=20,
                     scoring=make_scorer(fbeta_score, beta=2, zero_division=0),
                     cv=StratifiedKFold(n_splits=3, shuffle=True),
-                    n_jobs=-1,
+                    n_jobs=1,
                     refit=True,
                     error_score='raise',
-                    random_state=self.config.get('model', {}).get('seed', 42)
+                    random_state=self.config.get('model', {}).get('seed', 42),
+                    verbose=1
                 )
 
                 logger.info('Starting hyperparameter tuning...')
@@ -598,6 +682,12 @@ class FraudDetectionTraining:
                 plt.savefig(pr_filename)
                 mlflow.log_artifact(pr_filename)
                 plt.close()
+            finally:
+                try:
+                    if run is not None:
+                        mlflow.end_run()
+                except Exception:
+                    logger.debug('Failed to properly end MLflow run')
 
                 signature = infer_signature(X_train, y_pred)
                 mlflow.sklearn.log_model(
@@ -611,6 +701,11 @@ class FraudDetectionTraining:
                 joblib.dump(best_model, '/app/models/fraud_detection_model.pkl')
 
                 logger.info('Training successfully completed with metrics: %s', metrics)
+                
+                # Explicit cleanup to release resources and database connections
+                import gc
+                del searcher, pipeline, X_train, X_test, y_train, y_test
+                gc.collect()
 
                 return best_model, metrics
 

@@ -25,17 +25,19 @@ x-airflow-common: &airflow-common
     MLFLOW_TRACKING_URI: 'http://mlflow-server:5500'
     MLFLOW_S3_ENDPOINT_URL: 'http://minio:9000'
     # Increase heartbeat interval and timeout to tolerate transient DB/network issues in long-running tasks
-    AIRFLOW__JOBS__JOB_HEARTBEAT_SEC: '60'
-    AIRFLOW__JOBS__JOB_HEARTBEAT_FAILURE_THRESHOLD: '15'
+    # During hyperparameter tuning, CV folds may temporarily lock many connections
+    AIRFLOW__JOBS__JOB_HEARTBEAT_SEC: '120'
+    AIRFLOW__JOBS__JOB_HEARTBEAT_FAILURE_THRESHOLD: '20'
     # Celery broker connection settings
     AIRFLOW__CELERY__BROKER_CONNECTION_RETRY_ON_STARTUP: 'true'
     AIRFLOW__CELERY__BROKER_CONNECTION_MAX_RETRIES: '10'
     # Celery visibility timeout (task can run longer before being considered lost)
     AIRFLOW__CELERY__VISIBILITY_TIMEOUT: '3600'
     # Database connection pool settings to prevent connection exhaustion
-    AIRFLOW__DATABASE__SQL_ALCHEMY_POOL_SIZE: '20'
-    AIRFLOW__DATABASE__SQL_ALCHEMY_MAX_OVERFLOW: '10'
-    AIRFLOW__DATABASE__SQL_ALCHEMY_POOL_RECYCLE: '3600'
+    # Increased to handle CV folds and task monitoring simultaneously
+    AIRFLOW__DATABASE__SQL_ALCHEMY_POOL_SIZE: '50'
+    AIRFLOW__DATABASE__SQL_ALCHEMY_MAX_OVERFLOW: '30'
+    AIRFLOW__DATABASE__SQL_ALCHEMY_POOL_RECYCLE: '1800'
     AIRFLOW__DATABASE__SQL_ALCHEMY_POOL_PRE_PING: 'true'
     # Ensure Airflow constructs valid served-log URLs (host + port)
     # Set to the host that the browser will use to access Airflow webserver.
@@ -82,7 +84,13 @@ services:
       start_period: 30s
     restart: always
     networks:
-      - fraud-detection
+      fraud-detection:
+        ipv4_address: 172.20.0.2
+    # Configure DNS servers for better resolution
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+      - 1.1.1.1
 
   redis:
     # Redis is limited to 7.2-bookworm due to licencing change
@@ -100,7 +108,12 @@ services:
       start_period: 30s
     restart: always
     networks:
-      - fraud-detection
+      fraud-detection:
+        ipv4_address: 172.20.0.3
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+      - 1.1.1.1
 
   airflow-webserver:
     <<: *airflow-common
@@ -141,6 +154,10 @@ services:
           memory: 1.5G
     networks:
       - fraud-detection
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+      - 1.1.1.1
 
   airflow-scheduler:
     <<: *airflow-common
@@ -164,6 +181,10 @@ services:
           memory: 2G
     networks:
       - fraud-detection
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+      - 1.1.1.1
 
   airflow-worker:
     <<: *airflow-common
@@ -207,6 +228,10 @@ services:
           memory: 3G
     networks:
       - fraud-detection
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+      - 1.1.1.1
 
   airflow-triggerer:
     <<: *airflow-common
@@ -224,6 +249,10 @@ services:
         condition: service_completed_successfully
     networks:
       - fraud-detection
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+      - 1.1.1.1
 
   airflow-init:
     <<: *airflow-common
@@ -370,6 +399,10 @@ services:
       - minio_data:/data
     networks:
       - fraud-detection
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+      - 1.1.1.1
 
   #  MLFLOW SERVER
   mlflow-server:
@@ -407,6 +440,10 @@ services:
       start_period: 60s
     networks:
       - fraud-detection
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+      - 1.1.1.1
 
   producer:
     build:
@@ -448,6 +485,10 @@ services:
         condition: service_healthy
     networks:
       - fraud-detection
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+      - 1.1.1.1
 
   inference:
     build: ./inference
@@ -458,6 +499,10 @@ services:
       - ./.env:/app/.env
     networks:
       - fraud-detection
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+      - 1.1.1.1
 
 volumes:
   postgres-db-volume:
@@ -467,3 +512,11 @@ volumes:
 networks:
   fraud-detection:
     driver: bridge
+    driver_opts:
+      # Enable IPv6 (helps with DNS resolution in some environments)
+      com.docker.network.enable_ipv6: "true"
+    ipam:
+      config:
+        # Use standard Docker network range for better DNS resolution
+        - subnet: 172.20.0.0/16
+          gateway: 172.20.0.1
