@@ -131,6 +131,7 @@ with DAG(
     training_task = PythonOperator(
         task_id='execute_training',
         python_callable=_train_model,
+        retries=0,
     )
 
     cleanup_task = PythonOperator(

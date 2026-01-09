@@ -519,6 +519,20 @@ class FraudDetectionTraining:
 
             # Data ingestion and feature engineering
             df = self.ingest_data()
+
+            # Respect max training rows configured via environment or config to keep
+            # local runs bounded and avoid long-running jobs
+            try:
+                max_rows = int(os.getenv('MAX_TRAIN_ROWS', str(self.config.get('model', {}).get('max_rows', 50000))))
+            except Exception:
+                max_rows = 50000
+            if len(df) > max_rows:
+                logger.info('Trimming dataset from %d to max_rows=%d for faster local runs', len(df), max_rows)
+                # Trim to most recent rows if timestamp exists, else take head
+                if 'timestamp' in df.columns:
+                    df = df.sort_values(by='timestamp', ascending=False).head(max_rows).reset_index(drop=True)
+                else:
+                    df = df.head(max_rows).reset_index(drop=True)
             data = self.create_features(df)
 
             X = data.drop(columns=['is_fraud'])
@@ -587,12 +601,17 @@ class FraudDetectionTraining:
                     from sklearn.preprocessing import FunctionTransformer
                     preprocessor = FunctionTransformer(func=lambda x: x, validate=False)
 
+                # Respect environment/config limits for local runs to avoid exhausting
+                # Docker Desktop resources. XGBoost `n_jobs=-1` can spawn many threads
+                # and lead to OOM on constrained machines.
+                xgb_n_jobs = int(os.getenv('XGB_N_JOBS', str(self.config.get('model', {}).get('n_jobs', 1))))
+                xgb_n_estimators = int(self.config.get('model', {}).get('params', {}).get('n_estimators', 100))
                 xgb = XGBClassifier(
                     eval_metric='aucpr',
                     random_state=self.config.get('model', {}).get('seed', 42),
                     reg_lambda=1.0,
-                    n_estimators=self.config.get('model', {}).get('params', {}).get('n_estimators', 100),
-                    n_jobs=-1,
+                    n_estimators=xgb_n_estimators,
+                    n_jobs=xgb_n_jobs,
                     tree_method=self.config.get('model', {}).get('tree_method', 'hist')
                 )
 
