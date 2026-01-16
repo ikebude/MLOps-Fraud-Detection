@@ -1,0 +1,451 @@
+# DAG ConfigMap - Note: DAGs are also built into the Docker image
+# This ConfigMap can be used to override or supplement the image DAGs
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: airflow-dags
+  namespace: mlops
+data:
+  # DAGs are built into the image at /opt/airflow/dags
+  # This ConfigMap is kept for compatibility but may be empty
+  # if using image-built DAGs
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: airflow-webserver
+  namespace: mlops
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: airflow-webserver
+  template:
+    metadata:
+      labels:
+        app: airflow-webserver
+    spec:
+      imagePullSecrets:
+      - name: acr-secret
+      initContainers:
+      - name: init-db
+        image: mlopsacr12345.azurecr.io/fraud-detection/airflow:latest
+        command: ["sh", "-c"]
+        args:
+          - |
+            set -e
+            echo "Checking database connection..."
+            if airflow db check; then
+              echo "Database already initialized"
+            else
+              echo "Initializing database..."
+              airflow db init
+              echo "Database initialized successfully"
+            fi
+            echo "Verifying database..."
+            airflow db check
+            echo "Database ready"
+        env:
+        - name: AIRFLOW__DATABASE__SQL_ALCHEMY_CONN
+          valueFrom:
+            configMapKeyRef:
+              name: airflow-config
+              key: AIRFLOW__CORE__SQL_ALCHEMY_CONN
+        - name: AIRFLOW__CORE__EXECUTOR
+          valueFrom:
+            configMapKeyRef:
+              name: airflow-config
+              key: AIRFLOW__CORE__EXECUTOR
+      containers:
+      - name: airflow-webserver
+        image: mlopsacr12345.azurecr.io/fraud-detection/airflow:latest
+        command: ["airflow", "webserver"]
+        ports:
+        - containerPort: 8080
+          name: webserver
+        env:
+        - name: AIRFLOW__DATABASE__SQL_ALCHEMY_CONN
+          valueFrom:
+            configMapKeyRef:
+              name: airflow-config
+              key: AIRFLOW__CORE__SQL_ALCHEMY_CONN
+        - name: AIRFLOW__CORE__EXECUTOR
+          valueFrom:
+            configMapKeyRef:
+              name: airflow-config
+              key: AIRFLOW__CORE__EXECUTOR
+        - name: AIRFLOW__CORE__HOSTNAME_CALLABLE
+          value: "airflow.utils.net.get_host_ip_address"
+        - name: AIRFLOW__CELERY__BROKER_URL
+          valueFrom:
+            configMapKeyRef:
+              name: airflow-config
+              key: AIRFLOW__CELERY__BROKER_URL
+        - name: AIRFLOW__CELERY__RESULT_BACKEND
+          valueFrom:
+            configMapKeyRef:
+              name: airflow-config
+              key: AIRFLOW__CELERY__RESULT_BACKEND
+        - name: AIRFLOW__CORE__LOAD_EXAMPLES
+          value: "false"
+        - name: AIRFLOW__CORE__DAGS_FOLDER
+          value: "/opt/airflow/dags"
+        - name: AIRFLOW__WEBSERVER__WEB_SERVER_URL_PREFIX
+          value: "/airflow"
+        - name: AIRFLOW__WEBSERVER__BASE_URL
+          value: "http://4.153.190.166/airflow"
+        - name: AIRFLOW__WEBSERVER__ENABLE_PROXY_FIX
+          value: "true"
+        - name: AIRFLOW__WEBSERVER__SECRET_KEY
+          value: "mlops-airflow-secret-key"
+        - name: AIRFLOW__LOGGING__WORKER_LOG_SERVER_HOST
+          value: "airflow-worker"
+        - name: AIRFLOW__LOGGING__WORKER_LOG_SERVER_PORT
+          value: "8793"
+        - name: MLFLOW_TRACKING_URI
+          value: "http://mlflow:5000"
+        - name: MLFLOW_S3_ENDPOINT_URL
+          value: "wasbs://mlflow-artifacts@mlopsstorage12345.blob.core.windows.net"
+        - name: FRAUD_API_URL
+          value: "https://3consult-ng.com/fraud_api.php"
+        - name: PYTHONPATH
+          value: "/opt/airflow/plugins:/opt/airflow/dags:/app"
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: storage-credentials
+              key: account-name
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: storage-credentials
+              key: account-key
+        - name: AZURE_STORAGE_CONNECTION_STRING
+          valueFrom:
+            secretKeyRef:
+              name: storage-credentials
+              key: connection-string
+        - name: AZURE_STORAGE_ACCOUNT
+          valueFrom:
+            secretKeyRef:
+              name: storage-credentials
+              key: account-name
+        - name: AZURE_STORAGE_KEY
+          valueFrom:
+            secretKeyRef:
+              name: storage-credentials
+              key: account-key
+        volumeMounts:
+        - name: logs
+          mountPath: /opt/airflow/logs
+        - name: app-config
+          mountPath: /app/config.yaml
+          subPath: config.yaml
+        - name: models
+          mountPath: /app/models
+        livenessProbe:
+          httpGet:
+            path: /airflow/health
+            port: 8080
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          timeoutSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /airflow/health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "200m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+      volumes:
+      - name: logs
+        emptyDir: {}
+      - name: app-config
+        configMap:
+          name: airflow-app-config
+      - name: models
+        emptyDir: {}
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: airflow-scheduler
+  namespace: mlops
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: airflow-scheduler
+  template:
+    metadata:
+      labels:
+        app: airflow-scheduler
+    spec:
+      imagePullSecrets:
+      - name: acr-secret
+      initContainers:
+      - name: init-db
+        image: mlopsacr12345.azurecr.io/fraud-detection/airflow:latest
+        command: ["sh", "-c"]
+        args:
+          - |
+            set -e
+            echo "Checking database connection..."
+            if airflow db check; then
+              echo "Database already initialized"
+            else
+              echo "Initializing database..."
+              airflow db init
+              echo "Database initialized successfully"
+            fi
+            echo "Verifying database..."
+            airflow db check
+            echo "Database ready"
+        env:
+        - name: AIRFLOW__DATABASE__SQL_ALCHEMY_CONN
+          valueFrom:
+            configMapKeyRef:
+              name: airflow-config
+              key: AIRFLOW__CORE__SQL_ALCHEMY_CONN
+        - name: AIRFLOW__CORE__EXECUTOR
+          valueFrom:
+            configMapKeyRef:
+              name: airflow-config
+              key: AIRFLOW__CORE__EXECUTOR
+      containers:
+      - name: airflow-scheduler
+        image: mlopsacr12345.azurecr.io/fraud-detection/airflow:latest
+        command: ["airflow", "scheduler"]
+        env:
+        - name: AIRFLOW__DATABASE__SQL_ALCHEMY_CONN
+          valueFrom:
+            configMapKeyRef:
+              name: airflow-config
+              key: AIRFLOW__CORE__SQL_ALCHEMY_CONN
+        - name: AIRFLOW__CORE__EXECUTOR
+          valueFrom:
+            configMapKeyRef:
+              name: airflow-config
+              key: AIRFLOW__CORE__EXECUTOR
+        - name: AIRFLOW__CORE__HOSTNAME_CALLABLE
+          value: "airflow.utils.net.get_host_ip_address"
+        - name: AIRFLOW__WEBSERVER__SECRET_KEY
+          value: "mlops-airflow-secret-key"
+        - name: AIRFLOW__CELERY__BROKER_URL
+          valueFrom:
+            configMapKeyRef:
+              name: airflow-config
+              key: AIRFLOW__CELERY__BROKER_URL
+        - name: AIRFLOW__CELERY__RESULT_BACKEND
+          valueFrom:
+            configMapKeyRef:
+              name: airflow-config
+              key: AIRFLOW__CELERY__RESULT_BACKEND
+        - name: AIRFLOW__CORE__LOAD_EXAMPLES
+          value: "false"
+        - name: AIRFLOW__CORE__DAGS_FOLDER
+          value: "/opt/airflow/dags"
+        - name: MLFLOW_TRACKING_URI
+          value: "http://mlflow:5000"
+        - name: FRAUD_API_URL
+          value: "https://3consult-ng.com/fraud_api.php"
+        - name: PYTHONPATH
+          value: "/opt/airflow/plugins:/opt/airflow/dags:/app"
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: storage-credentials
+              key: account-name
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: storage-credentials
+              key: account-key
+        - name: AZURE_STORAGE_CONNECTION_STRING
+          valueFrom:
+            secretKeyRef:
+              name: storage-credentials
+              key: connection-string
+        - name: AZURE_STORAGE_ACCOUNT
+          valueFrom:
+            secretKeyRef:
+              name: storage-credentials
+              key: account-name
+        - name: AZURE_STORAGE_KEY
+          valueFrom:
+            secretKeyRef:
+              name: storage-credentials
+              key: account-key
+        volumeMounts:
+        - name: logs
+          mountPath: /opt/airflow/logs
+        - name: app-config
+          mountPath: /app/config.yaml
+          subPath: config.yaml
+        - name: models
+          mountPath: /app/models
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "200m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+      volumes:
+      - name: logs
+        emptyDir: {}
+      - name: app-config
+        configMap:
+          name: airflow-app-config
+      - name: models
+        emptyDir: {}
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: airflow-worker
+  namespace: mlops
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: airflow-worker
+  template:
+    metadata:
+      labels:
+        app: airflow-worker
+    spec:
+      imagePullSecrets:
+      - name: acr-secret
+      containers:
+      - name: airflow-worker
+        image: mlopsacr12345.azurecr.io/fraud-detection/airflow:latest
+        command: ["airflow", "celery", "worker"]
+        env:
+        - name: AIRFLOW__DATABASE__SQL_ALCHEMY_CONN
+          valueFrom:
+            configMapKeyRef:
+              name: airflow-config
+              key: AIRFLOW__CORE__SQL_ALCHEMY_CONN
+        - name: AIRFLOW__CORE__EXECUTOR
+          valueFrom:
+            configMapKeyRef:
+              name: airflow-config
+              key: AIRFLOW__CORE__EXECUTOR
+        - name: AIRFLOW__CORE__HOSTNAME_CALLABLE
+          value: "airflow.utils.net.get_host_ip_address"
+        - name: AIRFLOW__WEBSERVER__SECRET_KEY
+          value: "mlops-airflow-secret-key"
+        - name: AIRFLOW__CELERY__BROKER_URL
+          valueFrom:
+            configMapKeyRef:
+              name: airflow-config
+              key: AIRFLOW__CELERY__BROKER_URL
+        - name: AIRFLOW__CELERY__RESULT_BACKEND
+          valueFrom:
+            configMapKeyRef:
+              name: airflow-config
+              key: AIRFLOW__CELERY__RESULT_BACKEND
+        - name: AIRFLOW__CORE__LOAD_EXAMPLES
+          value: "false"
+        - name: AIRFLOW__CORE__DAGS_FOLDER
+          value: "/opt/airflow/dags"
+        - name: MLFLOW_TRACKING_URI
+          value: "http://mlflow:5000"
+        - name: FRAUD_API_URL
+          value: "https://3consult-ng.com/fraud_api.php"
+        - name: PYTHONPATH
+          value: "/opt/airflow/plugins:/opt/airflow/dags:/app"
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: storage-credentials
+              key: account-name
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: storage-credentials
+              key: account-key
+        - name: AZURE_STORAGE_CONNECTION_STRING
+          valueFrom:
+            secretKeyRef:
+              name: storage-credentials
+              key: connection-string
+        - name: AZURE_STORAGE_ACCOUNT
+          valueFrom:
+            secretKeyRef:
+              name: storage-credentials
+              key: account-name
+        - name: AZURE_STORAGE_KEY
+          valueFrom:
+            secretKeyRef:
+              name: storage-credentials
+              key: account-key
+        volumeMounts:
+        - name: logs
+          mountPath: /opt/airflow/logs
+        - name: app-config
+          mountPath: /app/config.yaml
+          subPath: config.yaml
+        - name: models
+          mountPath: /app/models
+        ports:
+        - containerPort: 8793
+          name: logserver
+        resources:
+          requests:
+            memory: "4Gi"
+            cpu: "500m"
+          limits:
+            memory: "8Gi"
+            cpu: "2000m"
+      volumes:
+      - name: logs
+        emptyDir: {}
+      - name: app-config
+        configMap:
+          name: airflow-app-config
+      - name: models
+        emptyDir: {}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: airflow-webserver
+  namespace: mlops
+spec:
+  type: ClusterIP
+  selector:
+    app: airflow-webserver
+  ports:
+  - port: 8080
+    targetPort: 8080
+    protocol: TCP
+    name: webserver
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: airflow-worker
+  namespace: mlops
+spec:
+  type: ClusterIP
+  selector:
+    app: airflow-worker
+  ports:
+  - port: 8793
+    targetPort: 8793
+    protocol: TCP
+    name: logserver

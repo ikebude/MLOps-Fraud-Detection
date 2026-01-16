@@ -1,0 +1,33 @@
+========================================
+FIXES APPLIED - INGRESS ACCESS ISSUES
+========================================
+
+ISSUES IDENTIFIED:
+1. MLflow static files not loading - paths broken by Ingress rewrite
+2. Airflow webserver OOMKilled - insufficient memory (256Mi limit)
+3. Airflow returning 503 - pod not ready
+
+FIXES APPLIED:
+1. ✅ MLflow: Added --static-prefix /mlflow to MLflow server args
+2. ✅ MLflow: Changed Ingress path to Prefix (no rewrite) to preserve full path
+3. ✅ Airflow: Increased memory from 256Mi to 1Gi limit (512Mi request)
+4. ✅ Airflow: Increased CPU from 200m to 500m limit (200m request)
+5. ✅ Airflow: Added liveness and readiness probes
+
+CURRENT STATUS:
+- MLflow: New pod starting with static-prefix configuration
+- Airflow: New pod starting with increased resources
+- Ingress: Updated to handle MLflow path correctly
+
+NEXT STEPS:
+1. Wait 2-3 minutes for pods to fully start
+2. Test access:
+   - MLflow: http://4.153.190.166/mlflow
+   - Airflow: http://4.153.190.166/airflow
+
+If still not working:
+- Check pod logs: kubectl logs -n mlops deployment/mlflow
+- Check pod logs: kubectl logs -n mlops deployment/airflow-webserver
+- Verify Ingress: kubectl describe ingress -n mlops mlops-ingress
+
+========================================

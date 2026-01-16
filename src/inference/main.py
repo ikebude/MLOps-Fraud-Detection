@@ -89,8 +89,19 @@ class FraudDetectionInference:
         self.max_batch_size = int(os.getenv('FRAUD_API_MAX_BATCH_SIZE', 
                                             self.config['api'].get('max_batch_size', 10000)))
 
-        # Load pre-trained fraud detection model
-        self.model = self._load_model(self.config['model']['path'])
+        # Load pre-trained fraud detection model (lazy-loaded on first use)
+        self.model = None
+        self.model_version = None
+        self.model_source = None
+        self.last_model_refresh = None
+        self.model_path = self.config['model']['path']
+        self.model_refresh_seconds = int(
+            os.getenv(
+                'MLFLOW_MODEL_REFRESH_SECONDS',
+                self.config.get('mlflow', {}).get('refresh_seconds', 60)
+            )
+        )
+        self._load_model_if_exists()
 
         # Classification threshold (tuned during training)
         self.threshold = float(self.config['model'].get('threshold', 0.5))
@@ -98,6 +109,110 @@ class FraudDetectionInference:
         logger.info('Inference pipeline initialized with config: %s', config_path)
         logger.info('Using API: %s', self.api_url[:60] + '...')
         logger.info('Classification threshold: %.4f', self.threshold)
+
+    def _load_model_if_exists(self):
+        """
+        Attempt to load model from MLflow first, then fall back to local file.
+        This allows the service to start even if training hasn't completed yet.
+        """
+        self.refresh_model(force=True)
+        if self.model is None:
+            self._load_local_model()
+
+    def _load_local_model(self):
+        try:
+            if os.path.exists(self.model_path):
+                self.model = joblib.load(self.model_path)
+                self.model_version = 'local'
+                self.model_source = 'local'
+                logger.info('Model loaded successfully from local path: %s', self.model_path)
+            else:
+                logger.warning('Model file not found at %s. Service is ready but model inference unavailable. Please run the Airflow training DAG.', self.model_path)
+        except Exception as e:
+            logger.warning('Error loading model from local path: %s. Service will start but inference unavailable.', str(e))
+
+    def refresh_model(self, force: bool = False) -> bool:
+        """
+        Refresh model from MLflow if a newer version is available.
+        Returns True if a new model was loaded.
+        """
+        now = datetime.now()
+        if not force and self.last_model_refresh:
+            elapsed = (now - self.last_model_refresh).total_seconds()
+            if elapsed < self.model_refresh_seconds:
+                return False
+
+        self.last_model_refresh = now
+
+        try:
+            import mlflow
+            mlflow.set_tracking_uri(self.config['mlflow']['tracking_uri'])
+
+            registered_model_name = self.config['mlflow'].get('registered_model_name', 'fraud_detection_model')
+            client = mlflow.tracking.MlflowClient()
+            latest_versions = client.get_latest_versions(
+                registered_model_name,
+                stages=["None", "Staging", "Production"]
+            )
+
+            if not latest_versions:
+                logger.warning('No model versions found in MLflow for %s', registered_model_name)
+                return False
+
+            latest = latest_versions[0]
+            latest_version = str(latest.version)
+            if self.model is not None and str(self.model_version) == latest_version:
+                return False
+
+            model_uri = f"models:/{registered_model_name}/{latest_version}"
+            logger.info('Loading model from MLflow: %s', model_uri)
+            try:
+                self.model = mlflow.sklearn.load_model(model_uri)
+            except Exception as load_error:
+                # If MLflow load fails (version mismatch), try downloading artifact directly
+                logger.warning('MLflow sklearn.load_model failed: %s. Trying direct artifact download...', str(load_error))
+                try:
+                    import tempfile
+                    import shutil
+                    with tempfile.TemporaryDirectory() as tmpdir:
+                        mlflow.artifacts.download_artifacts(artifact_uri=model_uri, dst_path=tmpdir)
+                        # Look for model.pkl in downloaded artifacts
+                        model_file = os.path.join(tmpdir, 'model.pkl')
+                        if not os.path.exists(model_file):
+                            # Try finding any .pkl file
+                            for root, dirs, files in os.walk(tmpdir):
+                                for f in files:
+                                    if f.endswith('.pkl'):
+                                        model_file = os.path.join(root, f)
+                                        break
+                        if os.path.exists(model_file):
+                            self.model = joblib.load(model_file)
+                            logger.info('Model loaded via direct artifact download')
+                        else:
+                            raise FileNotFoundError('No model.pkl found in MLflow artifacts')
+                except Exception as fallback_error:
+                    logger.error('Both MLflow load methods failed. Original: %s, Fallback: %s', str(load_error), str(fallback_error))
+                    raise load_error
+            
+            self.model_version = latest_version
+            self.model_source = 'mlflow'
+            logger.info('Model loaded successfully from MLflow (version %s)', latest_version)
+
+            try:
+                os.makedirs(os.path.dirname(self.model_path), exist_ok=True)
+                joblib.dump(self.model, self.model_path)
+                logger.info('Model cached to local path: %s', self.model_path)
+            except Exception as e:
+                logger.warning('Failed to cache model locally: %s', str(e))
+
+            return True
+
+        except ImportError:
+            logger.warning('MLflow not available. Skipping refresh.')
+            return False
+        except Exception as e:
+            logger.warning('Error accessing MLflow: %s', str(e))
+            return False
 
     def _load_model(self, model_path: str):
         """
@@ -107,18 +222,18 @@ class FraudDetectionInference:
             model_path (str): Path to serialized model file (joblib format)
 
         Returns:
-            model: Loaded scikit-learn/XGBoost pipeline
+            model: Loaded scikit-learn/XGBoost pipeline, or None if not found
 
         Raises:
-            Exception: If model loading fails
+            Exception: If model loading fails (but FileNotFoundError is handled)
         """
         try:
             model = joblib.load(model_path)
             logger.info('Model loaded successfully from %s', model_path)
             return model
         except FileNotFoundError:
-            logger.error('Model file not found at %s. Have you trained the model yet?', model_path)
-            raise FileNotFoundError(f'Model file not found: {model_path}')
+            logger.warning('Model file not found at %s. Have you trained the model yet?', model_path)
+            return None
         except Exception as e:
             logger.error('Error loading model: %s', str(e))
             raise
@@ -441,6 +556,82 @@ class FraudDetectionInference:
             logger.error('Feature engineering failed: %s', str(e))
             raise
 
+    def _clean_feature_name(self, name: str) -> str:
+        if '__' in name:
+            return name.split('__', 1)[1]
+        return name
+
+    def _compute_explanations(self, X: pd.DataFrame, top_k: int = 5):
+        """
+        Compute per-record top feature contributions using XGBoost pred_contribs.
+        Returns list of lists (per row) with {feature, contribution, value}.
+        """
+        try:
+            import xgboost as xgb
+        except Exception:
+            logger.warning('xgboost not available for explainability.')
+            return None
+
+        model = self.model
+        if model is None:
+            return None
+
+        feature_names = list(X.columns)
+        data_for_model = X
+        classifier = None
+
+        if hasattr(model, 'named_steps') and 'classifier' in model.named_steps:
+            classifier = model.named_steps['classifier']
+            if 'preprocessor' in model.named_steps:
+                preprocessor = model.named_steps['preprocessor']
+                try:
+                    data_for_model = preprocessor.transform(X)
+                except Exception as e:
+                    logger.warning('Preprocessor transform failed for explainability: %s', str(e))
+                    return None
+                try:
+                    if hasattr(preprocessor, 'get_feature_names_out'):
+                        feature_names = list(preprocessor.get_feature_names_out())
+                except Exception:
+                    pass
+        else:
+            classifier = model
+
+        if not hasattr(classifier, 'get_booster'):
+            logger.warning('Classifier does not support pred_contribs.')
+            return None
+
+        try:
+            dmatrix = xgb.DMatrix(data_for_model, feature_names=feature_names)
+            contribs = classifier.get_booster().predict(dmatrix, pred_contribs=True)
+        except Exception as e:
+            logger.warning('Failed to compute pred_contribs: %s', str(e))
+            return None
+
+        if contribs is None or len(contribs) == 0:
+            return None
+
+        explanations = []
+        for row_idx in range(contribs.shape[0]):
+            row_contribs = contribs[row_idx][:-1]  # drop bias
+            if row_contribs.size == 0:
+                explanations.append([])
+                continue
+            top_idx = np.argsort(np.abs(row_contribs))[-top_k:][::-1]
+            row_expl = []
+            for idx in top_idx:
+                feat_name = feature_names[idx] if idx < len(feature_names) else f'f{idx}'
+                raw_name = self._clean_feature_name(str(feat_name))
+                value = X.iloc[row_idx].get(raw_name, None) if hasattr(X, 'iloc') else None
+                row_expl.append({
+                    'feature': raw_name,
+                    'contribution': float(row_contribs[idx]),
+                    'value': None if value is None else (float(value) if isinstance(value, (int, float, np.floating)) else value)
+                })
+            explanations.append(row_expl)
+
+        return explanations
+
     def predict(self, X: pd.DataFrame) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         Generate fraud predictions for input features.
@@ -455,14 +646,18 @@ class FraudDetectionInference:
             - confidence (np.ndarray): Confidence scores (max probability)
         """
         try:
+            if self.model is None:
+                raise RuntimeError('Model not loaded. Please train the model first by running the Airflow DAG.')
+            
             # Get fraud probabilities from model
-            probabilities = self.model.predict_proba(X)[:, 1]
+            prob_matrix = self.model.predict_proba(X)
+            probabilities = prob_matrix[:, 1]
 
             # Apply classification threshold
             predictions = (probabilities >= self.threshold).astype(int)
 
             # Calculate confidence as max probability across classes
-            confidence = np.max(self.model.predict_proba(X), axis=1)
+            confidence = np.max(prob_matrix, axis=1)
 
             logger.info('Generated predictions for %d records', len(X))
             logger.info('Fraud predictions: %d (%.2f%%)', 
@@ -474,7 +669,67 @@ class FraudDetectionInference:
             logger.error('Prediction failed: %s', str(e))
             raise
 
-    def run_inference(self, max_records: int = None) -> pd.DataFrame:
+    def predict_from_payload(self, payload, explain: bool = False, top_k: int = 5) -> pd.DataFrame:
+        """
+        Run real-time predictions on provided payload records.
+
+        Accepts:
+        - list[dict]: raw transaction records
+        - dict with "records": list[dict]
+        - single dict: treated as one record
+        """
+        self.refresh_model()
+        if self.model is None:
+            logger.warning('Model not available for realtime prediction.')
+            return {
+                'status': 'model_unavailable',
+                'message': 'Model not trained yet. Please run the Airflow training DAG first.',
+                'data': []
+            }
+
+        if payload is None:
+            raise ValueError('Payload is required')
+
+        if isinstance(payload, dict) and 'records' in payload:
+            records = payload['records']
+        elif isinstance(payload, dict):
+            records = [payload]
+        elif isinstance(payload, list):
+            records = payload
+        else:
+            raise ValueError('Payload must be a dict, list, or dict with "records"')
+
+        if not records:
+            raise ValueError('No records provided')
+
+        df = pd.DataFrame(records)
+        df = self.preprocess_data(df)
+        df = self.engineer_features(df)
+
+        feature_cols = self.model.feature_names_in_.tolist()
+        missing_cols = [col for col in feature_cols if col not in df.columns]
+        if missing_cols:
+            logger.warning('Missing features: %s. Using zeros for these columns.', missing_cols)
+            for col in missing_cols:
+                df[col] = 0
+
+        X = df[feature_cols]
+        predictions, probabilities, confidence = self.predict(X)
+
+        results = df.copy()
+        results['fraud_prediction'] = predictions
+        results['fraud_probability'] = probabilities
+        results['confidence'] = confidence
+        results['prediction_timestamp'] = datetime.now()
+        results['threshold'] = self.threshold
+        if explain:
+            explanations = self._compute_explanations(X, top_k=top_k)
+            if explanations is not None:
+                results['top_features'] = explanations
+
+        return results
+
+    def run_inference(self, max_records: int = None, explain: bool = False, top_k: int = 5) -> pd.DataFrame:
         """
         Execute complete inference pipeline: ingest → preprocess → engineer → predict.
 
@@ -488,18 +743,31 @@ class FraudDetectionInference:
         start_time = datetime.now()
 
         try:
-            # Step 1: Ingest data from API
+            # Step 1: Refresh model (if a newer version exists)
+            self.refresh_model()
+
+            # Step 2: Ingest data from API
             df = self.ingest_data(max_records=max_records)
             logger.info('Data ingestion: %d records in %.2f seconds', 
                        len(df), (datetime.now() - start_time).total_seconds())
 
-            # Step 2: Preprocess data types
+            # Check if model is available before proceeding
+            if self.model is None:
+                logger.warning('Model not available. Please train the model first by running the Airflow training DAG.')
+                logger.warning('Inference service is running but model predictions are unavailable.')
+                return {
+                    'status': 'model_unavailable',
+                    'message': 'Model not trained yet. Please run the Airflow training DAG first.',
+                    'data': []
+                }
+
+            # Step 3: Preprocess data types
             df = self.preprocess_data(df)
 
-            # Step 3: Engineer features
+            # Step 4: Engineer features
             df = self.engineer_features(df)
 
-            # Step 4: Select features for model
+            # Step 5: Select features for model
             # Get feature names from trained model
             feature_cols = self.model.feature_names_in_.tolist()
             missing_cols = [col for col in feature_cols if col not in df.columns]
@@ -510,10 +778,10 @@ class FraudDetectionInference:
 
             X = df[feature_cols]
 
-            # Step 5: Generate predictions
+            # Step 6: Generate predictions
             predictions, probabilities, confidence = self.predict(X)
 
-            # Step 6: Combine results
+            # Step 7: Combine results
             results = df[['transaction_id', 'user_id', 'amount', 'timestamp'] 
                         if all(c in df.columns for c in ['transaction_id', 'user_id', 'amount', 'timestamp'])
                         else df.columns[:4]].copy()
@@ -523,6 +791,10 @@ class FraudDetectionInference:
             results['confidence'] = confidence
             results['prediction_timestamp'] = datetime.now()
             results['threshold'] = self.threshold
+            if explain:
+                explanations = self._compute_explanations(X, top_k=top_k)
+                if explanations is not None:
+                    results['top_features'] = explanations
 
             # Log summary statistics
             elapsed = (datetime.now() - start_time).total_seconds()

@@ -1,5 +1,5 @@
 x-airflow-common: &airflow-common
-  image: airflow-training:latest
+  image: mlopsacr12345.azurecr.io/fraud-detection/airflow:latest
   environment: &airflow-common-env
     # Use CeleryExecutor with 2 workers for better parallel task execution.
     AIRFLOW__CORE__EXECUTOR: CeleryExecutor
@@ -415,7 +415,7 @@ services:
   mlflow-server:
     restart: always
     build: ./mlflow
-    image: mlflow-server
+    image: mlopsacr12345.azurecr.io/fraud-detection/mlflow:latest
     container_name: mlflow-server
     depends_on:
       postgres:
@@ -452,44 +452,29 @@ services:
       - 8.8.4.4
       - 1.1.1.1
 
-  producer:
-    build:
-      context: .
-      dockerfile: producer/Dockerfile
+  inference:
+    build: ./inference
+    image: mlopsacr12345.azurecr.io/fraud-detection/inference:latest
+    container_name: inference-service
     env_file: .env
     environment:
-      - KAFKA_TOPIC=ecommerce_fraud2
-      - KAFKA_BATCH_SIZE=65536
-      - KAFKA_LINGER_MS=10
-      - KAFKA_COMPRESSION_TYPE=snappy
-      - KAFKA_QUEUE_BUFFERING_MAX_MS=50
-      - KAFKA_QUEUE_BUFFERING_MAX_MESSAGES=200000
-      - KAFKA_MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION=5
-      - DISTRIBUTED_OFFSET=true
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-      - REDIS_DB=0
-      - BATCH_SIZE=10000
-      - ADAPTIVE_BATCHING=true
-      - MIN_BATCH_SIZE=1000
-      - MAX_BATCH_SIZE=50000
-      - TARGET_RESPONSE_TIME=5.0
-      - MAX_RESPONSE_TIME=15.0
-      - ADAPTIVE_WINDOW_SIZE=10
-      - RESET_OFFSETS=true
+      - INFERENCE_PORT=${INFERENCE_PORT:-8000}
+    ports:
+      - "8000:8000"
     volumes:
-      - ./state:/app/state
-    profiles:
-      - producer
-    deploy:
-      replicas: 2
-      resources:
-        limits:
-          cpus: '2'
-          memory: 2G
+      - ./models:/app/models
+      - ./config.yaml:/app/config.yaml
+      - ./.env:/app/.env
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    restart: always
     depends_on:
-      redis:
-        condition: service_healthy
+      - postgres
+      - mlflow-server
     networks:
       - fraud-detection
     dns:
@@ -497,13 +482,33 @@ services:
       - 8.8.4.4
       - 1.1.1.1
 
-  inference:
-    build: ./inference
+  fraudguard:
+    build: ../fraudguard
+    image: mlopsacr12345.azurecr.io/fraud-detection/fraudguard:latest
+    container_name: fraudguard-web
     env_file: .env
+    environment:
+      - INFERENCE_SERVICE_URL=${INFERENCE_SERVICE_URL:-http://inference:8000}
+      - MLFLOW_TRACKING_URI=${MLFLOW_TRACKING_URI:-http://mlflow-server:5500}
+      - AIRFLOW_WEBSERVER_URL=${AIRFLOW_WEBSERVER_URL:-http://airflow-webserver:8080}
+      - FLASK_DEBUG=${FLASK_DEBUG:-False}
+    ports:
+      - "5000:5000"
     volumes:
-      - ./models:/app/models
-      - ./config.yaml:/app/config.yaml
-      - ./.env:/app/.env
+      - ../fraudguard/data:/app/data
+      - ../fraudguard/static:/app/static
+      - ../fraudguard/templates:/app/templates
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    restart: always
+    depends_on:
+      - inference
+      - mlflow-server
+      - airflow-webserver
     networks:
       - fraud-detection
     dns:

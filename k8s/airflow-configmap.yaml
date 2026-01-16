@@ -1,0 +1,40 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: airflow-app-config
+  namespace: mlops
+data:
+  config.yaml: |
+    mlflow:
+      experiment_name: "fraud_detection"
+      registered_model_name: "fraud_detection_xgboost"
+      tracking_uri: "http://mlflow:5000"
+      artifact_location: "wasbs://mlflow-artifacts@mlopsstorage12345.blob.core.windows.net"
+      s3_endpoint_url: "wasbs://mlflow-artifacts@mlopsstorage12345.blob.core.windows.net"
+      bucket: "mlflow-artifacts"
+
+    # API configuration for training and inference
+    api:
+      url: ${FRAUD_API_URL:-https://3consult-ng.com/fraud_api.php}
+      max_batch_size: 10000
+      max_records: 150000
+      max_records_per_run: 150000
+      timeout_seconds: 60
+      retries: 5
+      backoff_factor: 2
+      micro_batch_size: 20000
+
+    model:
+      test_size: 0.2
+      seed: 42
+      threshold: 0.5  # Classification threshold for inference (tuned based on F-beta score)
+      max_rows: 150000
+      params:
+        n_estimators: 300
+        learning_rate: 0.05
+        max_depth: 5
+        subsample: 0.8
+        colsample_bytree: 0.8
+        scale_pos_weight: 1
+        tree_method: "hist"
+      path: "/app/models/fraud_detection_model.pkl"

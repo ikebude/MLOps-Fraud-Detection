@@ -120,10 +120,19 @@ class FraudDetectionTraining:
         """Validate object storage connectivity and bucket configuration."""
         try:
             import boto3
+            s3_endpoint = self.config.get('mlflow', {}).get('s3_endpoint_url')
+            if not s3_endpoint:
+                logger.info('No S3 endpoint configured; skipping MinIO check')
+                return
+
+            # Skip MinIO health check when using Azure Blob (wasbs/https)
+            if s3_endpoint.startswith('wasbs://') or 'blob.core.windows.net' in s3_endpoint:
+                logger.info('Azure Blob storage detected (%s); skipping MinIO check', s3_endpoint)
+                return
 
             s3 = boto3.client(
                 's3',
-                endpoint_url=self.config['mlflow']['s3_endpoint_url'],
+                endpoint_url=s3_endpoint,
                 aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
                 aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY')
             )
@@ -192,8 +201,15 @@ class FraudDetectionTraining:
                                             self.config.get('api', {}).get('micro_batch_size', 20000)))
 
             try:
-                max_total_messages = int(os.getenv('FRAUD_API_MAX_RECORDS', 
-                                                   self.config.get('api', {}).get('max_records', 80000)))
+                max_total_messages = int(
+                    os.getenv(
+                        'FRAUD_API_MAX_RECORDS',
+                        self.config.get('api', {}).get(
+                            'max_records_per_run',
+                            self.config.get('api', {}).get('max_records', 80000)
+                        )
+                    )
+                )
             except Exception:
                 max_total_messages = 100000
 
@@ -220,6 +236,11 @@ class FraudDetectionTraining:
             all_records = []
             attempt_backoff = 1
             max_attempt_backoff = 64
+            empty_page_retries = int(self.config.get('api', {}).get('empty_page_retries', 2))
+            empty_page_backoff = float(self.config.get('api', {}).get('empty_page_backoff', 2))
+            empty_page_mode = str(self.config.get('api', {}).get('empty_page_mode', 'stop')).lower()
+            max_empty_pages = int(self.config.get('api', {}).get('max_empty_pages', 3))
+            consecutive_empty_pages = 0
 
             while True:
                 if _shutdown_requested:
@@ -268,8 +289,40 @@ class FraudDetectionTraining:
                     page = [payload]
 
                 if not page:
-                    logger.info('Received empty page from API at offset %d, stopping.', offset)
-                    break
+                    if empty_page_retries > 0:
+                        logger.warning('Received empty page at offset %d. Retrying up to %d times.', offset, empty_page_retries)
+                        retry_count = 0
+                        while retry_count < empty_page_retries and not page:
+                            time.sleep(empty_page_backoff)
+                            retry_count += 1
+                            resp = session.get(base_url, params=params, timeout=timeout)
+                            if resp.status_code == 200:
+                                payload = resp.json()
+                                if isinstance(payload, dict):
+                                    if 'data' in payload and isinstance(payload['data'], list):
+                                        page = payload['data']
+                                    elif 'transactions' in payload and isinstance(payload['transactions'], list):
+                                        page = payload['transactions']
+                                    else:
+                                        lists = [v for v in payload.values() if isinstance(v, list)]
+                                        page = lists[0] if lists else [payload]
+                                elif isinstance(payload, list):
+                                    page = payload
+                                else:
+                                    page = [payload]
+                    if not page:
+                        consecutive_empty_pages += 1
+                        if empty_page_mode == 'skip' and consecutive_empty_pages <= max_empty_pages:
+                            logger.warning(
+                                'Empty page at offset %d. Skipping ahead (%d/%d).',
+                                offset, consecutive_empty_pages, max_empty_pages
+                            )
+                            offset += limit
+                            continue
+                        logger.info('Received empty page from API at offset %d, stopping.', offset)
+                        break
+                else:
+                    consecutive_empty_pages = 0
 
                 all_records.extend(page)
                 logger.info('Fetched %d records (offset %d). Total so far: %d', len(page), offset, len(all_records))
@@ -279,8 +332,11 @@ class FraudDetectionTraining:
                     break
 
                 if len(page) < limit:
-                    logger.info('Last page received (size %d < limit %d).', len(page), limit)
-                    break
+                    if empty_page_mode == 'skip':
+                        logger.info('Short page received (size %d < limit %d). Continuing.', len(page), limit)
+                    else:
+                        logger.info('Last page received (size %d < limit %d).', len(page), limit)
+                        break
 
                 offset += len(page)
 
@@ -318,9 +374,6 @@ class FraudDetectionTraining:
                 'shared_address_count', 'shared_phone_number_count', 'shared_ip_count',
                 'linked_accounts', 'login_frequency', 'complaint_frequency'
             ]
-            for col in numeric_cols:
-                if col in df.columns:
-                    df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
 
             float_cols = [
                 'identity_mismatch_score', 'identity_verification_score', 'sim_swap_probability',
@@ -334,9 +387,6 @@ class FraudDetectionTraining:
                 'activity_timing_score', 'anomaly_frequency_score', 'behavioral_consistency_score',
                 'vendor_risk_score', 'fake_review_score', 'delivery_dispute_rate'
             ]
-            for col in float_cols:
-                if col in df.columns:
-                    df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0.0)
 
             boolean_cols = [
                 'return_request', 'phone_verified', 'android_emulator_detection',
@@ -347,6 +397,15 @@ class FraudDetectionTraining:
                 'proxy_detection_flag', 'vpn_usage_flag', 'rating_burst_detection',
                 'email_disposable_flag'
             ]
+
+            for col in numeric_cols:
+                if col in df.columns:
+                    df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
+
+            for col in float_cols:
+                if col in df.columns:
+                    df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0.0)
+
             for col in boolean_cols:
                 if col in df.columns:
                     df[col] = (df[col].astype(str).str.lower() == 't').astype(int)

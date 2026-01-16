@@ -1,7 +1,7 @@
 # Dockerfile for Fraud Detection Inference Service
 # Optimized for HTTP API-based data ingestion (no Kafka/Spark dependency)
 
-FROM python:3.10.16-slim-bookworm
+FROM python:3.10-slim-bookworm
 
 # Install system dependencies
 RUN apt-get update && \
@@ -22,12 +22,13 @@ ENV PATH="/opt/venv/bin:$PATH" \
     PYTHONUNBUFFERED=1
 
 # Copy and install dependencies
-COPY requirements.txt .
+COPY src/inference/requirements.txt .
 RUN pip install --upgrade pip setuptools wheel && \
     pip install -r requirements.txt
 
 # Copy application files
-COPY main.py .
+COPY src/inference/main.py .
+COPY src/inference/api_server.py .
 
 # Create non-root user for security
 RUN useradd -m -u 1000 appuser && \
@@ -37,9 +38,12 @@ USER appuser
 # Set working directory
 WORKDIR /app
 
+# Expose API port
+EXPOSE 8000
+
 # Health check endpoint
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python -c "import joblib; print('healthy')" || exit 1
+    CMD curl -f http://localhost:8000/health || exit 1
 
-# Run inference service
-CMD ["python", "main.py"]
+# Run inference API server by default (can override with CMD for batch mode)
+CMD ["python", "api_server.py"]

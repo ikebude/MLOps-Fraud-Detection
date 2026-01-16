@@ -10,7 +10,7 @@ mlflow:
 api:
   url: ${FRAUD_API_URL:-https://3consult-ng.com/fraud_api.php}
   max_batch_size: 10000
-  max_records_per_run: 100000
+  max_records_per_run: 150000
   timeout_seconds: 60
   retries: 5
   backoff_factor: 2
@@ -18,6 +18,7 @@ api:
 model:
   test_size: 0.2
   seed: 42
+  max_rows: 150000
   threshold: 0.5  # Classification threshold for inference (tuned based on F-beta score)
   params:
     n_estimators: 300

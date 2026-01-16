@@ -1,0 +1,57 @@
+========================================
+QUICK ACCESS GUIDE - Access Your UIs Now
+========================================
+
+PORT FORWARDING IS RUNNING - Access these URLs:
+
+✅ WORKING SERVICES (Access These Now):
+
+1. MLflow UI
+   URL: http://localhost:5000
+   Status: ✅ Working
+   What: Model registry, experiments, runs
+
+2. Inference API  
+   URL: http://localhost:8000
+   Status: ✅ Working
+   Test: http://localhost:8000/health
+   What: REST API for fraud detection
+
+3. Fraud Guard UI
+   URL: http://localhost:5001
+   Status: ✅ Working
+   What: Dashboard, fraud detection monitoring
+
+4. Airflow (Fixing now...)
+   URL: http://localhost:8080
+   Status: ⏳ Restarting after DB fix
+   Login: airflow / airflow
+   What: Workflow orchestration, DAGs
+
+5. Flower
+   URL: http://localhost:5555
+   Status: ⏳ Will work after Airflow is ready
+   What: Celery worker monitoring
+
+========================================
+NEXT STEP: Set Up Ingress for Production
+========================================
+
+Once you've verified the UIs work, run:
+
+  .\scripts\setup-ingress-simple.ps1
+
+This will:
+- Install NGINX Ingress Controller
+- Create a single external IP
+- Route all services through that IP
+- Make everything accessible from the internet
+
+Access will be:
+  http://<ingress-ip>/airflow
+  http://<ingress-ip>/mlflow
+  http://<ingress-ip>/fraudguard
+  http://<ingress-ip>/inference
+  http://<ingress-ip>/flower
+
+========================================
