@@ -2,10 +2,12 @@ from datetime import datetime, timedelta
 
 from airflow import DAG
 from airflow.exceptions import AirflowException
-from airflow.operators.bash import BashOperator
-from airflow.operators.python import PythonOperator
+try:
+    from airflow.providers.standard.operators.python import PythonOperator
+except ImportError:
+    from airflow.operators.python import PythonOperator
 from airflow.models import Variable
-from airflow.utils.trigger_rule import TriggerRule
+from airflow.task.trigger_rule import TriggerRule
 import logging
 import os
 import glob
@@ -27,9 +29,16 @@ def _load_config(config_path: str = None):
     """Load YAML config from a path. Path can be provided via Airflow Variable `config_path`.
 
     Returns a dict (possibly empty) on failure.
+    Note: Variable.get() is called at runtime, not during DAG parsing.
     """
-    cfg_path = config_path or Variable.get('config_path', default_var='/app/config.yaml')
     try:
+        # Try to get from Variable at runtime (not during DAG parse)
+        try:
+            cfg_path = config_path or Variable.get('config_path', default_var='/app/config.yaml')
+        except Exception:
+            # If Variable.get() fails (e.g., during DAG parse), use default
+            cfg_path = config_path or '/app/config.yaml'
+        
         if os.path.exists(cfg_path):
             with open(cfg_path, 'r') as f:
                 return yaml.safe_load(f) or {}
@@ -56,7 +65,9 @@ def _train_model(**context):
     try:
         logger.info('Initializing fraud detection training (transactions_table=%s)', transactions_table)
         # Import at runtime so DAG parse doesn't require heavy deps
-        # Import directly from the module since Airflow adds the dags folder to PYTHONPATH
+        # Import from plugins folder where the actual implementation lives
+        import sys
+        sys.path.insert(0, '/opt/airflow/plugins')
         from fraud_detection_training import FraudDetectionTraining
 
         trainer = FraudDetectionTraining()
@@ -116,7 +127,7 @@ with DAG(
     'fraud_detection_training',
     default_args=default_args,
     description='Fraud detection model training pipeline (configurable)',
-    schedule_interval='0 12 * * *',
+    schedule='0 12 * * *',
     max_active_runs=1,
     catchup=False,
     tags=['fraud', 'ML']

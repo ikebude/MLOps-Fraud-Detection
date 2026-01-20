@@ -37,7 +37,10 @@ spec:
             set -e
             echo "Checking database connection..."
             if airflow db check; then
-              echo "Database already initialized"
+              echo "Database connection successful"
+              echo "Running database migrations..."
+              airflow db migrate
+              echo "Database migrations completed"
             else
               echo "Initializing database..."
               airflow db init
@@ -60,7 +63,7 @@ spec:
       containers:
       - name: airflow-webserver
         image: mlopsacr12345.azurecr.io/fraud-detection/airflow:latest
-        command: ["airflow", "webserver"]
+        command: ["airflow", "api-server"]
         ports:
         - containerPort: 8080
           name: webserver
@@ -102,6 +105,10 @@ spec:
         - name: AIRFLOW__LOGGING__WORKER_LOG_SERVER_HOST
           value: "airflow-worker"
         - name: AIRFLOW__LOGGING__WORKER_LOG_SERVER_PORT
+          value: "8793"
+        - name: AIRFLOW__LOGGING__LOG_SERVER_HOST
+          value: "4.153.190.166"
+        - name: AIRFLOW__LOGGING__LOG_SERVER_PORT
           value: "8793"
         - name: MLFLOW_TRACKING_URI
           value: "http://mlflow:5000"
@@ -146,14 +153,14 @@ spec:
           mountPath: /app/models
         livenessProbe:
           httpGet:
-            path: /airflow/health
+            path: /airflow/api/v2/monitor/health
             port: 8080
           initialDelaySeconds: 60
           periodSeconds: 30
           timeoutSeconds: 10
         readinessProbe:
           httpGet:
-            path: /airflow/health
+            path: /airflow/api/v2/monitor/health
             port: 8080
           initialDelaySeconds: 30
           periodSeconds: 10
@@ -201,7 +208,10 @@ spec:
             set -e
             echo "Checking database connection..."
             if airflow db check; then
-              echo "Database already initialized"
+              echo "Database connection successful"
+              echo "Running database migrations..."
+              airflow db migrate
+              echo "Database migrations completed"
             else
               echo "Initializing database..."
               airflow db init
@@ -225,6 +235,8 @@ spec:
       - name: airflow-scheduler
         image: mlopsacr12345.azurecr.io/fraud-detection/airflow:latest
         command: ["airflow", "scheduler"]
+        # Enable DAG parsing in scheduler (for Airflow 2.x compatibility)
+        args: []
         env:
         - name: AIRFLOW__DATABASE__SQL_ALCHEMY_CONN
           valueFrom:
@@ -254,6 +266,10 @@ spec:
           value: "false"
         - name: AIRFLOW__CORE__DAGS_FOLDER
           value: "/opt/airflow/dags"
+        - name: AIRFLOW__CORE__DAGBAG_IMPORT_TIMEOUT
+          value: "300"
+        - name: AIRFLOW__CORE__DAG_FILE_PROCESSOR_TIMEOUT
+          value: "300"
         - name: MLFLOW_TRACKING_URI
           value: "http://mlflow:5000"
         - name: FRAUD_API_URL

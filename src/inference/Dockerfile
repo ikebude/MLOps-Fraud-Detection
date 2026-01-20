@@ -1,7 +1,7 @@
 # Dockerfile for Fraud Detection Inference Service
 # Optimized for HTTP API-based data ingestion (no Kafka/Spark dependency)
 
-FROM python:3.10-slim-bookworm
+FROM python:3.12-slim-bookworm
 
 # Install system dependencies
 RUN apt-get update && \
@@ -29,10 +29,12 @@ RUN pip install --upgrade pip setuptools wheel && \
 # Copy application files
 COPY src/inference/main.py .
 COPY src/inference/api_server.py .
+COPY src/inference/continuous_inference.py .
 
 # Create non-root user for security
 RUN useradd -m -u 1000 appuser && \
-    chown -R appuser:appuser /app
+    chown -R appuser:appuser /app && \
+    chmod 777 /app  # Allow writing cumulative stats file
 USER appuser
 
 # Set working directory

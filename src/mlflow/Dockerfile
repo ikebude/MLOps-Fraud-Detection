@@ -1,4 +1,4 @@
-FROM python:3.10.16-slim-bookworm
+FROM python:3.12-slim-bookworm
 WORKDIR /app
 
 # Install curl and postgresql-client for healthchecks and database operations

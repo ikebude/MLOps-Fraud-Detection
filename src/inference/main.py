@@ -166,33 +166,40 @@ class FraudDetectionInference:
 
             model_uri = f"models:/{registered_model_name}/{latest_version}"
             logger.info('Loading model from MLflow: %s', model_uri)
+            
+            # Try direct artifact download first (more reliable for compatibility issues)
+            # This bypasses mlflow.sklearn.load_model which can have version compatibility issues
             try:
-                self.model = mlflow.sklearn.load_model(model_uri)
-            except Exception as load_error:
-                # If MLflow load fails (version mismatch), try downloading artifact directly
-                logger.warning('MLflow sklearn.load_model failed: %s. Trying direct artifact download...', str(load_error))
+                import tempfile
+                logger.info('Downloading model artifacts directly from MLflow...')
+                with tempfile.TemporaryDirectory() as tmpdir:
+                    mlflow.artifacts.download_artifacts(artifact_uri=model_uri, dst_path=tmpdir)
+                    # Look for model.pkl in downloaded artifacts
+                    model_file = os.path.join(tmpdir, 'model.pkl')
+                    if not os.path.exists(model_file):
+                        # Try finding any .pkl file
+                        for root, dirs, files in os.walk(tmpdir):
+                            for f in files:
+                                if f.endswith('.pkl'):
+                                    model_file = os.path.join(root, f)
+                                    break
+                    if os.path.exists(model_file):
+                        logger.info('Loading model from artifact file: %s', model_file)
+                        self.model = joblib.load(model_file)
+                        logger.info('Model loaded successfully via direct artifact download')
+                    else:
+                        raise FileNotFoundError('No model.pkl found in MLflow artifacts')
+            except Exception as fallback_error:
+                # If direct download fails, try mlflow.sklearn.load_model as fallback
+                logger.warning('Direct artifact download failed: %s. Trying mlflow.sklearn.load_model...', str(fallback_error))
                 try:
-                    import tempfile
-                    import shutil
-                    with tempfile.TemporaryDirectory() as tmpdir:
-                        mlflow.artifacts.download_artifacts(artifact_uri=model_uri, dst_path=tmpdir)
-                        # Look for model.pkl in downloaded artifacts
-                        model_file = os.path.join(tmpdir, 'model.pkl')
-                        if not os.path.exists(model_file):
-                            # Try finding any .pkl file
-                            for root, dirs, files in os.walk(tmpdir):
-                                for f in files:
-                                    if f.endswith('.pkl'):
-                                        model_file = os.path.join(root, f)
-                                        break
-                        if os.path.exists(model_file):
-                            self.model = joblib.load(model_file)
-                            logger.info('Model loaded via direct artifact download')
-                        else:
-                            raise FileNotFoundError('No model.pkl found in MLflow artifacts')
-                except Exception as fallback_error:
-                    logger.error('Both MLflow load methods failed. Original: %s, Fallback: %s', str(load_error), str(fallback_error))
-                    raise load_error
+                    self.model = mlflow.sklearn.load_model(model_uri)
+                    logger.info('Model loaded successfully via mlflow.sklearn.load_model')
+                except Exception as load_error:
+                    error_msg = f'Both load methods failed. Direct download: {str(fallback_error)}, MLflow load: {str(load_error)}'
+                    logger.error(error_msg)
+                    # Don't raise - allow service to continue without model
+                    return False
             
             self.model_version = latest_version
             self.model_source = 'mlflow'

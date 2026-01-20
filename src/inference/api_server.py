@@ -5,8 +5,9 @@ Exposes HTTP endpoints for:
 - Health checks
 - Running inference
 - Retrieving inference results
-"""
 
+Cumulative totals are persisted to file to survive restarts and provide real-time tracking.
+"""
 import os
 import json
 import logging
@@ -14,6 +15,8 @@ import pandas as pd
 from flask import Flask, jsonify, request
 from datetime import datetime
 from main import FraudDetectionInference
+from continuous_inference import ContinuousInferenceWorker
+import threading
 
 # Configure logging
 logging.basicConfig(
@@ -28,30 +31,123 @@ app = Flask(__name__)
 inference_pipeline = None
 latest_results = None
 latest_results_timestamp = None
-results_history_max = int(os.getenv('INFERENCE_RESULTS_HISTORY_MAX', '1000'))
+results_history_max = int(os.getenv('INFERENCE_RESULTS_HISTORY_MAX', '10000'))
+continuous_worker = None  # Continuous inference worker for real-time processing
+
+# Track cumulative totals for real-time stats - PERSISTED TO FILE
+CUMULATIVE_STATS_FILE = '/app/cumulative_stats.json'
+cumulative_lock = threading.Lock()
+
+def _load_cumulative_stats():
+    """Load cumulative stats from persistent file"""
+    try:
+        if os.path.exists(CUMULATIVE_STATS_FILE):
+            with open(CUMULATIVE_STATS_FILE, 'r') as f:
+                data = json.load(f)
+                total = int(data.get('total_records', 0))
+                fraud = int(data.get('fraud_detections', 0))
+                logger.info('Loaded cumulative stats from file: total=%d, fraud=%d', total, fraud)
+                return {
+                    'total_records': total,
+                    'fraud_detections': fraud,
+                    'last_updated': data.get('last_updated')
+                }
+    except Exception as e:
+        logger.warning('Failed to load cumulative stats: %s', str(e))
+    return {'total_records': 0, 'fraud_detections': 0, 'last_updated': None}
+
+def _save_cumulative_stats(total_records, fraud_detections):
+    """Save cumulative stats to persistent file - THREAD SAFE"""
+    try:
+        with cumulative_lock:
+            data = {
+                'total_records': int(total_records),
+                'fraud_detections': int(fraud_detections),
+                'last_updated': datetime.now().isoformat()
+            }
+            # Write to temp file first, then rename (atomic operation)
+            temp_file = CUMULATIVE_STATS_FILE + '.tmp'
+            with open(temp_file, 'w') as f:
+                json.dump(data, f)
+            os.replace(temp_file, CUMULATIVE_STATS_FILE)
+            logger.debug('Saved cumulative stats: total=%d, fraud=%d', total_records, fraud_detections)
+    except Exception as e:
+        logger.error('Failed to save cumulative stats: %s', str(e))
+
+# Initialize cumulative stats from file at module load
+_cumulative_stats = _load_cumulative_stats()
+cumulative_total_records = _cumulative_stats['total_records']
+cumulative_fraud_detections = _cumulative_stats['fraud_detections']
+logger.info('Initialized cumulative stats: total=%d, fraud=%d', cumulative_total_records, cumulative_fraud_detections)
 
 
 def _append_results(results):
-    global latest_results, latest_results_timestamp
+    """Append results and update cumulative totals - ALWAYS INCREMENTS, NEVER RESETS"""
+    global latest_results, latest_results_timestamp, cumulative_total_records, cumulative_fraud_detections
+    
     if not hasattr(results, 'to_dict'):
         return
 
+    # Update cumulative totals - ALWAYS ADD, NEVER RESET
+    if hasattr(results, 'columns') and 'fraud_prediction' in results.columns:
+        new_count = len(results)
+        new_fraud = int(results['fraud_prediction'].sum())
+        
+        # CRITICAL: Always add to cumulative, never replace
+        # This ensures totals keep growing even if latest_results is truncated
+        old_total = cumulative_total_records
+        old_fraud = cumulative_fraud_detections
+        
+        cumulative_total_records += new_count
+        cumulative_fraud_detections += new_fraud
+        
+        # Persist to file immediately (thread-safe)
+        _save_cumulative_stats(cumulative_total_records, cumulative_fraud_detections)
+        
+        logger.info('Cumulative updated: total=%d (+%d from %d), fraud=%d (+%d from %d)', 
+                   cumulative_total_records, new_count, old_total, 
+                   cumulative_fraud_detections, new_fraud, old_fraud)
+
+    # Update latest_results for recent history (separate from cumulative - this can be truncated)
     if latest_results is None or not hasattr(latest_results, 'to_dict'):
         latest_results = results
     else:
         latest_results = pd.concat([latest_results, results], ignore_index=True)
         if len(latest_results) > results_history_max:
+            # Truncate latest_results but DON'T affect cumulative
             latest_results = latest_results.tail(results_history_max).reset_index(drop=True)
+            logger.debug('Truncated latest_results to %d (cumulative unchanged: %d)', 
+                        len(latest_results), cumulative_total_records)
 
     latest_results_timestamp = datetime.now()
 
 
 def initialize_inference():
-    """Initialize the inference pipeline"""
-    global inference_pipeline
+    """Initialize the inference pipeline and start continuous inference worker"""
+    global inference_pipeline, cumulative_total_records, cumulative_fraud_detections, continuous_worker
     try:
         inference_pipeline = FraudDetectionInference(config_path='/app/config.yaml')
         logger.info('Inference pipeline initialized successfully')
+        
+        # Reload cumulative stats from file (in case it was updated)
+        _cumulative_stats = _load_cumulative_stats()
+        cumulative_total_records = _cumulative_stats['total_records']
+        cumulative_fraud_detections = _cumulative_stats['fraud_detections']
+        
+        logger.info('Cumulative stats ready: total=%d, fraud=%d', 
+                  cumulative_total_records, cumulative_fraud_detections)
+        
+        # Start continuous inference worker for real-time processing
+        if inference_pipeline.model is not None:
+            poll_interval = int(os.getenv('CONTINUOUS_INFERENCE_INTERVAL', '5'))  # Default 5 seconds
+            continuous_worker = ContinuousInferenceWorker(inference_pipeline, poll_interval=poll_interval)
+            # Pass the _append_results function to the worker
+            continuous_worker._append_results_func = _append_results
+            continuous_worker.start()
+            logger.info('Continuous inference worker started (polling every %ds)', poll_interval)
+        else:
+            logger.warning('Model not loaded, skipping continuous inference worker startup')
+        
         return True
     except Exception as e:
         logger.error('Failed to initialize inference pipeline: %s', str(e))
@@ -82,7 +178,7 @@ def health_check():
 @app.route('/run', methods=['POST'])
 def run_inference():
     """Run inference on transactions"""
-    global latest_results, latest_results_timestamp
+    global latest_results, latest_results_timestamp, cumulative_total_records, cumulative_fraud_detections
     
     if inference_pipeline is None:
         return jsonify({
@@ -105,7 +201,8 @@ def run_inference():
             explain = bool(request.json.get('explain', False))
             top_k = int(request.json.get('top_k', 5))
         
-        logger.info('Running inference with max_records=%d', max_records)
+        logger.info('Running inference with max_records=%d (current cumulative: %d)', 
+                   max_records, cumulative_total_records)
         
         # Run inference
         results = inference_pipeline.run_inference(max_records=max_records, explain=explain, top_k=top_k)
@@ -114,6 +211,7 @@ def run_inference():
         if isinstance(results, dict) and results.get('status') == 'model_unavailable':
             return jsonify(results), 503
         
+        # This will update cumulative totals and persist to file
         _append_results(results)
         
         # Convert DataFrame to JSON-serializable format
@@ -122,7 +220,7 @@ def run_inference():
         else:
             results_dict = results
         
-        # Calculate summary statistics
+        # Calculate summary statistics for this batch
         if hasattr(results, 'columns') and 'fraud_prediction' in results.columns:
             fraud_count = int(results['fraud_prediction'].sum())
         elif isinstance(results, dict) and 'fraud_prediction' in results:
@@ -132,13 +230,18 @@ def run_inference():
         total_count = len(results) if hasattr(results, '__len__') else 0
         fraud_rate = 100 * fraud_count / total_count if total_count > 0 else 0
         
+        logger.info('Inference complete: batch=%d, fraud=%d, cumulative_total=%d', 
+                   total_count, fraud_count, cumulative_total_records)
+        
         return jsonify({
             'status': 'success',
-            'total_records': total_count,
-            'fraud_detections': fraud_count,
+            'total_records': total_count,  # This batch
+            'cumulative_total_records': cumulative_total_records,  # Total ever processed
+            'fraud_detections': fraud_count,  # This batch
+            'cumulative_fraud_detections': cumulative_fraud_detections,  # Total ever
             'fraud_rate': round(fraud_rate, 2),
             'timestamp': latest_results_timestamp.isoformat(),
-            'results': results_dict[:100] if len(results_dict) > 100 else results_dict,  # Limit to first 100 for response
+            'results': results_dict[:100] if len(results_dict) > 100 else results_dict,
             'total_results': len(results_dict)
         }), 200
         
@@ -154,7 +257,7 @@ def run_inference():
 @app.route('/predict', methods=['POST'])
 def predict_realtime():
     """Run real-time inference on provided payload"""
-    global latest_results, latest_results_timestamp
+    global latest_results, latest_results_timestamp, cumulative_total_records, cumulative_fraud_detections
 
     if inference_pipeline is None:
         return jsonify({
@@ -183,6 +286,7 @@ def predict_realtime():
         if isinstance(results, dict) and results.get('status') == 'model_unavailable':
             return jsonify(results), 503
 
+        # Update cumulative totals
         _append_results(results)
 
         # Convert DataFrame to JSON-serializable format
@@ -201,7 +305,9 @@ def predict_realtime():
         return jsonify({
             'status': 'success',
             'total_records': total_count,
+            'cumulative_total_records': cumulative_total_records,
             'fraud_detections': fraud_count,
+            'cumulative_fraud_detections': cumulative_fraud_detections,
             'fraud_rate': round(fraud_rate, 2),
             'latency_ms': latency_ms,
             'timestamp': latest_results_timestamp.isoformat() if latest_results_timestamp else None,
@@ -220,7 +326,7 @@ def predict_realtime():
 @app.route('/predict_from_api', methods=['POST'])
 def predict_from_api():
     """Run real-time inference by pulling a small batch from the Fraud API."""
-    global latest_results, latest_results_timestamp
+    global latest_results, latest_results_timestamp, cumulative_total_records, cumulative_fraud_detections
 
     if inference_pipeline is None:
         return jsonify({
@@ -248,6 +354,7 @@ def predict_from_api():
         if isinstance(results, dict) and results.get('status') == 'model_unavailable':
             return jsonify(results), 503
 
+        # Update cumulative totals
         _append_results(results)
 
         if hasattr(results, 'to_dict'):
@@ -265,7 +372,9 @@ def predict_from_api():
         return jsonify({
             'status': 'success',
             'total_records': total_count,
+            'cumulative_total_records': cumulative_total_records,
             'fraud_detections': fraud_count,
+            'cumulative_fraud_detections': cumulative_fraud_detections,
             'fraud_rate': round(fraud_rate, 2),
             'latency_ms': latency_ms,
             'timestamp': latest_results_timestamp.isoformat() if latest_results_timestamp else None,
@@ -308,7 +417,8 @@ def get_results():
         return jsonify({
             'status': 'success',
             'timestamp': latest_results_timestamp.isoformat() if latest_results_timestamp else None,
-            'total_records': len(results_dict),
+            'total_records': len(results_dict),  # Current results in memory
+            'cumulative_total_records': cumulative_total_records,  # Total ever processed
             'page': page,
             'per_page': per_page,
             'total_pages': (len(results_dict) + per_page - 1) // per_page,
@@ -326,31 +436,42 @@ def get_results():
 @app.route('/inference/stats', methods=['GET'])
 @app.route('/stats', methods=['GET'])
 def get_stats():
-    """Get inference statistics"""
-    if latest_results is None:
-        return jsonify({
-            'error': 'No inference results available',
-            'status': 'no_results'
-        }), 404
+    """Get inference statistics - ALWAYS returns cumulative totals for real-time tracking"""
+    global cumulative_total_records, cumulative_fraud_detections
     
     try:
-        if hasattr(latest_results, 'to_dict'):
-            fraud_count = int(latest_results['fraud_prediction'].sum())
-            total_count = len(latest_results)
-            avg_probability = float(latest_results['fraud_probability'].mean())
-            avg_confidence = float(latest_results['confidence'].mean())
-        else:
-            fraud_count = 0
-            total_count = 0
-            avg_probability = 0.0
-            avg_confidence = 0.0
+        # CRITICAL: Always reload from file to ensure we have latest persisted value
+        # This ensures consistency even if multiple processes or restarts occurred
+        _cumulative_stats = _load_cumulative_stats()
+        total_count = _cumulative_stats['total_records']
+        fraud_count = _cumulative_stats['fraud_detections']
+        
+        # Update global variables
+        cumulative_total_records = total_count
+        cumulative_fraud_detections = fraud_count
+        
+        # Calculate averages from latest_results if available (for recent performance metrics)
+        avg_probability = 0.0
+        avg_confidence = 0.0
+        if latest_results is not None and hasattr(latest_results, 'to_dict') and len(latest_results) > 0:
+            try:
+                avg_probability = float(latest_results['fraud_probability'].mean())
+                avg_confidence = float(latest_results['confidence'].mean())
+            except:
+                pass
+        
+        # Calculate fraud rate from cumulative totals
+        fraud_rate = round(100 * fraud_count / total_count if total_count > 0 else 0, 2)
+        
+        logger.info('Stats requested: cumulative_total=%d, cumulative_fraud=%d, rate=%.2f%%', 
+                    total_count, fraud_count, fraud_rate)
         
         return jsonify({
             'status': 'success',
-            'timestamp': latest_results_timestamp.isoformat() if latest_results_timestamp else None,
-            'total_records': total_count,
-            'fraud_detections': fraud_count,
-            'fraud_rate': round(100 * fraud_count / total_count if total_count > 0 else 0, 2),
+            'timestamp': latest_results_timestamp.isoformat() if latest_results_timestamp else datetime.now().isoformat(),
+            'total_records': total_count,  # ALWAYS cumulative, never limited to 1000
+            'fraud_detections': fraud_count,  # ALWAYS cumulative
+            'fraud_rate': fraud_rate,
             'avg_fraud_probability': round(avg_probability, 4),
             'avg_confidence': round(avg_confidence, 4),
             'model_version': getattr(inference_pipeline, 'model_version', None),
@@ -384,4 +505,6 @@ if __name__ == '__main__':
     debug = os.getenv('FLASK_DEBUG', 'False').lower() == 'true'
     
     logger.info('Starting inference API server on port %d', port)
+    logger.info('Cumulative stats file: %s', CUMULATIVE_STATS_FILE)
+    logger.info('Initial cumulative: total=%d, fraud=%d', cumulative_total_records, cumulative_fraud_detections)
     app.run(host='0.0.0.0', port=port, debug=debug)

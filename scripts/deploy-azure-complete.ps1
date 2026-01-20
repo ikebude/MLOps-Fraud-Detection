@@ -247,7 +247,19 @@ Write-Output "  This step ensures the database is properly initialized before th
 
 # Wait for the deployment to be available
 Write-Output "  Waiting for Airflow webserver deployment..."
-kubectl wait --for=condition=available --timeout=300s deployment/airflow-webserver -n $NAMESPACE 2>&1 | Out-Null
+$waitResult = kubectl wait --for=condition=available --timeout=300s deployment/airflow-webserver -n $NAMESPACE 2>&1
+if ($LASTEXITCODE -ne 0) {
+    Write-ColorOutput Yellow "[WARNING] Deployment not ready within timeout. Checking pod status..."
+    $podName = kubectl get pods -n $NAMESPACE -l app=airflow-webserver -o jsonpath='{.items[0].metadata.name}' 2>&1
+    if ($podName -and -not ($podName -match "error")) {
+        Write-Output "  Checking pod logs for errors..."
+        kubectl logs -n $NAMESPACE $podName --tail=50 2>&1 | Select-Object -Last 20
+        Write-Output ""
+        Write-Output "  Checking previous container logs..."
+        kubectl logs -n $NAMESPACE $podName --previous --tail=50 2>&1 | Select-Object -Last 20
+        Write-ColorOutput Yellow "[INFO] Deployment may still be initializing. Continuing with database initialization..."
+    }
+}
 
 # Wait for init container to complete
 Write-Output "  Waiting for init container to complete database initialization..."

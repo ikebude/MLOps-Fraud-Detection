@@ -87,7 +87,7 @@ spec:
               number: 8080
 
 ---
-# Inference API uses rewrite to strip /inference prefix
+# Inference API - rewrite to remove /inference prefix
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -95,11 +95,11 @@ metadata:
   namespace: mlops
   annotations:
     nginx.ingress.kubernetes.io/ssl-redirect: "false"
-    nginx.ingress.kubernetes.io/use-regex: "true"
     nginx.ingress.kubernetes.io/rewrite-target: /$2
+    nginx.ingress.kubernetes.io/use-regex: "true"
     nginx.ingress.kubernetes.io/proxy-connect-timeout: "60"
-    nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
-    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
     nginx.ingress.kubernetes.io/proxy-body-size: "50m"
 spec:
   ingressClassName: nginx
