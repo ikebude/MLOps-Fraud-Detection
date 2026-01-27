@@ -14,10 +14,10 @@ spec:
         app: inference
     spec:
       imagePullSecrets:
-      - name: acr-secret
+      - name: ocir-secret
       containers:
       - name: inference
-        image: mlopsacr12345.azurecr.io/fraud-detection/inference:latest
+        image: af-johannesburg-1.ocir.io/axjkxzqfxgqu/fraud-detection/inference:latest
         imagePullPolicy: Always
         ports:
         - containerPort: 8000
@@ -25,6 +25,13 @@ spec:
         env:
         - name: MLFLOW_TRACKING_URI
           value: "http://mlflow:5000"
+        - name: MLFLOW_S3_ENDPOINT_URL
+          valueFrom:
+            configMapKeyRef:
+              name: object-storage-config
+              key: s3-endpoint-url
+        - name: AWS_DEFAULT_REGION
+          value: "af-johannesburg-1"
         - name: FRAUD_API_URL
           value: "https://3consult-ng.com/fraud_api.php"
         - name: FRAUD_API_MAX_BATCH_SIZE
@@ -34,25 +41,13 @@ spec:
         - name: AWS_ACCESS_KEY_ID
           valueFrom:
             secretKeyRef:
-              name: storage-credentials
-              key: account-name
+              name: object-storage-credentials
+              key: aws_access_key_id
         - name: AWS_SECRET_ACCESS_KEY
           valueFrom:
             secretKeyRef:
-              name: storage-credentials
-              key: account-key
-        - name: AZURE_STORAGE_ACCOUNT
-          value: "mlopsstorage12345"
-        - name: AZURE_STORAGE_KEY
-          valueFrom:
-            secretKeyRef:
-              name: storage-credentials
-              key: account-key
-        - name: AZURE_STORAGE_CONNECTION_STRING
-          valueFrom:
-            secretKeyRef:
-              name: storage-credentials
-              key: connection-string
+              name: object-storage-credentials
+              key: aws_secret_access_key
         volumeMounts:
         - name: config
           mountPath: /app/config.yaml
@@ -76,7 +71,7 @@ metadata:
   name: inference
   namespace: mlops
 spec:
-  type: LoadBalancer
+  type: ClusterIP
   selector:
     app: inference
   ports:

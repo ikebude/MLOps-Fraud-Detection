@@ -1,12 +1,12 @@
 # MLOps Fraud Detection - Deployment Guide
 
-This guide covers deploying the MLOps Fraud Detection solution both locally and to Azure (AKS/ACR).
+This guide covers deploying the MLOps Fraud Detection solution locally and to Kubernetes.
 
 ## Table of Contents
 
 1. [Local Development Setup](#local-development-setup)
 2. [Docker Compose Deployment](#docker-compose-deployment)
-3. [Azure Deployment](#azure-deployment)
+3. [Kubernetes Deployment](#kubernetes-deployment)
 4. [Architecture Overview](#architecture-overview)
 5. [Troubleshooting](#troubleshooting)
 
@@ -49,7 +49,7 @@ This guide covers deploying the MLOps Fraud Detection solution both locally and 
 5. **Access services**
    - **Fraud Guard Web UI**: http://localhost:5000
    - **Airflow Web UI**: http://localhost:8080 (username: airflow, password: airflow)
-   - **MLflow UI**: http://localhost:5500
+   - **MLflow UI**: http://localhost:5000
    - **MinIO Console**: http://localhost:9001 (username: minioadmin, password: minioadmin)
    - **Inference API**: http://localhost:8000
 
@@ -114,175 +114,17 @@ docker compose build [service-name]
 docker compose up -d [service-name]
 ```
 
-## Azure Deployment
+## Kubernetes Deployment
 
-> **For detailed Azure deployment instructions, see [AZURE_DEPLOYMENT.md](AZURE_DEPLOYMENT.md)**
+For Kubernetes deployment instructions, see:
 
-### Quick Azure Deploy
-
-```bash
-# Automated deployment script
-chmod +x scripts/deploy-azure-complete.sh
-./scripts/deploy-azure-complete.sh
-```
-
-This will:
-1. Build and push all Docker images to ACR
-2. Deploy all Kubernetes resources
-3. Configure all services with Azure resources
-4. Display all UI endpoints
-
-### All UI Endpoints (Azure)
-
-After deployment, access these services:
-
-- **Fraud Guard**: `http://<fraudguard-ip>:5000`
-- **Airflow**: `http://<airflow-ip>:8080` (airflow/airflow)
-- **MLflow**: `http://<mlflow-ip>:5000`
-- **Inference API**: `http://<inference-ip>:8000`
-- **Flower (Celery UI)**: `http://<flower-ip>:5555`
-
-Get IPs with:
-```bash
-kubectl get svc -n mlops
-```
-
-## Azure Deployment (Legacy)
-
-### Prerequisites
-
-- Azure CLI installed and configured
-- Azure subscription with permissions to create:
-  - Azure Container Registry (ACR)
-  - Azure Kubernetes Service (AKS)
-  - Resource Groups
-- kubectl installed
-- Docker Desktop or Docker Engine
-
-### Step 1: Create Azure Resources
-
-#### Create Resource Group
-```bash
-az group create --name mlops-rg --location eastus
-```
-
-#### Create Azure Container Registry
-```bash
-az acr create --resource-group mlops-rg --name mlopsacr12345 --sku Basic
-```
-
-#### Create Azure Kubernetes Service
-```bash
-az aks create \
-  --resource-group mlops-rg \
-  --name mlops-aks \
-  --node-count 3 \
-  --enable-addons monitoring \
-  --generate-ssh-keys \
-  --attach-acr mlopsacr12345
-```
-
-### Step 2: Configure Environment Variables
-
-Create or update `.env` file with Azure-specific values:
-```bash
-ACR_NAME=mlopsacr12345
-ACR_REGISTRY=mlopsacr12345.azurecr.io
-AKS_RESOURCE_GROUP=mlops-rg
-AKS_CLUSTER_NAME=mlops-aks
-AKS_NAMESPACE=mlops
-```
-
-### Step 3: Build and Push Images
-
-#### Option A: Using the deployment script
-```bash
-chmod +x scripts/deploy-to-azure.sh
-./scripts/deploy-to-azure.sh
-```
-
-#### Option B: Manual steps
-
-1. **Login to Azure and ACR**
-   ```bash
-   az login
-   az acr login --name mlopsacr12345
-   ```
-
-2. **Build and push images**
-   ```bash
-   # Airflow
-   cd src/airflow
-   docker build -t mlopsacr12345.azurecr.io/fraud-detection/airflow:latest .
-   docker push mlopsacr12345.azurecr.io/fraud-detection/airflow:latest
-   
-   # MLflow
-   cd ../mlflow
-   docker build -t mlopsacr12345.azurecr.io/fraud-detection/mlflow:latest .
-   docker push mlopsacr12345.azurecr.io/fraud-detection/mlflow:latest
-   
-   # Inference
-   cd ../inference
-   docker build -t mlopsacr12345.azurecr.io/fraud-detection/inference:latest .
-   docker push mlopsacr12345.azurecr.io/fraud-detection/inference:latest
-   
-   # Fraud Guard
-   cd ../../fraudguard
-   docker build -t mlopsacr12345.azurecr.io/fraud-detection/fraudguard:latest .
-   docker push mlopsacr12345.azurecr.io/fraud-detection/fraudguard:latest
-   ```
-
-### Step 4: Deploy to AKS
-
-1. **Get AKS credentials**
-   ```bash
-   az aks get-credentials --resource-group mlops-rg --name mlops-aks
-   ```
-
-2. **Create namespace**
-   ```bash
-   kubectl create namespace mlops
-   ```
-
-3. **Create secrets** (update k8s/secrets.yaml with your values first)
-   ```bash
-   kubectl apply -f k8s/secrets.yaml -n mlops
-   ```
-
-4. **Deploy services**
-   ```bash
-   kubectl apply -f k8s/mlflow.yaml -n mlops
-   kubectl apply -f k8s/inference-config.yaml -n mlops
-   kubectl apply -f k8s/inference.yaml -n mlops
-   kubectl apply -f k8s/airflow.yaml -n mlops
-   ```
-
-5. **Check deployment status**
-   ```bash
-   kubectl get pods -n mlops
-   kubectl get services -n mlops
-   ```
-
-### Step 5: Access Services
-
-Get service URLs:
-```bash
-# Get LoadBalancer IPs
-kubectl get svc -n mlops
-
-# Or use port-forwarding for testing
-kubectl port-forward -n mlops svc/mlflow 5500:5500
-kubectl port-forward -n mlops svc/inference 8000:8000
-kubectl port-forward -n mlops svc/fraudguard 5000:5000
-```
+- `OCI_DEPLOYMENT.md`
 
 ## Architecture Overview
 
 ### Components
 
-1. **Fraud Guard Web Application** (`fraudguard/`)
-   - Flask-based web UI for client IT team
-   - Displays fraud detection results, alerts, and system health
+1. **Fraud Guard Web UI**
    - Port: 5000
 
 2. **Inference Service** (`src/inference/`)
@@ -297,8 +139,7 @@ kubectl port-forward -n mlops svc/fraudguard 5000:5000
 
 4. **MLflow** (`src/mlflow/`)
    - Model registry and experiment tracking
-   - Stores model artifacts in MinIO
-   - Port: 5500
+   - Port: 5000
 
 5. **MinIO**
    - S3-compatible object storage
@@ -357,31 +198,7 @@ docker compose restart [service-name]
 - Check model path: `src/models/fraud_detection_model.pkl`
 - Verify MLflow connection
 
-#### 5. Azure Deployment Issues
 
-**Images not pulling:**
-```bash
-# Verify ACR login
-az acr login --name [acr-name]
-
-# Check image exists
-az acr repository list --name [acr-name]
-
-# Verify AKS has ACR access
-az aks update --name [aks-name] --resource-group [rg-name] --attach-acr [acr-name]
-```
-
-**Pods not starting:**
-```bash
-# Check pod status
-kubectl describe pod [pod-name] -n mlops
-
-# Check logs
-kubectl logs [pod-name] -n mlops
-
-# Check events
-kubectl get events -n mlops --sort-by='.lastTimestamp'
-```
 
 ### Performance Tuning
 
@@ -390,11 +207,7 @@ kubectl get events -n mlops --sort-by='.lastTimestamp'
 - Reduce Airflow workers to 1
 - Use SQLite for MLflow (not recommended for production)
 
-#### Azure Production
-- Use managed PostgreSQL for Airflow
-- Use Azure Blob Storage instead of MinIO
-- Enable AKS autoscaling
-- Use Azure Monitor for logging
+
 
 ## Next Steps
 

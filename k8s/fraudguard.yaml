@@ -14,10 +14,10 @@ spec:
         app: fraudguard
     spec:
       imagePullSecrets:
-      - name: acr-secret
+      - name: ocir-secret
       containers:
       - name: fraudguard
-        image: mlopsacr12345.azurecr.io/fraud-detection/fraudguard:latest
+        image: af-johannesburg-1.ocir.io/axjkxzqfxgqu/fraud-detection/fraudguard:latest
         imagePullPolicy: Always
         ports:
         - containerPort: 5000

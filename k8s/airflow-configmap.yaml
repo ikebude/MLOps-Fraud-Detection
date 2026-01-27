@@ -9,9 +9,9 @@ data:
       experiment_name: "fraud_detection"
       registered_model_name: "fraud_detection_xgboost"
       tracking_uri: "http://mlflow:5000"
-      artifact_location: "wasbs://mlflow-artifacts@mlopsstorage12345.blob.core.windows.net"
-      s3_endpoint_url: "wasbs://mlflow-artifacts@mlopsstorage12345.blob.core.windows.net"
-      bucket: "mlflow-artifacts"
+      artifact_location: "s3://mlops-artifacts"
+      s3_endpoint_url: "https://axjkxzqfxgqu.compat.objectstorage.af-johannesburg-1.oraclecloud.com"
+      bucket: "mlops-artifacts"
 
     # API configuration for training and inference
     api:

@@ -41,7 +41,7 @@ spec:
               number: 5555
 
 ---
-# MLflow requires no rewrite so it can serve /mlflow correctly
+# MLflow is served behind a path prefix and needs path rewriting
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -49,14 +49,16 @@ metadata:
   namespace: mlops
   annotations:
     nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+    nginx.ingress.kubernetes.io/use-regex: "true"
 spec:
   ingressClassName: nginx
   rules:
   - http:
       paths:
       # MLflow UI - http://<ip>/mlflow
-      - path: /mlflow
-        pathType: Prefix
+      - path: /mlflow(/|$)(.*)
+        pathType: ImplementationSpecific
         backend:
           service:
             name: mlflow

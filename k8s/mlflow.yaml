@@ -14,57 +14,68 @@ spec:
         app: mlflow
     spec:
       imagePullSecrets:
-      - name: acr-secret
+      - name: ocir-secret
       containers:
       - name: mlflow
-        image: mlopsacr12345.azurecr.io/fraud-detection/mlflow:latest
-        command: ["mlflow", "server"]
-        args:
-          - "--host"
-          - "0.0.0.0"
-          - "--port"
-          - "5000"
-          - "--backend-store-uri"
-          - "postgresql://postgres:Ikebude99!@mlops-postgres.postgres.database.azure.com:5432/mlflow?sslmode=require"
-          - "--default-artifact-root"
-          - "wasbs://mlflow-artifacts@mlopsstorage12345.blob.core.windows.net/"
-          - "--allowed-hosts"
-          - "*"
-          - "--cors-allowed-origins"
-          - "*"
-          - "--static-prefix"
-          - "/mlflow"
+        image: af-johannesburg-1.ocir.io/axjkxzqfxgqu/fraud-detection/mlflow:latest
         ports:
         - containerPort: 5000
           name: http
         env:
-        - name: AZURE_STORAGE_ACCOUNT
-          value: "mlopsstorage12345"
-        - name: AZURE_STORAGE_KEY
+        - name: MLFLOW_BACKEND_STORE_URI
           valueFrom:
             secretKeyRef:
-              name: storage-credentials
-              key: account-key
-        - name: AZURE_STORAGE_CONNECTION_STRING
+              name: postgres-credentials
+              key: mlflow-backend-store-uri
+        - name: MLFLOW_ARTIFACTS_DESTINATION
+          valueFrom:
+            configMapKeyRef:
+              name: mlflow-config
+              key: MLFLOW_ARTIFACTS_DESTINATION
+        - name: MLFLOW_S3_ENDPOINT_URL
+          valueFrom:
+            configMapKeyRef:
+              name: object-storage-config
+              key: s3-endpoint-url
+        - name: AWS_DEFAULT_REGION
+          value: "af-johannesburg-1"
+        - name: AWS_ACCESS_KEY_ID
           valueFrom:
             secretKeyRef:
-              name: storage-credentials
-              key: connection-string
-        - name: AZURE_STORAGE_CONNECTION_STRING
+              name: object-storage-credentials
+              key: aws_access_key_id
+        - name: AWS_SECRET_ACCESS_KEY
           valueFrom:
             secretKeyRef:
-              name: storage-credentials
-              key: connection-string
+              name: object-storage-credentials
+              key: aws_secret_access_key
+        - name: POSTGRES_HOST
+          value: "postgres"
+        - name: POSTGRES_PORT
+          value: "5432"
+        - name: MLFLOW_DB_USER
+          value: "postgres"
+        - name: MLFLOW_DB_NAME
+          value: "mlflow"
+        - name: MLFLOW_DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-credentials
+              key: password
+        - name: MLFLOW_PORT
+          value: "5000"
+        - name: MLFLOW_STATIC_PREFIX
+          value: "/mlflow"
         livenessProbe:
           httpGet:
-            path: /mlflow/
+            path: /
             port: 5000
           initialDelaySeconds: 30
           periodSeconds: 30
           timeoutSeconds: 10
         readinessProbe:
           httpGet:
-            path: /mlflow/
+            path: /
             port: 5000
           initialDelaySeconds: 10
           periodSeconds: 10

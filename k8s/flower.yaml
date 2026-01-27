@@ -14,10 +14,10 @@ spec:
         app: flower
     spec:
       imagePullSecrets:
-      - name: acr-secret
+      - name: ocir-secret
       containers:
       - name: flower
-        image: mlopsacr12345.azurecr.io/fraud-detection/airflow:latest
+        image: af-johannesburg-1.ocir.io/axjkxzqfxgqu/fraud-detection/airflow:latest
         command: ["celery"]
         args:
           - "--app=airflow.providers.celery.executors.celery_executor.app"

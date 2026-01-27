@@ -17,7 +17,7 @@ COPY src/mlflow/start-mlflow.sh /app/start-mlflow.sh
 RUN dos2unix /app/start-mlflow.sh || true
 RUN chmod +x /app/start-mlflow.sh
 
-EXPOSE 5500
+EXPOSE 5000
 
 # FIX: Use ENTRYPOINT to ensure bash runs directly without sh wrapper
 ENTRYPOINT ["/bin/bash", "/app/start-mlflow.sh"]

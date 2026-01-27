@@ -27,10 +27,10 @@ spec:
         app: airflow-webserver
     spec:
       imagePullSecrets:
-      - name: acr-secret
+      - name: ocir-secret
       initContainers:
       - name: init-db
-        image: mlopsacr12345.azurecr.io/fraud-detection/airflow:latest
+        image: af-johannesburg-1.ocir.io/axjkxzqfxgqu/fraud-detection/airflow:latest
         command: ["sh", "-c"]
         args:
           - |
@@ -52,9 +52,9 @@ spec:
         env:
         - name: AIRFLOW__DATABASE__SQL_ALCHEMY_CONN
           valueFrom:
-            configMapKeyRef:
-              name: airflow-config
-              key: AIRFLOW__CORE__SQL_ALCHEMY_CONN
+            secretKeyRef:
+              name: postgres-credentials
+              key: airflow-conn
         - name: AIRFLOW__CORE__EXECUTOR
           valueFrom:
             configMapKeyRef:
@@ -62,7 +62,7 @@ spec:
               key: AIRFLOW__CORE__EXECUTOR
       containers:
       - name: airflow-webserver
-        image: mlopsacr12345.azurecr.io/fraud-detection/airflow:latest
+        image: af-johannesburg-1.ocir.io/axjkxzqfxgqu/fraud-detection/airflow:latest
         command: ["airflow", "api-server"]
         ports:
         - containerPort: 8080
@@ -70,9 +70,9 @@ spec:
         env:
         - name: AIRFLOW__DATABASE__SQL_ALCHEMY_CONN
           valueFrom:
-            configMapKeyRef:
-              name: airflow-config
-              key: AIRFLOW__CORE__SQL_ALCHEMY_CONN
+            secretKeyRef:
+              name: postgres-credentials
+              key: airflow-conn
         - name: AIRFLOW__CORE__EXECUTOR
           valueFrom:
             configMapKeyRef:
@@ -87,17 +87,15 @@ spec:
               key: AIRFLOW__CELERY__BROKER_URL
         - name: AIRFLOW__CELERY__RESULT_BACKEND
           valueFrom:
-            configMapKeyRef:
-              name: airflow-config
-              key: AIRFLOW__CELERY__RESULT_BACKEND
+            secretKeyRef:
+              name: postgres-credentials
+              key: airflow-result-backend
         - name: AIRFLOW__CORE__LOAD_EXAMPLES
           value: "false"
         - name: AIRFLOW__CORE__DAGS_FOLDER
           value: "/opt/airflow/dags"
         - name: AIRFLOW__WEBSERVER__WEB_SERVER_URL_PREFIX
           value: "/airflow"
-        - name: AIRFLOW__WEBSERVER__BASE_URL
-          value: "http://4.153.190.166/airflow"
         - name: AIRFLOW__WEBSERVER__ENABLE_PROXY_FIX
           value: "true"
         - name: AIRFLOW__WEBSERVER__SECRET_KEY
@@ -107,13 +105,18 @@ spec:
         - name: AIRFLOW__LOGGING__WORKER_LOG_SERVER_PORT
           value: "8793"
         - name: AIRFLOW__LOGGING__LOG_SERVER_HOST
-          value: "4.153.190.166"
+          value: "airflow-worker"
         - name: AIRFLOW__LOGGING__LOG_SERVER_PORT
           value: "8793"
         - name: MLFLOW_TRACKING_URI
           value: "http://mlflow:5000"
         - name: MLFLOW_S3_ENDPOINT_URL
-          value: "wasbs://mlflow-artifacts@mlopsstorage12345.blob.core.windows.net"
+          valueFrom:
+            configMapKeyRef:
+              name: object-storage-config
+              key: s3-endpoint-url
+        - name: AWS_DEFAULT_REGION
+          value: "af-johannesburg-1"
         - name: FRAUD_API_URL
           value: "https://3consult-ng.com/fraud_api.php"
         - name: PYTHONPATH
@@ -121,28 +124,13 @@ spec:
         - name: AWS_ACCESS_KEY_ID
           valueFrom:
             secretKeyRef:
-              name: storage-credentials
-              key: account-name
+              name: object-storage-credentials
+              key: aws_access_key_id
         - name: AWS_SECRET_ACCESS_KEY
           valueFrom:
             secretKeyRef:
-              name: storage-credentials
-              key: account-key
-        - name: AZURE_STORAGE_CONNECTION_STRING
-          valueFrom:
-            secretKeyRef:
-              name: storage-credentials
-              key: connection-string
-        - name: AZURE_STORAGE_ACCOUNT
-          valueFrom:
-            secretKeyRef:
-              name: storage-credentials
-              key: account-name
-        - name: AZURE_STORAGE_KEY
-          valueFrom:
-            secretKeyRef:
-              name: storage-credentials
-              key: account-key
+              name: object-storage-credentials
+              key: aws_secret_access_key
         volumeMounts:
         - name: logs
           mountPath: /opt/airflow/logs
@@ -198,10 +186,10 @@ spec:
         app: airflow-scheduler
     spec:
       imagePullSecrets:
-      - name: acr-secret
+      - name: ocir-secret
       initContainers:
       - name: init-db
-        image: mlopsacr12345.azurecr.io/fraud-detection/airflow:latest
+        image: af-johannesburg-1.ocir.io/axjkxzqfxgqu/fraud-detection/airflow:latest
         command: ["sh", "-c"]
         args:
           - |
@@ -223,9 +211,9 @@ spec:
         env:
         - name: AIRFLOW__DATABASE__SQL_ALCHEMY_CONN
           valueFrom:
-            configMapKeyRef:
-              name: airflow-config
-              key: AIRFLOW__CORE__SQL_ALCHEMY_CONN
+            secretKeyRef:
+              name: postgres-credentials
+              key: airflow-conn
         - name: AIRFLOW__CORE__EXECUTOR
           valueFrom:
             configMapKeyRef:
@@ -233,16 +221,16 @@ spec:
               key: AIRFLOW__CORE__EXECUTOR
       containers:
       - name: airflow-scheduler
-        image: mlopsacr12345.azurecr.io/fraud-detection/airflow:latest
+        image: af-johannesburg-1.ocir.io/axjkxzqfxgqu/fraud-detection/airflow:latest
         command: ["airflow", "scheduler"]
         # Enable DAG parsing in scheduler (for Airflow 2.x compatibility)
         args: []
         env:
         - name: AIRFLOW__DATABASE__SQL_ALCHEMY_CONN
           valueFrom:
-            configMapKeyRef:
-              name: airflow-config
-              key: AIRFLOW__CORE__SQL_ALCHEMY_CONN
+            secretKeyRef:
+              name: postgres-credentials
+              key: airflow-conn
         - name: AIRFLOW__CORE__EXECUTOR
           valueFrom:
             configMapKeyRef:
@@ -259,9 +247,9 @@ spec:
               key: AIRFLOW__CELERY__BROKER_URL
         - name: AIRFLOW__CELERY__RESULT_BACKEND
           valueFrom:
-            configMapKeyRef:
-              name: airflow-config
-              key: AIRFLOW__CELERY__RESULT_BACKEND
+            secretKeyRef:
+              name: postgres-credentials
+              key: airflow-result-backend
         - name: AIRFLOW__CORE__LOAD_EXAMPLES
           value: "false"
         - name: AIRFLOW__CORE__DAGS_FOLDER
@@ -279,28 +267,13 @@ spec:
         - name: AWS_ACCESS_KEY_ID
           valueFrom:
             secretKeyRef:
-              name: storage-credentials
-              key: account-name
+              name: object-storage-credentials
+              key: aws_access_key_id
         - name: AWS_SECRET_ACCESS_KEY
           valueFrom:
             secretKeyRef:
-              name: storage-credentials
-              key: account-key
-        - name: AZURE_STORAGE_CONNECTION_STRING
-          valueFrom:
-            secretKeyRef:
-              name: storage-credentials
-              key: connection-string
-        - name: AZURE_STORAGE_ACCOUNT
-          valueFrom:
-            secretKeyRef:
-              name: storage-credentials
-              key: account-name
-        - name: AZURE_STORAGE_KEY
-          valueFrom:
-            secretKeyRef:
-              name: storage-credentials
-              key: account-key
+              name: object-storage-credentials
+              key: aws_secret_access_key
         volumeMounts:
         - name: logs
           mountPath: /opt/airflow/logs
@@ -342,17 +315,17 @@ spec:
         app: airflow-worker
     spec:
       imagePullSecrets:
-      - name: acr-secret
+      - name: ocir-secret
       containers:
       - name: airflow-worker
-        image: mlopsacr12345.azurecr.io/fraud-detection/airflow:latest
+        image: af-johannesburg-1.ocir.io/axjkxzqfxgqu/fraud-detection/airflow:latest
         command: ["airflow", "celery", "worker"]
         env:
         - name: AIRFLOW__DATABASE__SQL_ALCHEMY_CONN
           valueFrom:
-            configMapKeyRef:
-              name: airflow-config
-              key: AIRFLOW__CORE__SQL_ALCHEMY_CONN
+            secretKeyRef:
+              name: postgres-credentials
+              key: airflow-conn
         - name: AIRFLOW__CORE__EXECUTOR
           valueFrom:
             configMapKeyRef:
@@ -369,9 +342,9 @@ spec:
               key: AIRFLOW__CELERY__BROKER_URL
         - name: AIRFLOW__CELERY__RESULT_BACKEND
           valueFrom:
-            configMapKeyRef:
-              name: airflow-config
-              key: AIRFLOW__CELERY__RESULT_BACKEND
+            secretKeyRef:
+              name: postgres-credentials
+              key: airflow-result-backend
         - name: AIRFLOW__CORE__LOAD_EXAMPLES
           value: "false"
         - name: AIRFLOW__CORE__DAGS_FOLDER
@@ -385,28 +358,13 @@ spec:
         - name: AWS_ACCESS_KEY_ID
           valueFrom:
             secretKeyRef:
-              name: storage-credentials
-              key: account-name
+              name: object-storage-credentials
+              key: aws_access_key_id
         - name: AWS_SECRET_ACCESS_KEY
           valueFrom:
             secretKeyRef:
-              name: storage-credentials
-              key: account-key
-        - name: AZURE_STORAGE_CONNECTION_STRING
-          valueFrom:
-            secretKeyRef:
-              name: storage-credentials
-              key: connection-string
-        - name: AZURE_STORAGE_ACCOUNT
-          valueFrom:
-            secretKeyRef:
-              name: storage-credentials
-              key: account-name
-        - name: AZURE_STORAGE_KEY
-          valueFrom:
-            secretKeyRef:
-              name: storage-credentials
-              key: account-key
+              name: object-storage-credentials
+              key: aws_secret_access_key
         volumeMounts:
         - name: logs
           mountPath: /opt/airflow/logs

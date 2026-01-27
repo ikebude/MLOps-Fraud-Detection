@@ -1,4 +1,4 @@
-# NGINX Ingress Controller for AKS
+# NGINX Ingress Controller
 # This creates a single LoadBalancer that routes traffic to all services
 
 apiVersion: v1
@@ -20,8 +20,6 @@ spec:
     controller:
       service:
         type: LoadBalancer
-        annotations:
-          service.beta.kubernetes.io/azure-load-balancer-health-probe-request-path: /healthz
       replicaCount: 2
       resources:
         requests:

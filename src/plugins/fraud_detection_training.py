@@ -125,11 +125,6 @@ class FraudDetectionTraining:
                 logger.info('No S3 endpoint configured; skipping MinIO check')
                 return
 
-            # Skip MinIO health check when using Azure Blob (wasbs/https)
-            if s3_endpoint.startswith('wasbs://') or 'blob.core.windows.net' in s3_endpoint:
-                logger.info('Azure Blob storage detected (%s); skipping MinIO check', s3_endpoint)
-                return
-
             s3 = boto3.client(
                 's3',
                 endpoint_url=s3_endpoint,

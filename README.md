@@ -10,7 +10,6 @@ This solution provides:
 - **Model Registry**: MLflow for experiment tracking and model versioning
 - **Real-time Inference**: REST API service for fraud detection
 - **Fraud Guard Dashboard**: Web UI for monitoring and managing fraud detection
-- **Azure Ready**: Full support for deployment to Azure Kubernetes Service (AKS) and Azure Container Registry (ACR)
 
 ## 🏗️ Architecture
 
@@ -70,7 +69,7 @@ This solution provides:
 4. **Access services**
    - **Fraud Guard**: http://localhost:5000
    - **Airflow**: http://localhost:8080 (airflow/airflow)
-   - **MLflow**: http://localhost:5500
+   - **MLflow**: http://localhost:5000
    - **MinIO Console**: http://localhost:9001 (minioadmin/minioadmin)
    - **Inference API**: http://localhost:8000
    - **Flower (Celery UI)**: http://localhost:5555 (if enabled with `docker compose --profile flower up`)
@@ -82,11 +81,6 @@ This solution provides:
 
 ```
 MLOps_Fraud_Detection/
-├── fraudguard/              # Fraud Guard web application
-│   ├── app.py              # Flask application
-│   ├── Dockerfile          # Container definition
-│   ├── templates/          # HTML templates
-│   └── static/             # CSS, JS, images
 ├── src/
 │   ├── airflow/            # Airflow configuration
 │   │   ├── Dockerfile
@@ -106,11 +100,11 @@ MLOps_Fraud_Detection/
 │   ├── models/             # Trained models (mounted volume)
 │   ├── config.yaml         # Configuration file
 │   └── docker-compose.yml  # Docker Compose configuration
-├── k8s/                    # Kubernetes manifests for Azure
+├── k8s/                    # Kubernetes manifests
 ├── scripts/                # Deployment scripts
 │   ├── setup-local.sh
 │   ├── build-images.sh
-│   └── deploy-to-azure.sh
+│   └── deploy-oci-complete.ps1
 ├── .env.example            # Environment variables template
 └── README.md              # This file
 ```
@@ -136,35 +130,11 @@ Adjust `FRAUD_API_MAX_RECORDS` based on available memory:
 - **100k records**: ~2GB peak, 4 min training, fits 3GB workers  
 - **150k records**: ~3GB peak, 8 min training, requires 4GB+ workers
 
-## 🌐 Azure Deployment
+## 🌐 Kubernetes Deployment
 
-### Prerequisites
+For OCI/OKE deployment, see:
 
-- Azure CLI installed and configured
-- Azure subscription
-- kubectl installed
-
-### Quick Deploy
-
-```bash
-# 1. Create Azure resources (one-time setup)
-az group create --name mlops-rg --location eastus
-az acr create --resource-group mlops-rg --name mlopsacr12345 --sku Basic
-az aks create --resource-group mlops-rg --name mlops-aks --node-count 3 --attach-acr mlopsacr12345
-
-# 2. Configure .env with Azure values
-# Update ACR_NAME, AKS_RESOURCE_GROUP, AKS_CLUSTER_NAME
-
-# 3. Deploy
-chmod +x scripts/deploy-to-azure.sh
-./scripts/deploy-to-azure.sh
-```
-
-See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed deployment instructions.
-
-For Azure deployment, see [AZURE_DEPLOYMENT.md](AZURE_DEPLOYMENT.md).
-
-For all UI endpoints reference, see [UI_ENDPOINTS.md](UI_ENDPOINTS.md).
+- `OCI_DEPLOYMENT.md`
 
 ## 📊 Usage
 
@@ -262,7 +232,6 @@ docker compose logs -f inference
 - ✅ **End-to-End Pipeline**: Data ingestion → Training → Storage → Inference
 - ✅ **Production Ready**: Health checks, logging, error handling
 - ✅ **Scalable**: Docker Compose for local, Kubernetes for production
-- ✅ **Azure Integrated**: Ready for AKS and ACR deployment
 - ✅ **Real-time Inference**: REST API for fraud detection
 - ✅ **Web Dashboard**: Fraud Guard UI for client IT teams
 - ✅ **Model Management**: MLflow for experiment tracking

@@ -17,17 +17,17 @@ spec:
         app: airflow-dag-processor
     spec:
       imagePullSecrets:
-      - name: acr-secret
+      - name: ocir-secret
       containers:
       - name: dag-processor
-        image: mlopsacr12345.azurecr.io/fraud-detection/airflow:latest
+        image: af-johannesburg-1.ocir.io/axjkxzqfxgqu/fraud-detection/airflow:latest
         command: ["airflow", "dag-processor"]
         env:
         - name: AIRFLOW__DATABASE__SQL_ALCHEMY_CONN
           valueFrom:
-            configMapKeyRef:
-              name: airflow-config
-              key: AIRFLOW__CORE__SQL_ALCHEMY_CONN
+            secretKeyRef:
+              name: postgres-credentials
+              key: airflow-conn
         - name: AIRFLOW__CORE__EXECUTOR
           valueFrom:
             configMapKeyRef:
@@ -54,28 +54,13 @@ spec:
         - name: AWS_ACCESS_KEY_ID
           valueFrom:
             secretKeyRef:
-              name: storage-credentials
-              key: account-name
+              name: object-storage-credentials
+              key: aws_access_key_id
         - name: AWS_SECRET_ACCESS_KEY
           valueFrom:
             secretKeyRef:
-              name: storage-credentials
-              key: account-key
-        - name: AZURE_STORAGE_CONNECTION_STRING
-          valueFrom:
-            secretKeyRef:
-              name: storage-credentials
-              key: connection-string
-        - name: AZURE_STORAGE_ACCOUNT
-          valueFrom:
-            secretKeyRef:
-              name: storage-credentials
-              key: account-name
-        - name: AZURE_STORAGE_KEY
-          valueFrom:
-            secretKeyRef:
-              name: storage-credentials
-              key: account-key
+              name: object-storage-credentials
+              key: aws_secret_access_key
         volumeMounts:
         - name: logs
           mountPath: /opt/airflow/logs
@@ -118,17 +103,17 @@ spec:
         app: airflow-triggerer
     spec:
       imagePullSecrets:
-      - name: acr-secret
+      - name: ocir-secret
       containers:
       - name: triggerer
-        image: mlopsacr12345.azurecr.io/fraud-detection/airflow:latest
+        image: af-johannesburg-1.ocir.io/axjkxzqfxgqu/fraud-detection/airflow:latest
         command: ["airflow", "triggerer"]
         env:
         - name: AIRFLOW__DATABASE__SQL_ALCHEMY_CONN
           valueFrom:
-            configMapKeyRef:
-              name: airflow-config
-              key: AIRFLOW__CORE__SQL_ALCHEMY_CONN
+            secretKeyRef:
+              name: postgres-credentials
+              key: airflow-conn
         - name: AIRFLOW__CORE__EXECUTOR
           valueFrom:
             configMapKeyRef:
@@ -145,9 +130,9 @@ spec:
               key: AIRFLOW__CELERY__BROKER_URL
         - name: AIRFLOW__CELERY__RESULT_BACKEND
           valueFrom:
-            configMapKeyRef:
-              name: airflow-config
-              key: AIRFLOW__CELERY__RESULT_BACKEND
+            secretKeyRef:
+              name: postgres-credentials
+              key: airflow-result-backend
         - name: AIRFLOW__CORE__LOAD_EXAMPLES
           value: "false"
         - name: AIRFLOW__CORE__DAGS_FOLDER

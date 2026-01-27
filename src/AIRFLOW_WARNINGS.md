@@ -50,27 +50,7 @@ ChangedInMarshmallow4Warning: `Number` field should not be instantiated. Use `In
 
 ---
 
-### 2. Azure Batch SDK Syntax Warning
-
-**Warning:**
-```
-SyntaxWarning: invalid escape sequence '\s' in azure/batch/models/_models_py3.py:4839
-```
-
-**Status:** ⚠️ **Cannot Fix Directly**
-
-**Explanation:** This warning comes from the Azure Batch SDK library itself. It's a minor syntax issue in the Azure SDK code.
-
-**Impact:** Very Low - This is a syntax warning, not an error. The code still functions correctly.
-
-**Action:**
-- Monitor Azure SDK releases for fixes
-- Update `azure-batch` package when a fix is available
-- This warning can be safely ignored
-
----
-
-### 3. Optional Provider Feature Disabled
+### 2. Optional Provider Feature Disabled
 
 **Message:**
 ```
@@ -93,7 +73,6 @@ INFO - Optional provider feature disabled when importing 'airflow.providers.goog
 |---------|--------|-----------------|
 | Flask-Limiter in-memory storage | ✅ Fixed | Restart webserver |
 | Marshmallow deprecation | ⚠️ Third-party | Monitor Airflow updates |
-| Azure Batch syntax warning | ⚠️ Third-party | Monitor Azure SDK updates |
 | Optional provider disabled | ℹ️ Informational | None |
 
 ---
