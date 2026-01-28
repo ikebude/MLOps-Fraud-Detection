@@ -160,7 +160,7 @@ spec:
           initialDelaySeconds: 0
           periodSeconds: 10
           timeoutSeconds: 10
-          failureThreshold: 60
+          failureThreshold: 120
         readinessProbe:
           httpGet:
             path: /
@@ -171,11 +171,11 @@ spec:
           failureThreshold: 3
         resources:
           requests:
-            memory: "1Gi"
-            cpu: "500m"
-          limits:
             memory: "2Gi"
             cpu: "1000m"
+          limits:
+            memory: "4Gi"
+            cpu: "2000m"
       volumes:
       - name: logs
         emptyDir: {}

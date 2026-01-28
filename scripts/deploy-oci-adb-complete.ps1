@@ -164,8 +164,8 @@ if (Test-Path $fraudguardDir) {
 
 # Apply namespace + configmaps
 Write-ColorOutput Yellow "`nApplying base configuration..."
-kubectl apply -f k8s/secrets-adb.yaml
-if ($LASTEXITCODE -ne 0) { throw "Failed to apply k8s/secrets-adb.yaml" }
+kubectl apply -f k8s/secrets.yaml
+if ($LASTEXITCODE -ne 0) { throw "Failed to apply k8s/secrets.yaml" }
 
 # Create namespace
 kubectl create namespace $NAMESPACE --dry-run=client -o yaml | kubectl apply -f -
@@ -259,9 +259,7 @@ Write-ColorOutput Green "[OK] Redis deployed"
 
 # Deploy MLflow
 Write-ColorOutput Yellow "Deploying MLflow..."
-kubectl apply -f k8s/mlflow-adb.yaml
-kubectl rollout status deployment/mlflow -n $NAMESPACE --timeout=300s
-Write-ColorOutput Green "[OK] MLflow deployed"
+  kubectl apply -f k8s/mlflow.yaml
 
 # Deploy Airflow
 Write-ColorOutput Yellow "Deploying Airflow..."

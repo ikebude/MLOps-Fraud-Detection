@@ -109,6 +109,13 @@ spec:
           initialDelaySeconds: 30
           periodSeconds: 30
           timeoutSeconds: 5
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
       volumes:
       - name: init
         configMap:
