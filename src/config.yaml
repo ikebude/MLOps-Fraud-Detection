@@ -13,6 +13,10 @@ kafka:
   topic: "ecommerce_fraud2"
   output_topic: "fraud_predictions"
   security_protocol: 'SASL_SSL'
+  timeout: 300000  # 5 minutes (increased from default 2 min) for long-running streams
+  read_retries: 3  # Number of stream read attempts
+  retry_wait_seconds: 5  # Wait between retries
+  group_id: "fraud-trainer-group"
 
 model:
   test_size: 0.2

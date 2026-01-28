@@ -1,0 +1,825 @@
+[2025-12-05T10:46:52.514+0000] {local_task_job_runner.py:123} INFO - ::group::Pre task execution logs
+[2025-12-05T10:46:55.052+0000] {taskinstance.py:2614} INFO - Dependencies all met for dep_context=non-requeueable deps ti=<TaskInstance: fraud_detection_training.execute_training scheduled__2025-12-03T12:00:00+00:00 [queued]>
+[2025-12-05T10:46:55.467+0000] {taskinstance.py:2614} INFO - Dependencies all met for dep_context=requeueable deps ti=<TaskInstance: fraud_detection_training.execute_training scheduled__2025-12-03T12:00:00+00:00 [queued]>
+[2025-12-05T10:46:55.480+0000] {taskinstance.py:2867} INFO - Starting attempt 1 of 2
+[2025-12-05T10:46:55.839+0000] {taskinstance.py:2890} INFO - Executing <Task(PythonOperator): execute_training> on 2025-12-03 12:00:00+00:00
+[2025-12-05T10:46:55.947+0000] {warnings.py:112} WARNING - /home/***/.local/lib/python3.12/site-packages/***/task/task_runner/standard_task_runner.py:70: DeprecationWarning: This process (pid=191) is multi-threaded, use of fork() may lead to deadlocks in the child.
+  pid = os.fork()
+
+[2025-12-05T10:46:55.993+0000] {standard_task_runner.py:72} INFO - Started process 192 to run task
+[2025-12-05T10:46:56.033+0000] {standard_task_runner.py:104} INFO - Running: ['***', 'tasks', 'run', 'fraud_detection_training', 'execute_training', 'scheduled__2025-12-03T12:00:00+00:00', '--job-id', '319', '--raw', '--subdir', 'DAGS_FOLDER/fraud_detection_training_dag.py', '--cfg-path', '/tmp/tmp9obg6sq8']
+[2025-12-05T10:46:56.051+0000] {standard_task_runner.py:105} INFO - Job 319: Subtask execute_training
+[2025-12-05T10:46:56.771+0000] {task_command.py:467} INFO - Running <TaskInstance: fraud_detection_training.execute_training scheduled__2025-12-03T12:00:00+00:00 [running]> on host 9006b75db718
+[2025-12-05T10:46:57.865+0000] {taskinstance.py:3134} INFO - Exporting env vars: AIRFLOW_CTX_DAG_OWNER='datamasterylab.com' AIRFLOW_CTX_DAG_ID='fraud_detection_training' AIRFLOW_CTX_TASK_ID='execute_training' AIRFLOW_CTX_EXECUTION_DATE='2025-12-03T12:00:00+00:00' AIRFLOW_CTX_TRY_NUMBER='1' AIRFLOW_CTX_DAG_RUN_ID='scheduled__2025-12-03T12:00:00+00:00'
+[2025-12-05T10:46:57.900+0000] {taskinstance.py:732} INFO - ::endgroup::
+[2025-12-05T10:46:59.069+0000] {fraud_detection_training_dag.py:57} INFO - Initializing fraud detection training (transactions_table=transactions)
+[2025-12-05T10:46:59.831+0000] {fraud_detection_training.py:120} INFO - Configuration loaded successfully
+[2025-12-05T10:47:10.243+0000] {fraud_detection_training.py:166} INFO - Minio connection verified. Buckets: ['mlflow']
+[2025-12-05T10:47:34.615+0000] {fraud_detection_training.py:649} INFO - Starting model training process
+[2025-12-05T10:47:34.617+0000] {fraud_detection_training.py:354} INFO - Initiating Kafka data ingestion (stream-based consumer)
+[2025-12-05T10:47:34.850+0000] {fraud_detection_training.py:200} INFO - Starting stream-based Kafka consumer for topic ecommerce_fraud2
+[2025-12-05T10:47:34.852+0000] {fraud_detection_training.py:213} INFO - Stream read attempt 1/3 (micro_batch_size=10000)
+[2025-12-05T10:47:34.854+0000] {client_async.py:277} WARNING - Configured api_version (2, 6, 0) not supported; using (2, 6)
+[2025-12-05T10:47:35.040+0000] {conn.py:400} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=bootstrap-0 host=pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('3.17.46.4', 9092)]>: connecting to pkc-921jm.us-east-2.aws.confluent.cloud:9092 [('3.17.46.4', 9092) IPv4]
+[2025-12-05T10:47:35.362+0000] {conn.py:501} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=bootstrap-0 host=pkc-921jm.us-east-2.aws.confluent.cloud:9092 <handshake> [IPv4 ('3.17.46.4', 9092)]>: Loading system default SSL CAs from ('/usr/lib/ssl/cert.pem', '/usr/lib/ssl/certs', 'SSL_CERT_FILE', '/usr/lib/ssl/cert.pem', 'SSL_CERT_DIR', '/usr/lib/ssl/certs')
+[2025-12-05T10:47:36.708+0000] {conn.py:826} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=bootstrap-0 host=pkc-921jm.us-east-2.aws.confluent.cloud:9092 <authenticating> [IPv4 ('3.17.46.4', 9092)]>: Authenticated as 5OIHYGHTVCSUQ4TH via SASL / Plain
+[2025-12-05T10:47:36.709+0000] {conn.py:471} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=bootstrap-0 host=pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connected> [IPv4 ('3.17.46.4', 9092)]>: Connection complete.
+[2025-12-05T10:47:36.916+0000] {fraud_detection_training.py:237} INFO - Assigned and seeked to beginning for 6 partitions
+[2025-12-05T10:47:37.068+0000] {conn.py:400} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=6 host=b6-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('3.128.86.248', 9092)]>: connecting to b6-pkc-921jm.us-east-2.aws.confluent.cloud:9092 [('3.128.86.248', 9092) IPv4]
+[2025-12-05T10:47:37.235+0000] {conn.py:400} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=7 host=b7-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('3.13.52.23', 9092)]>: connecting to b7-pkc-921jm.us-east-2.aws.confluent.cloud:9092 [('3.13.52.23', 9092) IPv4]
+[2025-12-05T10:47:37.397+0000] {conn.py:400} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=8 host=b8-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('3.129.119.248', 9092)]>: connecting to b8-pkc-921jm.us-east-2.aws.confluent.cloud:9092 [('3.129.119.248', 9092) IPv4]
+[2025-12-05T10:47:37.560+0000] {conn.py:400} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=9 host=b9-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('3.130.41.86', 9092)]>: connecting to b9-pkc-921jm.us-east-2.aws.confluent.cloud:9092 [('3.130.41.86', 9092) IPv4]
+[2025-12-05T10:47:37.722+0000] {conn.py:400} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=10 host=b10-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('3.131.234.56', 9092)]>: connecting to b10-pkc-921jm.us-east-2.aws.confluent.cloud:9092 [('3.131.234.56', 9092) IPv4]
+[2025-12-05T10:47:37.947+0000] {conn.py:400} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=11 host=b11-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('18.189.9.197', 9092)]>: connecting to b11-pkc-921jm.us-east-2.aws.confluent.cloud:9092 [('18.189.9.197', 9092) IPv4]
+[2025-12-05T10:47:37.973+0000] {conn.py:501} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=6 host=b6-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <handshake> [IPv4 ('3.128.86.248', 9092)]>: Loading system default SSL CAs from ('/usr/lib/ssl/cert.pem', '/usr/lib/ssl/certs', 'SSL_CERT_FILE', '/usr/lib/ssl/cert.pem', 'SSL_CERT_DIR', '/usr/lib/ssl/certs')
+[2025-12-05T10:47:38.369+0000] {conn.py:501} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=7 host=b7-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <handshake> [IPv4 ('3.13.52.23', 9092)]>: Loading system default SSL CAs from ('/usr/lib/ssl/cert.pem', '/usr/lib/ssl/certs', 'SSL_CERT_FILE', '/usr/lib/ssl/cert.pem', 'SSL_CERT_DIR', '/usr/lib/ssl/certs')
+[2025-12-05T10:47:38.673+0000] {conn.py:501} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=8 host=b8-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <handshake> [IPv4 ('3.129.119.248', 9092)]>: Loading system default SSL CAs from ('/usr/lib/ssl/cert.pem', '/usr/lib/ssl/certs', 'SSL_CERT_FILE', '/usr/lib/ssl/cert.pem', 'SSL_CERT_DIR', '/usr/lib/ssl/certs')
+[2025-12-05T10:47:38.870+0000] {conn.py:501} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=9 host=b9-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <handshake> [IPv4 ('3.130.41.86', 9092)]>: Loading system default SSL CAs from ('/usr/lib/ssl/cert.pem', '/usr/lib/ssl/certs', 'SSL_CERT_FILE', '/usr/lib/ssl/cert.pem', 'SSL_CERT_DIR', '/usr/lib/ssl/certs')
+[2025-12-05T10:47:39.142+0000] {conn.py:501} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=10 host=b10-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <handshake> [IPv4 ('3.131.234.56', 9092)]>: Loading system default SSL CAs from ('/usr/lib/ssl/cert.pem', '/usr/lib/ssl/certs', 'SSL_CERT_FILE', '/usr/lib/ssl/cert.pem', 'SSL_CERT_DIR', '/usr/lib/ssl/certs')
+[2025-12-05T10:47:39.240+0000] {conn.py:501} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=11 host=b11-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <handshake> [IPv4 ('18.189.9.197', 9092)]>: Loading system default SSL CAs from ('/usr/lib/ssl/cert.pem', '/usr/lib/ssl/certs', 'SSL_CERT_FILE', '/usr/lib/ssl/cert.pem', 'SSL_CERT_DIR', '/usr/lib/ssl/certs')
+[2025-12-05T10:47:40.152+0000] {conn.py:826} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=6 host=b6-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <authenticating> [IPv4 ('3.128.86.248', 9092)]>: Authenticated as 5OIHYGHTVCSUQ4TH via SASL / Plain
+[2025-12-05T10:47:40.155+0000] {conn.py:471} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=6 host=b6-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connected> [IPv4 ('3.128.86.248', 9092)]>: Connection complete.
+[2025-12-05T10:47:40.179+0000] {conn.py:951} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=bootstrap-0 host=pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connected> [IPv4 ('3.17.46.4', 9092)]>: Closing connection. 
+[2025-12-05T10:47:40.456+0000] {conn.py:826} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=8 host=b8-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <authenticating> [IPv4 ('3.129.119.248', 9092)]>: Authenticated as 5OIHYGHTVCSUQ4TH via SASL / Plain
+[2025-12-05T10:47:40.468+0000] {conn.py:471} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=8 host=b8-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connected> [IPv4 ('3.129.119.248', 9092)]>: Connection complete.
+[2025-12-05T10:47:40.792+0000] {conn.py:826} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=9 host=b9-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <authenticating> [IPv4 ('3.130.41.86', 9092)]>: Authenticated as 5OIHYGHTVCSUQ4TH via SASL / Plain
+[2025-12-05T10:47:40.804+0000] {conn.py:471} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=9 host=b9-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connected> [IPv4 ('3.130.41.86', 9092)]>: Connection complete.
+[2025-12-05T10:47:41.422+0000] {conn.py:826} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=7 host=b7-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <authenticating> [IPv4 ('3.13.52.23', 9092)]>: Authenticated as 5OIHYGHTVCSUQ4TH via SASL / Plain
+[2025-12-05T10:47:41.436+0000] {conn.py:471} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=7 host=b7-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connected> [IPv4 ('3.13.52.23', 9092)]>: Connection complete.
+[2025-12-05T10:47:41.793+0000] {conn.py:826} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=10 host=b10-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <authenticating> [IPv4 ('3.131.234.56', 9092)]>: Authenticated as 5OIHYGHTVCSUQ4TH via SASL / Plain
+[2025-12-05T10:47:41.794+0000] {conn.py:471} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=10 host=b10-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connected> [IPv4 ('3.131.234.56', 9092)]>: Connection complete.
+[2025-12-05T10:47:42.104+0000] {conn.py:826} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=11 host=b11-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <authenticating> [IPv4 ('18.189.9.197', 9092)]>: Authenticated as 5OIHYGHTVCSUQ4TH via SASL / Plain
+[2025-12-05T10:47:42.108+0000] {conn.py:471} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=11 host=b11-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connected> [IPv4 ('18.189.9.197', 9092)]>: Connection complete.
+[2025-12-05T10:47:42.385+0000] {fetcher.py:418} INFO - Resetting offset for partition ('ecommerce_fraud2', 5) to offset 0.
+[2025-12-05T10:47:42.400+0000] {fetcher.py:418} INFO - Resetting offset for partition ('ecommerce_fraud2', 2) to offset 0.
+[2025-12-05T10:47:42.422+0000] {fetcher.py:418} INFO - Resetting offset for partition ('ecommerce_fraud2', 1) to offset 0.
+[2025-12-05T10:47:42.446+0000] {fetcher.py:418} INFO - Resetting offset for partition ('ecommerce_fraud2', 3) to offset 0.
+[2025-12-05T10:47:42.458+0000] {fetcher.py:418} INFO - Resetting offset for partition ('ecommerce_fraud2', 0) to offset 0.
+[2025-12-05T10:47:42.563+0000] {fetcher.py:418} INFO - Resetting offset for partition ('ecommerce_fraud2', 4) to offset 0.
+[2025-12-05T10:48:09.924+0000] {fraud_detection_training.py:290} INFO - Stream: Processed batch 1 with 10000 messages (total: 10000 messages)
+[2025-12-05T10:48:29.329+0000] {fraud_detection_training.py:290} INFO - Stream: Processed batch 2 with 10000 messages (total: 20000 messages)
+[2025-12-05T10:48:56.800+0000] {fraud_detection_training.py:290} INFO - Stream: Processed batch 3 with 10000 messages (total: 30000 messages)
+[2025-12-05T10:49:22.414+0000] {fraud_detection_training.py:290} INFO - Stream: Processed batch 4 with 10000 messages (total: 40000 messages)
+[2025-12-05T10:49:35.493+0000] {fraud_detection_training.py:290} INFO - Stream: Processed batch 5 with 10000 messages (total: 50000 messages)
+[2025-12-05T10:50:05.440+0000] {fraud_detection_training.py:290} INFO - Stream: Processed batch 6 with 10000 messages (total: 60000 messages)
+[2025-12-05T10:50:17.639+0000] {fraud_detection_training.py:290} INFO - Stream: Processed batch 7 with 10000 messages (total: 70000 messages)
+[2025-12-05T10:50:29.523+0000] {fraud_detection_training.py:290} INFO - Stream: Processed batch 8 with 10000 messages (total: 80000 messages)
+[2025-12-05T10:50:46.173+0000] {fraud_detection_training.py:290} INFO - Stream: Processed batch 9 with 10000 messages (total: 90000 messages)
+[2025-12-05T10:50:52.702+0000] {fraud_detection_training.py:290} INFO - Stream: Processed batch 10 with 10000 messages (total: 100000 messages)
+[2025-12-05T10:51:05.155+0000] {fraud_detection_training.py:290} INFO - Stream: Processed batch 11 with 10000 messages (total: 110000 messages)
+[2025-12-05T10:51:22.478+0000] {fraud_detection_training.py:290} INFO - Stream: Processed batch 12 with 10000 messages (total: 120000 messages)
+[2025-12-05T10:51:29.571+0000] {fraud_detection_training.py:290} INFO - Stream: Processed batch 13 with 10000 messages (total: 130000 messages)
+[2025-12-05T10:51:37.403+0000] {fraud_detection_training.py:290} INFO - Stream: Processed batch 14 with 10000 messages (total: 140000 messages)
+[2025-12-05T10:51:54.938+0000] {fraud_detection_training.py:290} INFO - Stream: Processed batch 15 with 10000 messages (total: 150000 messages)
+[2025-12-05T10:52:13.293+0000] {fraud_detection_training.py:290} INFO - Stream: Processed batch 16 with 10000 messages (total: 160000 messages)
+[2025-12-05T10:52:21.735+0000] {fraud_detection_training.py:290} INFO - Stream: Processed batch 17 with 10000 messages (total: 170000 messages)
+[2025-12-05T10:52:37.540+0000] {fraud_detection_training.py:290} INFO - Stream: Processed batch 18 with 10000 messages (total: 180000 messages)
+[2025-12-05T10:52:51.180+0000] {fraud_detection_training.py:290} INFO - Stream: Processed batch 19 with 10000 messages (total: 190000 messages)
+[2025-12-05T10:52:57.119+0000] {fraud_detection_training.py:290} INFO - Stream: Processed batch 20 with 10000 messages (total: 200000 messages)
+[2025-12-05T10:53:12.996+0000] {fraud_detection_training.py:290} INFO - Stream: Processed batch 21 with 10000 messages (total: 210000 messages)
+[2025-12-05T10:53:54.016+0000] {job.py:239} ERROR - Job heartbeat failed with error
+Traceback (most recent call last):
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 3371, in _wrap_pool_connect
+    return fn()
+           ^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/pool/base.py", line 327, in connect
+    return _ConnectionFairy._checkout(self)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/pool/base.py", line 894, in _checkout
+    fairy = _ConnectionRecord.checkout(pool)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/pool/base.py", line 493, in checkout
+    rec = pool._do_get()
+          ^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/pool/impl.py", line 256, in _do_get
+    return self._create_connection()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/pool/base.py", line 273, in _create_connection
+    return _ConnectionRecord(self)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/pool/base.py", line 388, in __init__
+    self.__connect()
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/pool/base.py", line 690, in __connect
+    with util.safe_reraise():
+         ^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/util/langhelpers.py", line 70, in __exit__
+    compat.raise_(
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/util/compat.py", line 211, in raise_
+    raise exception
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/pool/base.py", line 686, in __connect
+    self.dbapi_connection = connection = pool._invoke_creator(self)
+                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/engine/create.py", line 574, in connect
+    return dialect.connect(*cargs, **cparams)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/engine/default.py", line 598, in connect
+    return self.dbapi.connect(*cargs, **cparams)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/psycopg2/__init__.py", line 122, in connect
+    conn = _connect(dsn, connection_factory=connection_factory, **kwasync)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+psycopg2.OperationalError: could not translate host name "postgres" to address: Temporary failure in name resolution
+
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/jobs/job.py", line 207, in heartbeat
+    self._merge_from(Job._fetch_from_db(self, session))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/api_internal/internal_api_call.py", line 166, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/utils/session.py", line 94, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/utils/retries.py", line 93, in wrapped_function
+    for attempt in run_with_db_retries(max_retries=retries, logger=logger, **retry_kwargs):
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/tenacity/__init__.py", line 443, in __iter__
+    do = self.iter(retry_state=retry_state)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/tenacity/__init__.py", line 376, in iter
+    result = action(retry_state)
+             ^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/tenacity/__init__.py", line 418, in exc_check
+    raise retry_exc.reraise()
+          ^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/tenacity/__init__.py", line 185, in reraise
+    raise self.last_attempt.result()
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/concurrent/futures/_base.py", line 449, in result
+    return self.__get_result()
+           ^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/concurrent/futures/_base.py", line 401, in __get_result
+    raise self._exception
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/utils/retries.py", line 102, in wrapped_function
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/jobs/job.py", line 335, in _fetch_from_db
+    session.merge(job)
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 3056, in merge
+    return self._merge(
+           ^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 3136, in _merge
+    merged = self.get(
+             ^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 2853, in get
+    return self._get_impl(
+           ^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 2975, in _get_impl
+    return db_load_fn(
+           ^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/orm/loading.py", line 530, in load_on_pk_identity
+    session.execute(
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 1716, in execute
+    conn = self._connection_for_bind(bind)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 1555, in _connection_for_bind
+    return self._transaction._connection_for_bind(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 750, in _connection_for_bind
+    conn = bind.connect()
+           ^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/future/engine.py", line 412, in connect
+    return super(Engine, self).connect()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 3325, in connect
+    return self._connection_cls(self, close_with_result=close_with_result)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 96, in __init__
+    else engine.raw_connection()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 3404, in raw_connection
+    return self._wrap_pool_connect(self.pool.connect, _connection)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 3374, in _wrap_pool_connect
+    Connection._handle_dbapi_exception_noconnection(
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 2208, in _handle_dbapi_exception_noconnection
+    util.raise_(
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/util/compat.py", line 211, in raise_
+    raise exception
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 3371, in _wrap_pool_connect
+    return fn()
+           ^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/pool/base.py", line 327, in connect
+    return _ConnectionFairy._checkout(self)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/pool/base.py", line 894, in _checkout
+    fairy = _ConnectionRecord.checkout(pool)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/pool/base.py", line 493, in checkout
+    rec = pool._do_get()
+          ^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/pool/impl.py", line 256, in _do_get
+    return self._create_connection()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/pool/base.py", line 273, in _create_connection
+    return _ConnectionRecord(self)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/pool/base.py", line 388, in __init__
+    self.__connect()
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/pool/base.py", line 690, in __connect
+    with util.safe_reraise():
+         ^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/util/langhelpers.py", line 70, in __exit__
+    compat.raise_(
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/util/compat.py", line 211, in raise_
+    raise exception
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/pool/base.py", line 686, in __connect
+    self.dbapi_connection = connection = pool._invoke_creator(self)
+                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/engine/create.py", line 574, in connect
+    return dialect.connect(*cargs, **cparams)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/engine/default.py", line 598, in connect
+    return self.dbapi.connect(*cargs, **cparams)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/psycopg2/__init__.py", line 122, in connect
+    conn = _connect(dsn, connection_factory=connection_factory, **kwasync)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) could not translate host name "postgres" to address: Temporary failure in name resolution
+
+(Background on this error at: https://sqlalche.me/e/14/e3q8)
+[2025-12-05T10:53:55.609+0000] {job.py:254} ERROR - Job heartbeat failed with error. Scheduler is in unhealthy state
+[2025-12-05T10:54:13.603+0000] {client_async.py:794} WARNING - <BrokerConnection client_id=kafka-python-2.3.0, node_id=6 host=b6-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connected> [IPv4 ('3.128.86.248', 9092)]> timed out after 60000.0 ms. Closing connection.
+[2025-12-05T10:54:17.417+0000] {conn.py:951} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=6 host=b6-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connected> [IPv4 ('3.128.86.248', 9092)]>: Closing connection. [Error 7] RequestTimedOutError: Request timed out after 60000.0 ms
+[2025-12-05T10:54:32.445+0000] {fetcher.py:789} ERROR - Fetch to node 6 failed: [Error 7] RequestTimedOutError: Request timed out after 60000.0 ms
+[2025-12-05T10:54:46.667+0000] {client_async.py:794} WARNING - <BrokerConnection client_id=kafka-python-2.3.0, node_id=7 host=b7-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connected> [IPv4 ('3.13.52.23', 9092)]> timed out after 60000.0 ms. Closing connection.
+[2025-12-05T10:54:59.753+0000] {conn.py:951} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=7 host=b7-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connected> [IPv4 ('3.13.52.23', 9092)]>: Closing connection. [Error 7] RequestTimedOutError: Request timed out after 60000.0 ms
+[2025-12-05T10:55:01.155+0000] {fetcher.py:789} ERROR - Fetch to node 7 failed: [Error 7] RequestTimedOutError: Request timed out after 60000.0 ms
+[2025-12-05T10:55:01.563+0000] {client_async.py:794} WARNING - <BrokerConnection client_id=kafka-python-2.3.0, node_id=8 host=b8-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connected> [IPv4 ('3.129.119.248', 9092)]> timed out after 60000.0 ms. Closing connection.
+[2025-12-05T10:55:01.856+0000] {conn.py:951} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=8 host=b8-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connected> [IPv4 ('3.129.119.248', 9092)]>: Closing connection. [Error 7] RequestTimedOutError: Request timed out after 60000.0 ms
+[2025-12-05T10:55:02.664+0000] {fetcher.py:789} ERROR - Fetch to node 8 failed: [Error 7] RequestTimedOutError: Request timed out after 60000.0 ms
+[2025-12-05T10:55:03.038+0000] {client_async.py:794} WARNING - <BrokerConnection client_id=kafka-python-2.3.0, node_id=9 host=b9-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connected> [IPv4 ('3.130.41.86', 9092)]> timed out after 60000.0 ms. Closing connection.
+[2025-12-05T10:55:03.454+0000] {conn.py:951} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=9 host=b9-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connected> [IPv4 ('3.130.41.86', 9092)]>: Closing connection. [Error 7] RequestTimedOutError: Request timed out after 60000.0 ms
+[2025-12-05T10:55:03.896+0000] {fetcher.py:789} ERROR - Fetch to node 9 failed: [Error 7] RequestTimedOutError: Request timed out after 60000.0 ms
+[2025-12-05T10:55:04.438+0000] {client_async.py:794} WARNING - <BrokerConnection client_id=kafka-python-2.3.0, node_id=10 host=b10-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connected> [IPv4 ('3.131.234.56', 9092)]> timed out after 60000.0 ms. Closing connection.
+[2025-12-05T10:55:04.766+0000] {conn.py:951} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=10 host=b10-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connected> [IPv4 ('3.131.234.56', 9092)]>: Closing connection. [Error 7] RequestTimedOutError: Request timed out after 60000.0 ms
+[2025-12-05T10:55:05.227+0000] {fetcher.py:789} ERROR - Fetch to node 10 failed: [Error 7] RequestTimedOutError: Request timed out after 60000.0 ms
+[2025-12-05T10:55:05.398+0000] {client_async.py:794} WARNING - <BrokerConnection client_id=kafka-python-2.3.0, node_id=11 host=b11-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connected> [IPv4 ('18.189.9.197', 9092)]> timed out after 60000.0 ms. Closing connection.
+[2025-12-05T10:55:05.446+0000] {conn.py:951} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=11 host=b11-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connected> [IPv4 ('18.189.9.197', 9092)]>: Closing connection. [Error 7] RequestTimedOutError: Request timed out after 60000.0 ms
+[2025-12-05T10:55:05.968+0000] {fetcher.py:789} ERROR - Fetch to node 11 failed: [Error 7] RequestTimedOutError: Request timed out after 60000.0 ms
+[2025-12-05T10:55:06.148+0000] {conn.py:400} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=7 host=b7-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('18.119.48.15', 9092)]>: connecting to b7-pkc-921jm.us-east-2.aws.confluent.cloud:9092 [('18.119.48.15', 9092) IPv4]
+[2025-12-05T10:55:06.469+0000] {conn.py:400} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=6 host=b6-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('3.133.43.69', 9092)]>: connecting to b6-pkc-921jm.us-east-2.aws.confluent.cloud:9092 [('3.133.43.69', 9092) IPv4]
+[2025-12-05T10:55:06.571+0000] {conn.py:400} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=8 host=b8-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('13.58.123.35', 9092)]>: connecting to b8-pkc-921jm.us-east-2.aws.confluent.cloud:9092 [('13.58.123.35', 9092) IPv4]
+[2025-12-05T10:55:06.583+0000] {conn.py:400} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=11 host=b11-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('3.139.242.221', 9092)]>: connecting to b11-pkc-921jm.us-east-2.aws.confluent.cloud:9092 [('3.139.242.221', 9092) IPv4]
+[2025-12-05T10:55:06.587+0000] {conn.py:400} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=10 host=b10-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('18.190.18.54', 9092)]>: connecting to b10-pkc-921jm.us-east-2.aws.confluent.cloud:9092 [('18.190.18.54', 9092) IPv4]
+[2025-12-05T10:55:06.589+0000] {conn.py:400} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=9 host=b9-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('18.221.58.220', 9092)]>: connecting to b9-pkc-921jm.us-east-2.aws.confluent.cloud:9092 [('18.221.58.220', 9092) IPv4]
+[2025-12-05T10:55:06.987+0000] {conn.py:433} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=7 host=b7-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('18.119.48.15', 9092)]>: Connect attempt returned error 113. Disconnecting.
+[2025-12-05T10:55:07.072+0000] {conn.py:951} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=7 host=b7-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('18.119.48.15', 9092)]>: Closing connection. KafkaConnectionError: 113 EHOSTUNREACH
+[2025-12-05T10:55:07.180+0000] {conn.py:433} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=6 host=b6-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('3.133.43.69', 9092)]>: Connect attempt returned error 113. Disconnecting.
+[2025-12-05T10:55:07.412+0000] {conn.py:951} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=6 host=b6-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('3.133.43.69', 9092)]>: Closing connection. KafkaConnectionError: 113 EHOSTUNREACH
+[2025-12-05T10:55:07.563+0000] {conn.py:400} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=7 host=b7-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('3.12.226.94', 9092)]>: connecting to b7-pkc-921jm.us-east-2.aws.confluent.cloud:9092 [('3.12.226.94', 9092) IPv4]
+[2025-12-05T10:55:07.714+0000] {conn.py:400} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=6 host=b6-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('18.216.70.71', 9092)]>: connecting to b6-pkc-921jm.us-east-2.aws.confluent.cloud:9092 [('18.216.70.71', 9092) IPv4]
+[2025-12-05T10:55:07.886+0000] {conn.py:433} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=8 host=b8-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('13.58.123.35', 9092)]>: Connect attempt returned error 113. Disconnecting.
+[2025-12-05T10:55:08.006+0000] {conn.py:951} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=8 host=b8-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('13.58.123.35', 9092)]>: Closing connection. KafkaConnectionError: 113 EHOSTUNREACH
+[2025-12-05T10:55:08.225+0000] {conn.py:433} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=11 host=b11-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('3.139.242.221', 9092)]>: Connect attempt returned error 113. Disconnecting.
+[2025-12-05T10:55:08.279+0000] {conn.py:951} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=11 host=b11-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('3.139.242.221', 9092)]>: Closing connection. KafkaConnectionError: 113 EHOSTUNREACH
+[2025-12-05T10:55:08.308+0000] {conn.py:433} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=10 host=b10-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('18.190.18.54', 9092)]>: Connect attempt returned error 113. Disconnecting.
+[2025-12-05T10:55:08.316+0000] {conn.py:951} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=10 host=b10-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('18.190.18.54', 9092)]>: Closing connection. KafkaConnectionError: 113 EHOSTUNREACH
+[2025-12-05T10:55:08.322+0000] {conn.py:433} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=9 host=b9-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('18.221.58.220', 9092)]>: Connect attempt returned error 113. Disconnecting.
+[2025-12-05T10:55:08.348+0000] {conn.py:951} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=9 host=b9-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('18.221.58.220', 9092)]>: Closing connection. KafkaConnectionError: 113 EHOSTUNREACH
+[2025-12-05T10:55:08.450+0000] {conn.py:400} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=9 host=b9-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('3.21.94.51', 9092)]>: connecting to b9-pkc-921jm.us-east-2.aws.confluent.cloud:9092 [('3.21.94.51', 9092) IPv4]
+[2025-12-05T10:55:08.457+0000] {conn.py:400} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=10 host=b10-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('3.131.75.223', 9092)]>: connecting to b10-pkc-921jm.us-east-2.aws.confluent.cloud:9092 [('3.131.75.223', 9092) IPv4]
+[2025-12-05T10:55:08.460+0000] {conn.py:400} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=8 host=b8-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('3.139.173.109', 9092)]>: connecting to b8-pkc-921jm.us-east-2.aws.confluent.cloud:9092 [('3.139.173.109', 9092) IPv4]
+[2025-12-05T10:55:08.463+0000] {conn.py:400} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=11 host=b11-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('3.132.173.19', 9092)]>: connecting to b11-pkc-921jm.us-east-2.aws.confluent.cloud:9092 [('3.132.173.19', 9092) IPv4]
+[2025-12-05T10:55:09.796+0000] {job.py:254} ERROR - Job heartbeat failed with error. Scheduler is in unhealthy state
+[2025-12-05T10:55:10.107+0000] {conn.py:433} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=7 host=b7-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('3.12.226.94', 9092)]>: Connect attempt returned error 113. Disconnecting.
+[2025-12-05T10:55:10.220+0000] {conn.py:951} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=7 host=b7-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('3.12.226.94', 9092)]>: Closing connection. KafkaConnectionError: 113 EHOSTUNREACH
+[2025-12-05T10:55:10.235+0000] {client_async.py:388} WARNING - Node 7 connection failed -- refreshing metadata
+[2025-12-05T10:55:10.267+0000] {conn.py:433} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=6 host=b6-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('18.216.70.71', 9092)]>: Connect attempt returned error 113. Disconnecting.
+[2025-12-05T10:55:10.283+0000] {conn.py:951} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=6 host=b6-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('18.216.70.71', 9092)]>: Closing connection. KafkaConnectionError: 113 EHOSTUNREACH
+[2025-12-05T10:55:10.286+0000] {client_async.py:388} WARNING - Node 6 connection failed -- refreshing metadata
+[2025-12-05T10:55:10.288+0000] {conn.py:433} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=9 host=b9-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('3.21.94.51', 9092)]>: Connect attempt returned error 113. Disconnecting.
+[2025-12-05T10:55:10.311+0000] {conn.py:951} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=9 host=b9-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('3.21.94.51', 9092)]>: Closing connection. KafkaConnectionError: 113 EHOSTUNREACH
+[2025-12-05T10:55:10.316+0000] {client_async.py:388} WARNING - Node 9 connection failed -- refreshing metadata
+[2025-12-05T10:55:20.369+0000] {conn.py:1530} WARNING - DNS lookup failed for b7-pkc-921jm.us-east-2.aws.confluent.cloud:9092, exception was [Errno -3] Temporary failure in name resolution. Is your advertised.listeners (called advertised.host.name before Kafka 9) correct and resolvable?
+[2025-12-05T10:55:20.461+0000] {conn.py:323} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=7 host=b7-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('3.12.226.94', 9092)]>: DNS lookup failed for b7-pkc-921jm.us-east-2.aws.confluent.cloud:9092 (0)
+[2025-12-05T10:55:20.463+0000] {conn.py:951} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=7 host=b7-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('3.12.226.94', 9092)]>: Closing connection. KafkaConnectionError: DNS failure
+[2025-12-05T10:55:20.477+0000] {client_async.py:388} WARNING - Node 7 connection failed -- refreshing metadata
+[2025-12-05T10:55:22.760+0000] {job.py:229} INFO - Heartbeat recovered after 133.15 seconds
+[2025-12-05T10:55:26.389+0000] {conn.py:1530} WARNING - DNS lookup failed for b6-pkc-921jm.us-east-2.aws.confluent.cloud:9092, exception was [Errno -3] Temporary failure in name resolution. Is your advertised.listeners (called advertised.host.name before Kafka 9) correct and resolvable?
+[2025-12-05T10:55:26.390+0000] {conn.py:323} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=6 host=b6-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('18.216.70.71', 9092)]>: DNS lookup failed for b6-pkc-921jm.us-east-2.aws.confluent.cloud:9092 (0)
+[2025-12-05T10:55:26.399+0000] {conn.py:951} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=6 host=b6-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('18.216.70.71', 9092)]>: Closing connection. KafkaConnectionError: DNS failure
+[2025-12-05T10:55:26.411+0000] {client_async.py:388} WARNING - Node 6 connection failed -- refreshing metadata
+[2025-12-05T10:55:29.118+0000] {conn.py:400} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=9 host=b9-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('18.221.58.220', 9092)]>: connecting to b9-pkc-921jm.us-east-2.aws.confluent.cloud:9092 [('18.221.58.220', 9092) IPv4]
+[2025-12-05T10:55:29.133+0000] {conn.py:433} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=10 host=b10-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('3.131.75.223', 9092)]>: Connect attempt returned error 113. Disconnecting.
+[2025-12-05T10:55:29.152+0000] {conn.py:951} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=10 host=b10-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('3.131.75.223', 9092)]>: Closing connection. KafkaConnectionError: 113 EHOSTUNREACH
+[2025-12-05T10:55:29.168+0000] {client_async.py:388} WARNING - Node 10 connection failed -- refreshing metadata
+[2025-12-05T10:55:29.204+0000] {conn.py:433} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=8 host=b8-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('3.139.173.109', 9092)]>: Connect attempt returned error 113. Disconnecting.
+[2025-12-05T10:55:29.210+0000] {conn.py:951} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=8 host=b8-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('3.139.173.109', 9092)]>: Closing connection. KafkaConnectionError: 113 EHOSTUNREACH
+[2025-12-05T10:55:29.214+0000] {client_async.py:388} WARNING - Node 8 connection failed -- refreshing metadata
+[2025-12-05T10:55:29.218+0000] {conn.py:433} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=11 host=b11-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('3.132.173.19', 9092)]>: Connect attempt returned error 113. Disconnecting.
+[2025-12-05T10:55:29.243+0000] {conn.py:951} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=11 host=b11-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('3.132.173.19', 9092)]>: Closing connection. KafkaConnectionError: 113 EHOSTUNREACH
+[2025-12-05T10:55:29.249+0000] {client_async.py:388} WARNING - Node 11 connection failed -- refreshing metadata
+[2025-12-05T10:55:29.670+0000] {conn.py:400} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=7 host=b7-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('3.12.226.94', 9092)]>: connecting to b7-pkc-921jm.us-east-2.aws.confluent.cloud:9092 [('3.12.226.94', 9092) IPv4]
+[2025-12-05T10:55:29.734+0000] {conn.py:400} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=6 host=b6-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('3.133.43.69', 9092)]>: connecting to b6-pkc-921jm.us-east-2.aws.confluent.cloud:9092 [('3.133.43.69', 9092) IPv4]
+[2025-12-05T10:55:29.953+0000] {conn.py:400} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=8 host=b8-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('13.58.123.35', 9092)]>: connecting to b8-pkc-921jm.us-east-2.aws.confluent.cloud:9092 [('13.58.123.35', 9092) IPv4]
+[2025-12-05T10:55:30.111+0000] {conn.py:400} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=11 host=b11-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('18.189.9.197', 9092)]>: connecting to b11-pkc-921jm.us-east-2.aws.confluent.cloud:9092 [('18.189.9.197', 9092) IPv4]
+[2025-12-05T10:55:30.254+0000] {conn.py:400} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=10 host=b10-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('3.131.234.56', 9092)]>: connecting to b10-pkc-921jm.us-east-2.aws.confluent.cloud:9092 [('3.131.234.56', 9092) IPv4]
+[2025-12-05T10:55:31.387+0000] {conn.py:826} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=6 host=b6-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <authenticating> [IPv4 ('3.133.43.69', 9092)]>: Authenticated as 5OIHYGHTVCSUQ4TH via SASL / Plain
+[2025-12-05T10:55:31.390+0000] {conn.py:471} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=6 host=b6-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connected> [IPv4 ('3.133.43.69', 9092)]>: Connection complete.
+[2025-12-05T10:55:31.743+0000] {conn.py:826} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=7 host=b7-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <authenticating> [IPv4 ('3.12.226.94', 9092)]>: Authenticated as 5OIHYGHTVCSUQ4TH via SASL / Plain
+[2025-12-05T10:55:31.751+0000] {conn.py:471} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=7 host=b7-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connected> [IPv4 ('3.12.226.94', 9092)]>: Connection complete.
+[2025-12-05T10:55:32.088+0000] {conn.py:826} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=11 host=b11-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <authenticating> [IPv4 ('18.189.9.197', 9092)]>: Authenticated as 5OIHYGHTVCSUQ4TH via SASL / Plain
+[2025-12-05T10:55:32.092+0000] {conn.py:471} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=11 host=b11-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connected> [IPv4 ('18.189.9.197', 9092)]>: Connection complete.
+[2025-12-05T10:55:32.442+0000] {conn.py:826} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=9 host=b9-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <authenticating> [IPv4 ('18.221.58.220', 9092)]>: Authenticated as 5OIHYGHTVCSUQ4TH via SASL / Plain
+[2025-12-05T10:55:32.455+0000] {conn.py:471} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=9 host=b9-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connected> [IPv4 ('18.221.58.220', 9092)]>: Connection complete.
+[2025-12-05T10:55:32.766+0000] {conn.py:826} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=8 host=b8-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <authenticating> [IPv4 ('13.58.123.35', 9092)]>: Authenticated as 5OIHYGHTVCSUQ4TH via SASL / Plain
+[2025-12-05T10:55:32.768+0000] {conn.py:471} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=8 host=b8-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connected> [IPv4 ('13.58.123.35', 9092)]>: Connection complete.
+[2025-12-05T10:55:33.113+0000] {conn.py:826} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=10 host=b10-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <authenticating> [IPv4 ('3.131.234.56', 9092)]>: Authenticated as 5OIHYGHTVCSUQ4TH via SASL / Plain
+[2025-12-05T10:55:33.115+0000] {conn.py:471} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=10 host=b10-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connected> [IPv4 ('3.131.234.56', 9092)]>: Connection complete.
+[2025-12-05T10:55:49.807+0000] {fraud_detection_training.py:290} INFO - Stream: Processed batch 22 with 10000 messages (total: 220000 messages)
+[2025-12-05T10:56:17.667+0000] {job.py:229} INFO - Heartbeat recovered after 28.08 seconds
+[2025-12-05T10:56:27.023+0000] {fraud_detection_training.py:290} INFO - Stream: Processed batch 23 with 10000 messages (total: 230000 messages)
+[2025-12-05T10:57:18.332+0000] {job.py:239} ERROR - Job heartbeat failed with error
+Traceback (most recent call last):
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 3371, in _wrap_pool_connect
+    return fn()
+           ^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/pool/base.py", line 327, in connect
+    return _ConnectionFairy._checkout(self)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/pool/base.py", line 894, in _checkout
+    fairy = _ConnectionRecord.checkout(pool)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/pool/base.py", line 493, in checkout
+    rec = pool._do_get()
+          ^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/pool/impl.py", line 256, in _do_get
+    return self._create_connection()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/pool/base.py", line 273, in _create_connection
+    return _ConnectionRecord(self)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/pool/base.py", line 388, in __init__
+    self.__connect()
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/pool/base.py", line 690, in __connect
+    with util.safe_reraise():
+         ^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/util/langhelpers.py", line 70, in __exit__
+    compat.raise_(
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/util/compat.py", line 211, in raise_
+    raise exception
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/pool/base.py", line 686, in __connect
+    self.dbapi_connection = connection = pool._invoke_creator(self)
+                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/engine/create.py", line 574, in connect
+    return dialect.connect(*cargs, **cparams)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/engine/default.py", line 598, in connect
+    return self.dbapi.connect(*cargs, **cparams)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/psycopg2/__init__.py", line 122, in connect
+    conn = _connect(dsn, connection_factory=connection_factory, **kwasync)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+psycopg2.OperationalError: could not translate host name "postgres" to address: Temporary failure in name resolution
+
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/jobs/job.py", line 207, in heartbeat
+    self._merge_from(Job._fetch_from_db(self, session))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/api_internal/internal_api_call.py", line 166, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/utils/session.py", line 94, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/utils/retries.py", line 93, in wrapped_function
+    for attempt in run_with_db_retries(max_retries=retries, logger=logger, **retry_kwargs):
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/tenacity/__init__.py", line 443, in __iter__
+    do = self.iter(retry_state=retry_state)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/tenacity/__init__.py", line 376, in iter
+    result = action(retry_state)
+             ^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/tenacity/__init__.py", line 418, in exc_check
+    raise retry_exc.reraise()
+          ^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/tenacity/__init__.py", line 185, in reraise
+    raise self.last_attempt.result()
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/concurrent/futures/_base.py", line 449, in result
+    return self.__get_result()
+           ^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/concurrent/futures/_base.py", line 401, in __get_result
+    raise self._exception
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/utils/retries.py", line 102, in wrapped_function
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/jobs/job.py", line 335, in _fetch_from_db
+    session.merge(job)
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 3056, in merge
+    return self._merge(
+           ^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 3136, in _merge
+    merged = self.get(
+             ^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 2853, in get
+    return self._get_impl(
+           ^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 2975, in _get_impl
+    return db_load_fn(
+           ^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/orm/loading.py", line 530, in load_on_pk_identity
+    session.execute(
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 1716, in execute
+    conn = self._connection_for_bind(bind)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 1555, in _connection_for_bind
+    return self._transaction._connection_for_bind(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 750, in _connection_for_bind
+    conn = bind.connect()
+           ^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/future/engine.py", line 412, in connect
+    return super(Engine, self).connect()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 3325, in connect
+    return self._connection_cls(self, close_with_result=close_with_result)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 96, in __init__
+    else engine.raw_connection()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 3404, in raw_connection
+    return self._wrap_pool_connect(self.pool.connect, _connection)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 3374, in _wrap_pool_connect
+    Connection._handle_dbapi_exception_noconnection(
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 2208, in _handle_dbapi_exception_noconnection
+    util.raise_(
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/util/compat.py", line 211, in raise_
+    raise exception
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 3371, in _wrap_pool_connect
+    return fn()
+           ^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/pool/base.py", line 327, in connect
+    return _ConnectionFairy._checkout(self)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/pool/base.py", line 894, in _checkout
+    fairy = _ConnectionRecord.checkout(pool)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/pool/base.py", line 493, in checkout
+    rec = pool._do_get()
+          ^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/pool/impl.py", line 256, in _do_get
+    return self._create_connection()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/pool/base.py", line 273, in _create_connection
+    return _ConnectionRecord(self)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/pool/base.py", line 388, in __init__
+    self.__connect()
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/pool/base.py", line 690, in __connect
+    with util.safe_reraise():
+         ^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/util/langhelpers.py", line 70, in __exit__
+    compat.raise_(
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/util/compat.py", line 211, in raise_
+    raise exception
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/pool/base.py", line 686, in __connect
+    self.dbapi_connection = connection = pool._invoke_creator(self)
+                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/engine/create.py", line 574, in connect
+    return dialect.connect(*cargs, **cparams)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/engine/default.py", line 598, in connect
+    return self.dbapi.connect(*cargs, **cparams)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/psycopg2/__init__.py", line 122, in connect
+    conn = _connect(dsn, connection_factory=connection_factory, **kwasync)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) could not translate host name "postgres" to address: Temporary failure in name resolution
+
+(Background on this error at: https://sqlalche.me/e/14/e3q8)
+[2025-12-05T10:57:19.525+0000] {job.py:254} ERROR - Job heartbeat failed with error. Scheduler is in unhealthy state
+[2025-12-05T10:57:30.064+0000] {client_async.py:794} WARNING - <BrokerConnection client_id=kafka-python-2.3.0, node_id=9 host=b9-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connected> [IPv4 ('18.221.58.220', 9092)]> timed out after 60000.0 ms. Closing connection.
+[2025-12-05T10:57:31.345+0000] {conn.py:951} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=9 host=b9-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connected> [IPv4 ('18.221.58.220', 9092)]>: Closing connection. [Error 7] RequestTimedOutError: Request timed out after 60000.0 ms
+[2025-12-05T10:57:44.389+0000] {fetcher.py:789} ERROR - Fetch to node 9 failed: [Error 7] RequestTimedOutError: Request timed out after 60000.0 ms
+[2025-12-05T10:57:44.413+0000] {client_async.py:794} WARNING - <BrokerConnection client_id=kafka-python-2.3.0, node_id=10 host=b10-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connected> [IPv4 ('3.131.234.56', 9092)]> timed out after 60000.0 ms. Closing connection.
+[2025-12-05T10:57:44.414+0000] {conn.py:951} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=10 host=b10-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connected> [IPv4 ('3.131.234.56', 9092)]>: Closing connection. [Error 7] RequestTimedOutError: Request timed out after 60000.0 ms
+[2025-12-05T10:57:44.482+0000] {fetcher.py:789} ERROR - Fetch to node 10 failed: [Error 7] RequestTimedOutError: Request timed out after 60000.0 ms
+[2025-12-05T10:57:44.492+0000] {client_async.py:794} WARNING - <BrokerConnection client_id=kafka-python-2.3.0, node_id=11 host=b11-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connected> [IPv4 ('18.189.9.197', 9092)]> timed out after 60000.0 ms. Closing connection.
+[2025-12-05T10:57:44.493+0000] {conn.py:951} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=11 host=b11-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connected> [IPv4 ('18.189.9.197', 9092)]>: Closing connection. [Error 7] RequestTimedOutError: Request timed out after 60000.0 ms
+[2025-12-05T10:57:44.501+0000] {fetcher.py:789} ERROR - Fetch to node 11 failed: [Error 7] RequestTimedOutError: Request timed out after 60000.0 ms
+[2025-12-05T10:57:44.506+0000] {conn.py:400} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=11 host=b11-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('3.139.242.221', 9092)]>: connecting to b11-pkc-921jm.us-east-2.aws.confluent.cloud:9092 [('3.139.242.221', 9092) IPv4]
+[2025-12-05T10:57:44.508+0000] {conn.py:400} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=10 host=b10-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('3.131.75.223', 9092)]>: connecting to b10-pkc-921jm.us-east-2.aws.confluent.cloud:9092 [('3.131.75.223', 9092) IPv4]
+[2025-12-05T10:57:44.510+0000] {conn.py:400} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=9 host=b9-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('3.130.41.86', 9092)]>: connecting to b9-pkc-921jm.us-east-2.aws.confluent.cloud:9092 [('3.130.41.86', 9092) IPv4]
+[2025-12-05T10:57:44.513+0000] {client_async.py:794} WARNING - <BrokerConnection client_id=kafka-python-2.3.0, node_id=7 host=b7-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connected> [IPv4 ('3.12.226.94', 9092)]> timed out after 60000.0 ms. Closing connection.
+[2025-12-05T10:57:44.516+0000] {conn.py:951} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=7 host=b7-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connected> [IPv4 ('3.12.226.94', 9092)]>: Closing connection. [Error 7] RequestTimedOutError: Request timed out after 60000.0 ms
+[2025-12-05T10:57:44.522+0000] {fetcher.py:789} ERROR - Fetch to node 7 failed: [Error 7] RequestTimedOutError: Request timed out after 60000.0 ms
+[2025-12-05T10:57:44.526+0000] {conn.py:400} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=7 host=b7-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('18.119.48.15', 9092)]>: connecting to b7-pkc-921jm.us-east-2.aws.confluent.cloud:9092 [('18.119.48.15', 9092) IPv4]
+[2025-12-05T10:57:45.452+0000] {conn.py:433} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=11 host=b11-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('3.139.242.221', 9092)]>: Connect attempt returned error 113. Disconnecting.
+[2025-12-05T10:57:45.511+0000] {conn.py:951} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=11 host=b11-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('3.139.242.221', 9092)]>: Closing connection. KafkaConnectionError: 113 EHOSTUNREACH
+[2025-12-05T10:57:45.538+0000] {conn.py:400} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=11 host=b11-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('3.132.173.19', 9092)]>: connecting to b11-pkc-921jm.us-east-2.aws.confluent.cloud:9092 [('3.132.173.19', 9092) IPv4]
+[2025-12-05T10:57:45.553+0000] {conn.py:433} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=10 host=b10-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('3.131.75.223', 9092)]>: Connect attempt returned error 113. Disconnecting.
+[2025-12-05T10:57:45.555+0000] {conn.py:951} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=10 host=b10-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('3.131.75.223', 9092)]>: Closing connection. KafkaConnectionError: 113 EHOSTUNREACH
+[2025-12-05T10:57:45.556+0000] {conn.py:433} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=9 host=b9-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('3.130.41.86', 9092)]>: Connect attempt returned error 113. Disconnecting.
+[2025-12-05T10:57:45.565+0000] {conn.py:951} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=9 host=b9-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('3.130.41.86', 9092)]>: Closing connection. KafkaConnectionError: 113 EHOSTUNREACH
+[2025-12-05T10:57:45.569+0000] {conn.py:433} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=7 host=b7-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('18.119.48.15', 9092)]>: Connect attempt returned error 113. Disconnecting.
+[2025-12-05T10:57:45.571+0000] {conn.py:951} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=7 host=b7-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('18.119.48.15', 9092)]>: Closing connection. KafkaConnectionError: 113 EHOSTUNREACH
+[2025-12-05T10:57:45.586+0000] {conn.py:400} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=7 host=b7-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('3.13.52.23', 9092)]>: connecting to b7-pkc-921jm.us-east-2.aws.confluent.cloud:9092 [('3.13.52.23', 9092) IPv4]
+[2025-12-05T10:57:45.593+0000] {conn.py:400} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=10 host=b10-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('18.190.18.54', 9092)]>: connecting to b10-pkc-921jm.us-east-2.aws.confluent.cloud:9092 [('18.190.18.54', 9092) IPv4]
+[2025-12-05T10:57:45.603+0000] {conn.py:400} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=9 host=b9-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('3.21.94.51', 9092)]>: connecting to b9-pkc-921jm.us-east-2.aws.confluent.cloud:9092 [('3.21.94.51', 9092) IPv4]
+[2025-12-05T10:57:48.625+0000] {conn.py:433} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=11 host=b11-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('3.132.173.19', 9092)]>: Connect attempt returned error 113. Disconnecting.
+[2025-12-05T10:57:48.701+0000] {conn.py:951} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=11 host=b11-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('3.132.173.19', 9092)]>: Closing connection. KafkaConnectionError: 113 EHOSTUNREACH
+[2025-12-05T10:57:48.718+0000] {client_async.py:388} WARNING - Node 11 connection failed -- refreshing metadata
+[2025-12-05T10:57:48.731+0000] {conn.py:433} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=7 host=b7-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('3.13.52.23', 9092)]>: Connect attempt returned error 113. Disconnecting.
+[2025-12-05T10:57:48.733+0000] {conn.py:951} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=7 host=b7-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('3.13.52.23', 9092)]>: Closing connection. KafkaConnectionError: 113 EHOSTUNREACH
+[2025-12-05T10:57:48.751+0000] {client_async.py:388} WARNING - Node 7 connection failed -- refreshing metadata
+[2025-12-05T10:57:48.806+0000] {conn.py:433} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=10 host=b10-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('18.190.18.54', 9092)]>: Connect attempt returned error 113. Disconnecting.
+[2025-12-05T10:57:48.817+0000] {conn.py:951} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=10 host=b10-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('18.190.18.54', 9092)]>: Closing connection. KafkaConnectionError: 113 EHOSTUNREACH
+[2025-12-05T10:57:48.837+0000] {client_async.py:388} WARNING - Node 10 connection failed -- refreshing metadata
+[2025-12-05T10:57:48.839+0000] {conn.py:433} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=9 host=b9-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('3.21.94.51', 9092)]>: Connect attempt returned error 113. Disconnecting.
+[2025-12-05T10:57:48.841+0000] {conn.py:951} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=9 host=b9-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('3.21.94.51', 9092)]>: Closing connection. KafkaConnectionError: 113 EHOSTUNREACH
+[2025-12-05T10:57:48.843+0000] {client_async.py:388} WARNING - Node 9 connection failed -- refreshing metadata
+[2025-12-05T10:57:59.145+0000] {conn.py:1530} WARNING - DNS lookup failed for b11-pkc-921jm.us-east-2.aws.confluent.cloud:9092, exception was [Errno -3] Temporary failure in name resolution. Is your advertised.listeners (called advertised.host.name before Kafka 9) correct and resolvable?
+[2025-12-05T10:58:00.174+0000] {conn.py:323} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=11 host=b11-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('3.132.173.19', 9092)]>: DNS lookup failed for b11-pkc-921jm.us-east-2.aws.confluent.cloud:9092 (0)
+[2025-12-05T10:58:01.003+0000] {conn.py:951} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=11 host=b11-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('3.132.173.19', 9092)]>: Closing connection. KafkaConnectionError: DNS failure
+[2025-12-05T10:58:01.440+0000] {client_async.py:388} WARNING - Node 11 connection failed -- refreshing metadata
+[2025-12-05T10:58:05.302+0000] {job.py:254} ERROR - Job heartbeat failed with error. Scheduler is in unhealthy state
+[2025-12-05T10:58:12.866+0000] {conn.py:1530} WARNING - DNS lookup failed for b7-pkc-921jm.us-east-2.aws.confluent.cloud:9092, exception was [Errno -3] Temporary failure in name resolution. Is your advertised.listeners (called advertised.host.name before Kafka 9) correct and resolvable?
+[2025-12-05T10:58:14.306+0000] {conn.py:323} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=7 host=b7-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('3.13.52.23', 9092)]>: DNS lookup failed for b7-pkc-921jm.us-east-2.aws.confluent.cloud:9092 (0)
+[2025-12-05T10:58:15.811+0000] {conn.py:951} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=7 host=b7-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('3.13.52.23', 9092)]>: Closing connection. KafkaConnectionError: DNS failure
+[2025-12-05T10:58:18.344+0000] {client_async.py:388} WARNING - Node 7 connection failed -- refreshing metadata
+[2025-12-05T10:58:33.050+0000] {conn.py:1530} WARNING - DNS lookup failed for b10-pkc-921jm.us-east-2.aws.confluent.cloud:9092, exception was [Errno -3] Temporary failure in name resolution. Is your advertised.listeners (called advertised.host.name before Kafka 9) correct and resolvable?
+[2025-12-05T10:58:34.573+0000] {conn.py:323} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=10 host=b10-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('18.190.18.54', 9092)]>: DNS lookup failed for b10-pkc-921jm.us-east-2.aws.confluent.cloud:9092 (0)
+[2025-12-05T10:58:34.614+0000] {conn.py:951} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=10 host=b10-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('18.190.18.54', 9092)]>: Closing connection. KafkaConnectionError: DNS failure
+[2025-12-05T10:58:34.631+0000] {client_async.py:388} WARNING - Node 10 connection failed -- refreshing metadata
+[2025-12-05T10:58:44.779+0000] {conn.py:1530} WARNING - DNS lookup failed for b9-pkc-921jm.us-east-2.aws.confluent.cloud:9092, exception was [Errno -3] Temporary failure in name resolution. Is your advertised.listeners (called advertised.host.name before Kafka 9) correct and resolvable?
+[2025-12-05T10:58:45.044+0000] {conn.py:323} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=9 host=b9-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('3.21.94.51', 9092)]>: DNS lookup failed for b9-pkc-921jm.us-east-2.aws.confluent.cloud:9092 (0)
+[2025-12-05T10:58:45.071+0000] {conn.py:951} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=9 host=b9-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('3.21.94.51', 9092)]>: Closing connection. KafkaConnectionError: DNS failure
+[2025-12-05T10:58:45.087+0000] {client_async.py:388} WARNING - Node 9 connection failed -- refreshing metadata
+[2025-12-05T10:58:55.355+0000] {job.py:254} ERROR - Job heartbeat failed with error. Scheduler is in unhealthy state
+[2025-12-05T10:58:55.295+0000] {conn.py:1530} WARNING - DNS lookup failed for b1-pkc-921jm.us-east-2.aws.confluent.cloud:9092, exception was [Errno -3] Temporary failure in name resolution. Is your advertised.listeners (called advertised.host.name before Kafka 9) correct and resolvable?
+[2025-12-05T10:58:55.427+0000] {conn.py:323} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=1 host=b1-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [unspecified None]>: DNS lookup failed for b1-pkc-921jm.us-east-2.aws.confluent.cloud:9092 (0)
+[2025-12-05T10:58:55.433+0000] {conn.py:951} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=1 host=b1-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [unspecified None]>: Closing connection. KafkaConnectionError: DNS failure
+[2025-12-05T10:58:55.508+0000] {client_async.py:388} WARNING - Node 1 connection failed -- refreshing metadata
+[2025-12-05T10:58:55.604+0000] {client_async.py:794} WARNING - <BrokerConnection client_id=kafka-python-2.3.0, node_id=6 host=b6-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connected> [IPv4 ('3.133.43.69', 9092)]> timed out after 60000.0 ms. Closing connection.
+[2025-12-05T10:58:55.696+0000] {conn.py:951} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=6 host=b6-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connected> [IPv4 ('3.133.43.69', 9092)]>: Closing connection. [Error 7] RequestTimedOutError: Request timed out after 60000.0 ms
+[2025-12-05T10:58:55.857+0000] {fetcher.py:789} ERROR - Fetch to node 6 failed: [Error 7] RequestTimedOutError: Request timed out after 60000.0 ms
+[2025-12-05T10:58:55.962+0000] {client_async.py:794} WARNING - <BrokerConnection client_id=kafka-python-2.3.0, node_id=8 host=b8-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connected> [IPv4 ('13.58.123.35', 9092)]> timed out after 60000.0 ms. Closing connection.
+[2025-12-05T10:58:56.096+0000] {conn.py:951} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=8 host=b8-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connected> [IPv4 ('13.58.123.35', 9092)]>: Closing connection. [Error 7] RequestTimedOutError: Request timed out after 60000.0 ms
+[2025-12-05T10:58:56.617+0000] {fetcher.py:789} ERROR - Fetch to node 8 failed: [Error 7] RequestTimedOutError: Request timed out after 60000.0 ms
+[2025-12-05T10:58:56.902+0000] {conn.py:400} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=8 host=b8-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('3.129.119.248', 9092)]>: connecting to b8-pkc-921jm.us-east-2.aws.confluent.cloud:9092 [('3.129.119.248', 9092) IPv4]
+[2025-12-05T10:58:56.969+0000] {conn.py:400} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=6 host=b6-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('3.128.86.248', 9092)]>: connecting to b6-pkc-921jm.us-east-2.aws.confluent.cloud:9092 [('3.128.86.248', 9092) IPv4]
+[2025-12-05T10:59:07.347+0000] {conn.py:1530} WARNING - DNS lookup failed for b11-pkc-921jm.us-east-2.aws.confluent.cloud:9092, exception was [Errno -3] Temporary failure in name resolution. Is your advertised.listeners (called advertised.host.name before Kafka 9) correct and resolvable?
+[2025-12-05T10:59:08.395+0000] {conn.py:323} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=11 host=b11-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('3.132.173.19', 9092)]>: DNS lookup failed for b11-pkc-921jm.us-east-2.aws.confluent.cloud:9092 (0)
+[2025-12-05T10:59:08.914+0000] {conn.py:951} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=11 host=b11-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('3.132.173.19', 9092)]>: Closing connection. KafkaConnectionError: DNS failure
+[2025-12-05T10:59:10.399+0000] {client_async.py:388} WARNING - Node 11 connection failed -- refreshing metadata
+[2025-12-05T10:59:23.163+0000] {conn.py:1530} WARNING - DNS lookup failed for b7-pkc-921jm.us-east-2.aws.confluent.cloud:9092, exception was [Errno -3] Temporary failure in name resolution. Is your advertised.listeners (called advertised.host.name before Kafka 9) correct and resolvable?
+[2025-12-05T10:59:31.229+0000] {conn.py:323} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=7 host=b7-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('3.13.52.23', 9092)]>: DNS lookup failed for b7-pkc-921jm.us-east-2.aws.confluent.cloud:9092 (0)
+[2025-12-05T10:59:37.829+0000] {conn.py:951} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=7 host=b7-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('3.13.52.23', 9092)]>: Closing connection. KafkaConnectionError: DNS failure
+[2025-12-05T10:59:41.011+0000] {client_async.py:388} WARNING - Node 7 connection failed -- refreshing metadata
+[2025-12-05T10:59:51.076+0000] {conn.py:1530} WARNING - DNS lookup failed for b10-pkc-921jm.us-east-2.aws.confluent.cloud:9092, exception was [Errno -3] Temporary failure in name resolution. Is your advertised.listeners (called advertised.host.name before Kafka 9) correct and resolvable?
+[2025-12-05T10:59:51.093+0000] {conn.py:323} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=10 host=b10-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('18.190.18.54', 9092)]>: DNS lookup failed for b10-pkc-921jm.us-east-2.aws.confluent.cloud:9092 (0)
+[2025-12-05T10:59:51.252+0000] {conn.py:951} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=10 host=b10-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('18.190.18.54', 9092)]>: Closing connection. KafkaConnectionError: DNS failure
+[2025-12-05T10:59:51.339+0000] {client_async.py:388} WARNING - Node 10 connection failed -- refreshing metadata
+[2025-12-05T10:59:51.902+0000] {job.py:254} ERROR - Job heartbeat failed with error. Scheduler is in unhealthy state
+[2025-12-05T11:00:01.839+0000] {conn.py:1530} WARNING - DNS lookup failed for b9-pkc-921jm.us-east-2.aws.confluent.cloud:9092, exception was [Errno -3] Temporary failure in name resolution. Is your advertised.listeners (called advertised.host.name before Kafka 9) correct and resolvable?
+[2025-12-05T11:00:02.018+0000] {conn.py:323} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=9 host=b9-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('3.21.94.51', 9092)]>: DNS lookup failed for b9-pkc-921jm.us-east-2.aws.confluent.cloud:9092 (0)
+[2025-12-05T11:00:02.020+0000] {conn.py:951} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=9 host=b9-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('3.21.94.51', 9092)]>: Closing connection. KafkaConnectionError: DNS failure
+[2025-12-05T11:00:02.038+0000] {client_async.py:388} WARNING - Node 9 connection failed -- refreshing metadata
+[2025-12-05T11:00:02.058+0000] {conn.py:433} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=8 host=b8-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('3.129.119.248', 9092)]>: Connect attempt returned error 113. Disconnecting.
+[2025-12-05T11:00:02.077+0000] {conn.py:951} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=8 host=b8-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('3.129.119.248', 9092)]>: Closing connection. KafkaConnectionError: 113 EHOSTUNREACH
+[2025-12-05T11:00:02.112+0000] {conn.py:433} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=6 host=b6-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('3.128.86.248', 9092)]>: Connect attempt returned error 113. Disconnecting.
+[2025-12-05T11:00:02.114+0000] {conn.py:951} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=6 host=b6-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('3.128.86.248', 9092)]>: Closing connection. KafkaConnectionError: 113 EHOSTUNREACH
+[2025-12-05T11:00:02.133+0000] {conn.py:400} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=8 host=b8-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('3.139.173.109', 9092)]>: connecting to b8-pkc-921jm.us-east-2.aws.confluent.cloud:9092 [('3.139.173.109', 9092) IPv4]
+[2025-12-05T11:00:02.144+0000] {conn.py:400} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=6 host=b6-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('18.216.70.71', 9092)]>: connecting to b6-pkc-921jm.us-east-2.aws.confluent.cloud:9092 [('18.216.70.71', 9092) IPv4]
+[2025-12-05T11:00:12.354+0000] {conn.py:1530} WARNING - DNS lookup failed for b11-pkc-921jm.us-east-2.aws.confluent.cloud:9092, exception was [Errno -3] Temporary failure in name resolution. Is your advertised.listeners (called advertised.host.name before Kafka 9) correct and resolvable?
+[2025-12-05T11:00:12.825+0000] {conn.py:323} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=11 host=b11-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('3.132.173.19', 9092)]>: DNS lookup failed for b11-pkc-921jm.us-east-2.aws.confluent.cloud:9092 (0)
+[2025-12-05T11:00:13.202+0000] {conn.py:951} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=11 host=b11-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('3.132.173.19', 9092)]>: Closing connection. KafkaConnectionError: DNS failure
+[2025-12-05T11:00:13.529+0000] {client_async.py:388} WARNING - Node 11 connection failed -- refreshing metadata
+[2025-12-05T11:00:23.901+0000] {conn.py:1530} WARNING - DNS lookup failed for b7-pkc-921jm.us-east-2.aws.confluent.cloud:9092, exception was [Errno -3] Temporary failure in name resolution. Is your advertised.listeners (called advertised.host.name before Kafka 9) correct and resolvable?
+[2025-12-05T11:00:23.925+0000] {conn.py:323} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=7 host=b7-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('3.13.52.23', 9092)]>: DNS lookup failed for b7-pkc-921jm.us-east-2.aws.confluent.cloud:9092 (0)
+[2025-12-05T11:00:23.944+0000] {conn.py:951} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=7 host=b7-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('3.13.52.23', 9092)]>: Closing connection. KafkaConnectionError: DNS failure
+[2025-12-05T11:00:23.968+0000] {client_async.py:388} WARNING - Node 7 connection failed -- refreshing metadata
+[2025-12-05T11:00:24.334+0000] {job.py:229} INFO - Heartbeat recovered after 236.25 seconds
+[2025-12-05T11:00:29.615+0000] {conn.py:1530} WARNING - DNS lookup failed for b10-pkc-921jm.us-east-2.aws.confluent.cloud:9092, exception was [Errno -3] Temporary failure in name resolution. Is your advertised.listeners (called advertised.host.name before Kafka 9) correct and resolvable?
+[2025-12-05T11:00:29.739+0000] {conn.py:323} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=10 host=b10-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('18.190.18.54', 9092)]>: DNS lookup failed for b10-pkc-921jm.us-east-2.aws.confluent.cloud:9092 (0)
+[2025-12-05T11:00:29.768+0000] {conn.py:951} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=10 host=b10-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('18.190.18.54', 9092)]>: Closing connection. KafkaConnectionError: DNS failure
+[2025-12-05T11:00:29.783+0000] {client_async.py:388} WARNING - Node 10 connection failed -- refreshing metadata
+[2025-12-05T11:00:32.615+0000] {conn.py:400} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=9 host=b9-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('3.130.41.86', 9092)]>: connecting to b9-pkc-921jm.us-east-2.aws.confluent.cloud:9092 [('3.130.41.86', 9092) IPv4]
+[2025-12-05T11:00:32.681+0000] {conn.py:433} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=8 host=b8-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('3.139.173.109', 9092)]>: Connect attempt returned error 113. Disconnecting.
+[2025-12-05T11:00:32.726+0000] {conn.py:951} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=8 host=b8-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('3.139.173.109', 9092)]>: Closing connection. KafkaConnectionError: 113 EHOSTUNREACH
+[2025-12-05T11:00:32.734+0000] {client_async.py:388} WARNING - Node 8 connection failed -- refreshing metadata
+[2025-12-05T11:00:32.737+0000] {conn.py:433} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=6 host=b6-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('18.216.70.71', 9092)]>: Connect attempt returned error 113. Disconnecting.
+[2025-12-05T11:00:32.781+0000] {conn.py:951} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=6 host=b6-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('18.216.70.71', 9092)]>: Closing connection. KafkaConnectionError: 113 EHOSTUNREACH
+[2025-12-05T11:00:32.801+0000] {client_async.py:388} WARNING - Node 6 connection failed -- refreshing metadata
+[2025-12-05T11:00:37.229+0000] {conn.py:400} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=8 host=b8-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('3.129.119.248', 9092)]>: connecting to b8-pkc-921jm.us-east-2.aws.confluent.cloud:9092 [('3.129.119.248', 9092) IPv4]
+[2025-12-05T11:00:38.014+0000] {conn.py:400} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=6 host=b6-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('3.133.43.69', 9092)]>: connecting to b6-pkc-921jm.us-east-2.aws.confluent.cloud:9092 [('3.133.43.69', 9092) IPv4]
+[2025-12-05T11:00:39.457+0000] {conn.py:400} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=11 host=b11-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('3.139.242.221', 9092)]>: connecting to b11-pkc-921jm.us-east-2.aws.confluent.cloud:9092 [('3.139.242.221', 9092) IPv4]
+[2025-12-05T11:00:39.716+0000] {conn.py:400} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=7 host=b7-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('18.119.48.15', 9092)]>: connecting to b7-pkc-921jm.us-east-2.aws.confluent.cloud:9092 [('18.119.48.15', 9092) IPv4]
+[2025-12-05T11:00:40.166+0000] {conn.py:400} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=10 host=b10-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('3.131.75.223', 9092)]>: connecting to b10-pkc-921jm.us-east-2.aws.confluent.cloud:9092 [('3.131.75.223', 9092) IPv4]
+[2025-12-05T11:00:42.869+0000] {conn.py:826} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=9 host=b9-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <authenticating> [IPv4 ('3.130.41.86', 9092)]>: Authenticated as 5OIHYGHTVCSUQ4TH via SASL / Plain
+[2025-12-05T11:00:42.917+0000] {conn.py:471} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=9 host=b9-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connected> [IPv4 ('3.130.41.86', 9092)]>: Connection complete.
+[2025-12-05T11:00:43.692+0000] {conn.py:826} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=8 host=b8-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <authenticating> [IPv4 ('3.129.119.248', 9092)]>: Authenticated as 5OIHYGHTVCSUQ4TH via SASL / Plain
+[2025-12-05T11:00:43.694+0000] {conn.py:471} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=8 host=b8-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connected> [IPv4 ('3.129.119.248', 9092)]>: Connection complete.
+[2025-12-05T11:00:44.148+0000] {conn.py:826} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=6 host=b6-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <authenticating> [IPv4 ('3.133.43.69', 9092)]>: Authenticated as 5OIHYGHTVCSUQ4TH via SASL / Plain
+[2025-12-05T11:00:44.178+0000] {conn.py:471} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=6 host=b6-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connected> [IPv4 ('3.133.43.69', 9092)]>: Connection complete.
+[2025-12-05T11:00:44.648+0000] {conn.py:826} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=7 host=b7-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <authenticating> [IPv4 ('18.119.48.15', 9092)]>: Authenticated as 5OIHYGHTVCSUQ4TH via SASL / Plain
+[2025-12-05T11:00:44.670+0000] {conn.py:471} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=7 host=b7-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connected> [IPv4 ('18.119.48.15', 9092)]>: Connection complete.
+[2025-12-05T11:00:45.150+0000] {conn.py:826} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=11 host=b11-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <authenticating> [IPv4 ('3.139.242.221', 9092)]>: Authenticated as 5OIHYGHTVCSUQ4TH via SASL / Plain
+[2025-12-05T11:00:45.166+0000] {conn.py:471} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=11 host=b11-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connected> [IPv4 ('3.139.242.221', 9092)]>: Connection complete.
+[2025-12-05T11:00:45.663+0000] {conn.py:826} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=10 host=b10-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <authenticating> [IPv4 ('3.131.75.223', 9092)]>: Authenticated as 5OIHYGHTVCSUQ4TH via SASL / Plain
+[2025-12-05T11:00:45.683+0000] {conn.py:471} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=10 host=b10-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connected> [IPv4 ('3.131.75.223', 9092)]>: Connection complete.
+[2025-12-05T11:01:12.927+0000] {job.py:239} ERROR - Job heartbeat failed with error
+Traceback (most recent call last):
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 3371, in _wrap_pool_connect
+    return fn()
+           ^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/pool/base.py", line 327, in connect
+    return _ConnectionFairy._checkout(self)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/pool/base.py", line 894, in _checkout
+    fairy = _ConnectionRecord.checkout(pool)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/pool/base.py", line 493, in checkout
+    rec = pool._do_get()
+          ^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/pool/impl.py", line 256, in _do_get
+    return self._create_connection()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/pool/base.py", line 273, in _create_connection
+    return _ConnectionRecord(self)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/pool/base.py", line 388, in __init__
+    self.__connect()
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/pool/base.py", line 690, in __connect
+    with util.safe_reraise():
+         ^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/util/langhelpers.py", line 70, in __exit__
+    compat.raise_(
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/util/compat.py", line 211, in raise_
+    raise exception
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/pool/base.py", line 686, in __connect
+    self.dbapi_connection = connection = pool._invoke_creator(self)
+                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/engine/create.py", line 574, in connect
+    return dialect.connect(*cargs, **cparams)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/engine/default.py", line 598, in connect
+    return self.dbapi.connect(*cargs, **cparams)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/psycopg2/__init__.py", line 122, in connect
+    conn = _connect(dsn, connection_factory=connection_factory, **kwasync)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+psycopg2.OperationalError: could not translate host name "postgres" to address: Temporary failure in name resolution
+
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/jobs/job.py", line 233, in heartbeat
+    heartbeat_callback(session)
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/utils/session.py", line 94, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/jobs/local_task_job_runner.py", line 284, in heartbeat_callback
+    self.task_instance.refresh_from_db()
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/utils/session.py", line 97, in wrapper
+    return func(*args, session=session, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/models/taskinstance.py", line 2360, in refresh_from_db
+    _refresh_from_db(task_instance=self, session=session, lock_for_update=lock_for_update)
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/models/taskinstance.py", line 873, in _refresh_from_db
+    ti = TaskInstance.get_task_instance(
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/api_internal/internal_api_call.py", line 166, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/utils/session.py", line 94, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/models/taskinstance.py", line 2346, in get_task_instance
+    return query.one_or_none()
+           ^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/orm/query.py", line 2850, in one_or_none
+    return self._iter().one_or_none()
+           ^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/orm/query.py", line 2916, in _iter
+    result = self.session.execute(
+             ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 1716, in execute
+    conn = self._connection_for_bind(bind)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 1555, in _connection_for_bind
+    return self._transaction._connection_for_bind(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 750, in _connection_for_bind
+    conn = bind.connect()
+           ^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/future/engine.py", line 412, in connect
+    return super(Engine, self).connect()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 3325, in connect
+    return self._connection_cls(self, close_with_result=close_with_result)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 96, in __init__
+    else engine.raw_connection()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 3404, in raw_connection
+    return self._wrap_pool_connect(self.pool.connect, _connection)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 3374, in _wrap_pool_connect
+    Connection._handle_dbapi_exception_noconnection(
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 2208, in _handle_dbapi_exception_noconnection
+    util.raise_(
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/util/compat.py", line 211, in raise_
+    raise exception
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 3371, in _wrap_pool_connect
+    return fn()
+           ^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/pool/base.py", line 327, in connect
+    return _ConnectionFairy._checkout(self)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/pool/base.py", line 894, in _checkout
+    fairy = _ConnectionRecord.checkout(pool)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/pool/base.py", line 493, in checkout
+    rec = pool._do_get()
+          ^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/pool/impl.py", line 256, in _do_get
+    return self._create_connection()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/pool/base.py", line 273, in _create_connection
+    return _ConnectionRecord(self)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/pool/base.py", line 388, in __init__
+    self.__connect()
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/pool/base.py", line 690, in __connect
+    with util.safe_reraise():
+         ^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/util/langhelpers.py", line 70, in __exit__
+    compat.raise_(
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/util/compat.py", line 211, in raise_
+    raise exception
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/pool/base.py", line 686, in __connect
+    self.dbapi_connection = connection = pool._invoke_creator(self)
+                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/engine/create.py", line 574, in connect
+    return dialect.connect(*cargs, **cparams)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/engine/default.py", line 598, in connect
+    return self.dbapi.connect(*cargs, **cparams)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/psycopg2/__init__.py", line 122, in connect
+    conn = _connect(dsn, connection_factory=connection_factory, **kwasync)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) could not translate host name "postgres" to address: Temporary failure in name resolution
+
+(Background on this error at: https://sqlalche.me/e/14/e3q8)
+[2025-12-05T11:01:29.135+0000] {job.py:254} ERROR - Job heartbeat failed with error. Scheduler is in unhealthy state
+[2025-12-05T11:01:29.502+0000] {fraud_detection_training.py:290} INFO - Stream: Processed batch 24 with 10000 messages (total: 240000 messages)
+[2025-12-05T11:02:01.861+0000] {client_async.py:794} WARNING - <BrokerConnection client_id=kafka-python-2.3.0, node_id=8 host=b8-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connected> [IPv4 ('3.129.119.248', 9092)]> timed out after 60000.0 ms. Closing connection.
+[2025-12-05T11:02:02.798+0000] {conn.py:951} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=8 host=b8-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connected> [IPv4 ('3.129.119.248', 9092)]>: Closing connection. [Error 7] RequestTimedOutError: Request timed out after 60000.0 ms
+[2025-12-05T11:02:05.557+0000] {fetcher.py:789} ERROR - Fetch to node 8 failed: [Error 7] RequestTimedOutError: Request timed out after 60000.0 ms
+[2025-12-05T11:02:05.783+0000] {client_async.py:794} WARNING - <BrokerConnection client_id=kafka-python-2.3.0, node_id=10 host=b10-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connected> [IPv4 ('3.131.75.223', 9092)]> timed out after 60000.0 ms. Closing connection.
+[2025-12-05T11:02:06.158+0000] {conn.py:951} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=10 host=b10-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connected> [IPv4 ('3.131.75.223', 9092)]>: Closing connection. [Error 7] RequestTimedOutError: Request timed out after 60000.0 ms
+[2025-12-05T11:02:06.732+0000] {job.py:254} ERROR - Job heartbeat failed with error. Scheduler is in unhealthy state
+[2025-12-05T11:02:09.278+0000] {fetcher.py:789} ERROR - Fetch to node 10 failed: [Error 7] RequestTimedOutError: Request timed out after 60000.0 ms
+[2025-12-05T11:02:10.709+0000] {conn.py:400} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=8 host=b8-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('3.139.173.109', 9092)]>: connecting to b8-pkc-921jm.us-east-2.aws.confluent.cloud:9092 [('3.139.173.109', 9092) IPv4]
+[2025-12-05T11:02:10.989+0000] {conn.py:400} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=10 host=b10-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('3.131.234.56', 9092)]>: connecting to b10-pkc-921jm.us-east-2.aws.confluent.cloud:9092 [('3.131.234.56', 9092) IPv4]
+[2025-12-05T11:02:13.715+0000] {conn.py:433} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=8 host=b8-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('3.139.173.109', 9092)]>: Connect attempt returned error 113. Disconnecting.
+[2025-12-05T11:02:14.157+0000] {conn.py:951} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=8 host=b8-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('3.139.173.109', 9092)]>: Closing connection. KafkaConnectionError: 113 EHOSTUNREACH
+[2025-12-05T11:02:16.888+0000] {conn.py:433} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=10 host=b10-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('3.131.234.56', 9092)]>: Connect attempt returned error 113. Disconnecting.
+[2025-12-05T11:02:18.122+0000] {conn.py:951} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=10 host=b10-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('3.131.234.56', 9092)]>: Closing connection. KafkaConnectionError: 113 EHOSTUNREACH
+[2025-12-05T11:02:19.524+0000] {conn.py:400} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=8 host=b8-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('13.58.123.35', 9092)]>: connecting to b8-pkc-921jm.us-east-2.aws.confluent.cloud:9092 [('13.58.123.35', 9092) IPv4]
+[2025-12-05T11:02:21.346+0000] {conn.py:400} INFO - <BrokerConnection client_id=kafka-python-2.3.0, node_id=10 host=b10-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('18.190.18.54', 9092)]>: connecting to b10-pkc-921jm.us-east-2.aws.confluent.cloud:9092 [('18.190.18.54', 9092) IPv4]
+[2025-12-05T11:02:25.104+0000] {conn.py:433} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=8 host=b8-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('13.58.123.35', 9092)]>: Connect attempt returned error 113. Disconnecting.
+[2025-12-05T11:02:25.565+0000] {conn.py:951} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=8 host=b8-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('13.58.123.35', 9092)]>: Closing connection. KafkaConnectionError: 113 EHOSTUNREACH
+[2025-12-05T11:02:26.195+0000] {client_async.py:388} WARNING - Node 8 connection failed -- refreshing metadata
+[2025-12-05T11:02:28.008+0000] {conn.py:433} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=10 host=b10-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('18.190.18.54', 9092)]>: Connect attempt returned error 113. Disconnecting.
+[2025-12-05T11:02:30.212+0000] {conn.py:951} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=10 host=b10-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connecting> [IPv4 ('18.190.18.54', 9092)]>: Closing connection. KafkaConnectionError: 113 EHOSTUNREACH
+[2025-12-05T11:02:32.291+0000] {client_async.py:388} WARNING - Node 10 connection failed -- refreshing metadata
+[2025-12-05T11:02:34.539+0000] {client_async.py:794} WARNING - <BrokerConnection client_id=kafka-python-2.3.0, node_id=6 host=b6-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connected> [IPv4 ('3.133.43.69', 9092)]> timed out after 60000.0 ms. Closing connection.
+[2025-12-05T11:02:35.530+0000] {conn.py:951} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=6 host=b6-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connected> [IPv4 ('3.133.43.69', 9092)]>: Closing connection. [Error 7] RequestTimedOutError: Request timed out after 60000.0 ms
+[2025-12-05T11:04:22.704+0000] {fetcher.py:789} ERROR - Fetch to node 6 failed: [Error 7] RequestTimedOutError: Request timed out after 60000.0 ms
+[2025-12-05T11:05:00.215+0000] {job.py:254} ERROR - Job heartbeat failed with error. Scheduler is in unhealthy state
+[2025-12-05T11:06:18.264+0000] {client_async.py:794} WARNING - <BrokerConnection client_id=kafka-python-2.3.0, node_id=7 host=b7-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connected> [IPv4 ('18.119.48.15', 9092)]> timed out after 60000.0 ms. Closing connection.
+[2025-12-05T11:08:29.728+0000] {conn.py:951} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=7 host=b7-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connected> [IPv4 ('18.119.48.15', 9092)]>: Closing connection. [Error 7] RequestTimedOutError: Request timed out after 60000.0 ms
+[2025-12-05T11:08:43.009+0000] {local_task_job_runner.py:228} ERROR - Heartbeat time limit exceeded!
+[2025-12-05T11:12:50.283+0000] {local_task_job_runner.py:245} INFO - ::endgroup::
+[2025-12-05T11:12:53.167+0000] {process_utils.py:132} INFO - Sending 15 to group 192. PIDs of all processes in the group: [192]
+[2025-12-05T11:12:54.717+0000] {fetcher.py:789} ERROR - Fetch to node 7 failed: [Error 7] RequestTimedOutError: Request timed out after 60000.0 ms
+[2025-12-05T11:12:55.436+0000] {client_async.py:794} WARNING - <BrokerConnection client_id=kafka-python-2.3.0, node_id=9 host=b9-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connected> [IPv4 ('3.130.41.86', 9092)]> timed out after 60000.0 ms. Closing connection.
+[2025-12-05T11:12:55.515+0000] {process_utils.py:87} INFO - Sending the signal 15 to group 192
+[2025-12-05T11:12:55.520+0000] {conn.py:951} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=9 host=b9-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connected> [IPv4 ('3.130.41.86', 9092)]>: Closing connection. [Error 7] RequestTimedOutError: Request timed out after 60000.0 ms
+[2025-12-05T11:12:57.258+0000] {fraud_detection_training.py:56} WARNING - Received SIGTERM signal. Gracefully shutting down Kafka consumer...
+[2025-12-05T11:12:57.373+0000] {fetcher.py:789} ERROR - Fetch to node 9 failed: [Error 7] RequestTimedOutError: Request timed out after 60000.0 ms
+[2025-12-05T11:12:57.405+0000] {client_async.py:794} WARNING - <BrokerConnection client_id=kafka-python-2.3.0, node_id=11 host=b11-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connected> [IPv4 ('3.139.242.221', 9092)]> timed out after 60000.0 ms. Closing connection.
+[2025-12-05T11:12:57.518+0000] {conn.py:951} ERROR - <BrokerConnection client_id=kafka-python-2.3.0, node_id=11 host=b11-pkc-921jm.us-east-2.aws.confluent.cloud:9092 <connected> [IPv4 ('3.139.242.221', 9092)]>: Closing connection. [Error 7] RequestTimedOutError: Request timed out after 60000.0 ms
+[2025-12-05T11:12:58.353+0000] {fetcher.py:789} ERROR - Fetch to node 11 failed: [Error 7] RequestTimedOutError: Request timed out after 60000.0 ms
+[2025-12-05T11:12:58.915+0000] {fraud_detection_training.py:250} INFO - Shutdown requested. Exiting Kafka consumer loop after 25 batches.
+[2025-12-05T11:12:59.086+0000] {fraud_detection_training.py:310} INFO - Stream: Processed final batch 25 with 868 messages (total: 240868 messages)
+[2025-12-05T11:12:59.103+0000] {fraud_detection_training.py:313} INFO - Stream attempt 1 successfully consumed 240868 messages in 25 batches
+[2025-12-05T11:13:56.007+0000] {process_utils.py:150} WARNING - process psutil.Process(pid=192, name='airflow task ru', status='disk-sleep', started='10:46:55') did not respond to SIGTERM. Trying SIGKILL
+[2025-12-05T11:15:21.474+0000] {process_utils.py:87} INFO - Sending the signal 9 to group 192
+[2025-12-05T11:16:13.903+0000] {process_utils.py:80} INFO - Process psutil.Process(pid=192, name='airflow task ru', status='terminated', exitcode=<Negsignal.SIGKILL: -9>, started='10:46:55') (192) terminated with exit code -9
+[2025-12-05T11:16:14.276+0000] {standard_task_runner.py:217} INFO - Process not found (most likely exited), stop collecting metrics
+[2025-12-05T11:16:14.309+0000] {standard_task_runner.py:190} ERROR - ('Job 319 was killed before it finished (likely due to running out of memory)', 'For more information, see https://***.apache.org/docs/apache-***/stable/troubleshooting.html#LocalTaskJob-killed')

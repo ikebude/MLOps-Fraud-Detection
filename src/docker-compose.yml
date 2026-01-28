@@ -25,8 +25,15 @@ x-airflow-common: &airflow-common
     MLFLOW_TRACKING_URI: 'http://mlflow-server:5500'
     MLFLOW_S3_ENDPOINT_URL: 'http://minio:9000'
     # Increase heartbeat interval and timeout to tolerate transient DB/network issues in long-running tasks
-    AIRFLOW__JOBS__JOB_HEARTBEAT_SEC: '30'
-    AIRFLOW__JOBS__JOB_HEARTBEAT_FAILURE_THRESHOLD: '10'
+    AIRFLOW__JOBS__JOB_HEARTBEAT_SEC: '60'
+    AIRFLOW__JOBS__JOB_HEARTBEAT_FAILURE_THRESHOLD: '20'
+    # Database connection pooling: optimize for long-running tasks
+    AIRFLOW__DATABASE__SQL_ALCHEMY_POOL_SIZE: '20'
+    AIRFLOW__DATABASE__SQL_ALCHEMY_MAX_OVERFLOW: '40'
+    AIRFLOW__DATABASE__SQL_ALCHEMY_POOL_PRE_PING: 'true'
+    AIRFLOW__DATABASE__SQL_ALCHEMY_POOL_RECYCLE: '3600'
+    # Retry logic for transient DB connection failures
+    AIRFLOW__DATABASE__SQLALCHEMY_ENGINE_OPTIONS: '{"connect_args": {"timeout": 30, "check_same_thread": false}, "pool_pre_ping": true, "pool_recycle": 3600}'
     # Ensure Airflow constructs valid served-log URLs (host + port)
     # Set to a resolvable service name inside the docker network. Adjust if you want workers to serve logs.
     AIRFLOW__LOGGING__LOG_SERVER_HOST: "airflow-webserver"

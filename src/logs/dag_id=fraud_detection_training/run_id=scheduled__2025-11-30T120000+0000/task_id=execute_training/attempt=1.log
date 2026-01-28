@@ -401,3 +401,6 @@ sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) could not translate
 [2025-12-01T14:34:39.207+0000] {job.py:229} INFO - Heartbeat recovered after 200.67 seconds
 [2025-12-01T14:34:49.767+0000] {job.py:254} ERROR - Job heartbeat failed with error. Scheduler is in unhealthy state
 [2025-12-01T14:35:36.548+0000] {job.py:254} ERROR - Job heartbeat failed with error. Scheduler is in unhealthy state
+[2025-12-05T10:46:30.836+0000] {local_task_job_runner.py:123} INFO - ::group::Pre task execution logs
+[2025-12-05T10:46:32.146+0000] {taskinstance.py:2604} INFO - Dependencies not met for <TaskInstance: fraud_detection_training.execute_training scheduled__2025-11-30T12:00:00+00:00 [failed]>, dependency 'Task Instance State' FAILED: Task is in the 'failed' state.
+[2025-12-05T10:46:32.400+0000] {local_task_job_runner.py:166} INFO - Task is not able to be run

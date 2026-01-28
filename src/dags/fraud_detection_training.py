@@ -200,7 +200,7 @@ class FraudDetectionTraining:
             logger.info('Starting stream-based Kafka consumer for topic %s', topic)
 
             group_id = self.config['kafka'].get('group_id') or os.getenv('KAFKA_CONSUMER_GROUP', 'fraud-trainer-group')
-            consumer_timeout_ms = int(self.config['kafka'].get('timeout', 120000))
+            consumer_timeout_ms = int(self.config['kafka'].get('timeout', 300000))  # Increased from 120s to 300s
             read_retries = int(self.config['kafka'].get('read_retries', 3))
             retry_wait_seconds = int(self.config['kafka'].get('retry_wait_seconds', 5))
 
@@ -222,9 +222,13 @@ class FraudDetectionTraining:
                     consumer_timeout_ms=consumer_timeout_ms,
                     enable_auto_commit=False,
                     api_version=(2, 6, 0),  # Confluent Cloud broker version
-                    connections_max_idle_ms=540000,  # 9 min, allow for long kafka reads
-                    request_timeout_ms=60000,  # 60s request timeout instead of default 40s
-                    session_timeout_ms=45000   # Increase session timeout for long operations
+                    connections_max_idle_ms=900000,  # 15 min, allow for very long kafka reads
+                    request_timeout_ms=120000,  # 120s request timeout (increased from 60s)
+                    session_timeout_ms=90000,   # Increase session timeout for long operations (from 45s)
+                    heartbeat_interval_ms=30000,  # More frequent heartbeats
+                    max_poll_interval_ms=600000,  # 10 min max poll interval
+                    reconnect_backoff_ms=50,  # Backoff strategy for reconnects
+                    reconnect_backoff_max_ms=10000  # Max backoff cap
                 )
 
                 try:
@@ -250,23 +254,26 @@ class FraudDetectionTraining:
                             logger.info('Shutdown requested. Exiting Kafka consumer loop after %d batches.', total_batches + 1 if batch_messages else total_batches)
                             break
 
-                        # Poll with timeout for each micro-batch—retry on transient errors
+                        # Poll with timeout for each micro-batch—retry on transient errors with exponential backoff
                         poll_attempt = 0
-                        max_poll_attempts = 3
+                        max_poll_attempts = 5  # Increased from 3
                         polled = None
                         
                         while poll_attempt < max_poll_attempts and polled is None:
                             try:
                                 polled = consumer.poll(timeout_ms=5000, max_records=min(1000, remaining_for_batch))
                                 break
-                            except (OSError, IOError) as e:
-                                # Transient network/DNS errors during poll
+                            except (OSError, IOError, Exception) as e:
+                                # Transient network/DNS errors during poll, or other recoverable errors
                                 poll_attempt += 1
-                                logger.warning('Transient error during Kafka poll (attempt %d/%d): %s. Retrying...', poll_attempt, max_poll_attempts, str(e))
+                                backoff_seconds = min(2 ** poll_attempt, 30)  # Exponential backoff capped at 30s
+                                logger.warning('Transient error during Kafka poll (attempt %d/%d): %s. Retrying in %d seconds...', poll_attempt, max_poll_attempts, str(e), backoff_seconds)
                                 if poll_attempt < max_poll_attempts:
-                                    time.sleep(2)
+                                    time.sleep(backoff_seconds)
                                 else:
-                                    raise
+                                    logger.error('Max poll attempts (%d) exceeded. Will retry at next attempt or fail.', max_poll_attempts)
+                                    # Continue the outer loop to allow consumer to handle internally or timeout
+                                    break
                         
                         poll_count += 1
 
