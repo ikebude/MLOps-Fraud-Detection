@@ -13,6 +13,8 @@ spec:
       labels:
         app: inference
     spec:
+      securityContext:
+        fsGroup: 1000
       imagePullSecrets:
       - name: ocir-secret
       containers:
@@ -25,6 +27,8 @@ spec:
         env:
         - name: MLFLOW_TRACKING_URI
           value: "http://mlflow:5000"
+        - name: CUMULATIVE_STATS_FILE
+          value: "/data/cumulative_stats.json"
         - name: MLFLOW_S3_ENDPOINT_URL
           valueFrom:
             configMapKeyRef:
@@ -48,10 +52,36 @@ spec:
             secretKeyRef:
               name: object-storage-credentials
               key: aws_secret_access_key
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 3
+        startupProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 0
+          periodSeconds: 5
+          timeoutSeconds: 5
+          failureThreshold: 30
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 20
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
         volumeMounts:
         - name: config
           mountPath: /app/config.yaml
           subPath: config.yaml
+        - name: inference-state
+          mountPath: /data
         resources:
           requests:
             memory: "1Gi"
@@ -63,6 +93,22 @@ spec:
       - name: config
         configMap:
           name: inference-config
+      - name: inference-state
+        persistentVolumeClaim:
+          claimName: inference-state
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: inference-state
+  namespace: mlops
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
 
 ---
 apiVersion: v1

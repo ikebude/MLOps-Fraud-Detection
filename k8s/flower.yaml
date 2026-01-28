@@ -18,22 +18,45 @@ spec:
       containers:
       - name: flower
         image: af-johannesburg-1.ocir.io/axjkxzqfxgqu/fraud-detection/airflow:latest
-        command: ["celery"]
+        command: ["/bin/sh", "-c"]
         args:
-          - "--app=airflow.providers.celery.executors.celery_executor.app"
-          - "--broker=redis://redis:6379/0"
-          - "flower"
-          - "--port=5555"
+          - "python -m celery --app=airflow.providers.celery.executors.celery_executor.app --broker=redis://redis:6379/0 flower --port=5555"
         ports:
         - containerPort: 5555
           name: http
         env:
+        - name: FLOWER_URL_PREFIX
+          value: "/flower"
         - name: AIRFLOW__CELERY__BROKER_URL
           value: "redis://redis:6379/0"
         - name: CELERY_BROKER_URL
           value: "redis://redis:6379/0"
         - name: FLOWER_PORT
           value: "5555"
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 5555
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 3
+        startupProbe:
+          httpGet:
+            path: /
+            port: 5555
+          initialDelaySeconds: 0
+          periodSeconds: 5
+          timeoutSeconds: 5
+          failureThreshold: 30
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 5555
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
         resources:
           requests:
             memory: "128Mi"

@@ -7,7 +7,7 @@ try:
 except ImportError:
     from airflow.operators.python import PythonOperator
 from airflow.models import Variable
-from airflow.task.trigger_rule import TriggerRule
+from airflow.utils.trigger_rule import TriggerRule
 import logging
 import os
 import glob

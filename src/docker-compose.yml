@@ -492,7 +492,9 @@ services:
   fraudguard:
     profiles:
       - fraudguard
-    build: ../fraudguard
+    build:
+      context: ..
+      dockerfile: fraudGuard/Dockerfile
     image: fraud-detection/fraudguard:latest
     container_name: fraudguard-web
     env_file: .env
@@ -504,9 +506,9 @@ services:
     ports:
       - "5000:5000"
     volumes:
-      - ../fraudguard/data:/app/data
-      - ../fraudguard/static:/app/static
-      - ../fraudguard/templates:/app/templates
+      - ../fraudGuard/data:/app/data
+      - ../fraudGuard/static:/app/static
+      - ../fraudGuard/templates:/app/templates
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5000/api/health"]
       interval: 30s

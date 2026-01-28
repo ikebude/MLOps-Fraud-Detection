@@ -201,12 +201,12 @@ class FraudDetectionTraining:
                         'FRAUD_API_MAX_RECORDS',
                         self.config.get('api', {}).get(
                             'max_records_per_run',
-                            self.config.get('api', {}).get('max_records', 80000)
+                            self.config.get('api', {}).get('max_records', 150000)
                         )
                     )
                 )
             except Exception:
-                max_total_messages = 100000
+                max_total_messages = 150000
 
             logger.info('Starting data ingestion from %s (page size=%d, max records=%d)', 
                        base_url, micro_batch_size, max_total_messages)
@@ -577,9 +577,9 @@ class FraudDetectionTraining:
             # Respect max training rows configured via environment or config to keep
             # local runs bounded and avoid long-running jobs
             try:
-                max_rows = int(os.getenv('MAX_TRAIN_ROWS', str(self.config.get('model', {}).get('max_rows', 50000))))
+                max_rows = int(os.getenv('MAX_TRAIN_ROWS', str(self.config.get('model', {}).get('max_rows', 120000))))
             except Exception:
-                max_rows = 50000
+                max_rows = 120000
             if len(df) > max_rows:
                 logger.info('Trimming dataset from %d to max_rows=%d for faster local runs', len(df), max_rows)
                 # Trim to most recent rows if timestamp exists, else take head
@@ -659,14 +659,21 @@ class FraudDetectionTraining:
                 # Docker Desktop resources. XGBoost `n_jobs=-1` can spawn many threads
                 # and lead to OOM on constrained machines.
                 xgb_n_jobs = int(os.getenv('XGB_N_JOBS', str(self.config.get('model', {}).get('n_jobs', 1))))
-                xgb_n_estimators = int(self.config.get('model', {}).get('params', {}).get('n_estimators', 100))
+                xgb_n_estimators = int(self.config.get('model', {}).get('params', {}).get('n_estimators', 200)))
                 xgb = XGBClassifier(
                     eval_metric='aucpr',
                     random_state=self.config.get('model', {}).get('seed', 42),
-                    reg_lambda=1.0,
+                    reg_lambda=0.5,
+                    reg_alpha=0.1,
                     n_estimators=xgb_n_estimators,
                     n_jobs=xgb_n_jobs,
-                    tree_method=self.config.get('model', {}).get('tree_method', 'hist')
+                    tree_method=self.config.get('model', {}).get('tree_method', 'hist'),
+                    max_depth=6,
+                    learning_rate=0.05,
+                    subsample=0.8,
+                    colsample_bytree=0.8,
+                    min_child_weight=1,
+                    gamma=0.1
                 )
 
                 # Use sequential processing (n_jobs=1) to avoid DB connection pool exhaustion
@@ -678,20 +685,21 @@ class FraudDetectionTraining:
                 ])
 
                 param_dist = {
-                    'classifier__max_depth': [3, 5, 7],
-                    'classifier__learning_rate': [0.01, 0.05, 0.1],
-                    'classifier__subsample': [0.6, 0.8, 1.0],
-                    'classifier__colsample_bytree': [0.6, 0.8, 1.0],
-                    'classifier__gamma': [0, 0.1, 0.3],
-                    'classifier__reg_alpha': [0, 0.1, 0.5]
+                    'classifier__max_depth': [4, 5, 6, 7, 8],
+                    'classifier__learning_rate': [0.01, 0.03, 0.05, 0.1],
+                    'classifier__subsample': [0.6, 0.7, 0.8, 0.9, 1.0],
+                    'classifier__colsample_bytree': [0.6, 0.7, 0.8, 0.9, 1.0],
+                    'classifier__gamma': [0, 0.05, 0.1, 0.2, 0.3],
+                    'classifier__reg_alpha': [0, 0.05, 0.1, 0.3, 0.5],
+                    'classifier__min_child_weight': [1, 2, 3]
                 }
 
                 searcher = RandomizedSearchCV(
                     pipeline,
                     param_dist,
-                    n_iter=20,
+                    n_iter=50,
                     scoring=make_scorer(fbeta_score, beta=2, zero_division=0),
-                    cv=StratifiedKFold(n_splits=3, shuffle=True),
+                    cv=StratifiedKFold(n_splits=5, shuffle=True),
                     n_jobs=1,
                     refit=True,
                     error_score='raise',

@@ -23,6 +23,7 @@ logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
     level=logging.INFO
 )
+
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
@@ -35,7 +36,7 @@ results_history_max = int(os.getenv('INFERENCE_RESULTS_HISTORY_MAX', '10000'))
 continuous_worker = None  # Continuous inference worker for real-time processing
 
 # Track cumulative totals for real-time stats - PERSISTED TO FILE
-CUMULATIVE_STATS_FILE = '/app/cumulative_stats.json'
+CUMULATIVE_STATS_FILE = os.getenv('CUMULATIVE_STATS_FILE', '/app/cumulative_stats.json')
 cumulative_lock = threading.Lock()
 
 def _load_cumulative_stats():
@@ -153,6 +154,22 @@ def initialize_inference():
         logger.error('Failed to initialize inference pipeline: %s', str(e))
         return False
 
+
+@app.route('/', methods=['GET'])
+def root():
+    """Root endpoint - welcome message"""
+    return jsonify({
+        "service": "Fraud Detection Inference Service",
+        "version": "1.0.0",
+        "status": "healthy",
+        "endpoints": {
+            "health": "/health",
+            "run": "/inference/run",
+            "predict": "/inference/predict",
+            "results": "/inference/results",
+            "stats": "/inference/stats"
+        }
+    }), 200
 
 @app.route('/health', methods=['GET'])
 @app.route('/inference/health', methods=['GET'])
