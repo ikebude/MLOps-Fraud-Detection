@@ -55,7 +55,6 @@ scripts/
 data/
 *.csv
 *.json
-!fraudguard/data/mock_data.json
 
 # Models (should be mounted as volumes)
 models/
@@ -67,10 +66,3 @@ models/
 state/
 logs/
 plugins/__pycache__
-
-# Kubernetes
-k8s/
-
-# Docker
-docker-compose*.yml
-Dockerfile*

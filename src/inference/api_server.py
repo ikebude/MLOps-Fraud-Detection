@@ -154,6 +154,23 @@ def initialize_inference():
         return False
 
 
+@app.route('/', methods=['GET'])
+def root():
+    """Root endpoint - returns API info"""
+    return jsonify({
+        'service': 'Fraud Detection Inference API',
+        'version': '1.0.0',
+        'status': 'running',
+        'endpoints': {
+            'health': '/health or /inference/health',
+            'predict': '/predict or /inference/predict (POST)',
+            'predict_from_api': '/predict_from_api or /inference/predict_from_api (POST)',
+            'results': '/results or /inference/results (GET)',
+            'stats': '/stats or /inference/stats (GET)'
+        }
+    }), 200
+
+
 @app.route('/health', methods=['GET'])
 @app.route('/inference/health', methods=['GET'])
 def health_check():

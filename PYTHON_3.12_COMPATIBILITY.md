@@ -25,7 +25,6 @@ All services now use **Python 3.12**:
 - **redis==3.5.3** ⚠️ - Check if newer version needed for Python 3.12
   - Recommendation: Update to `redis>=5.0.0` for better Python 3.12 support
 - **imbalanced-learn==0.14.0** ✅ - Should work, but verify
-- **azure-storage-blob==12.28.0** ✅ - Should work with Python 3.12
 
 ## ⚠️ Airflow 3.1.6 Migration Notes
 
@@ -49,8 +48,8 @@ Upgrading from Airflow 2.10.5 to 3.1.6:
    - Airflow DAGs
 
 3. **Rebuild all images**:
-   ```powershell
-   .\scripts\deploy-azure-complete.ps1
+   ```bash
+   make build
    ```
 
 ## 📝 Requirements Files Status

@@ -14,8 +14,8 @@ echo -e "${GREEN}Setting up local development environment...${NC}"
 # Check if .env file exists
 if [ ! -f src/.env ]; then
     echo -e "${YELLOW}Creating .env file from .env.example...${NC}"
-    if [ -f .env.example ]; then
-        cp .env.example src/.env
+    if [ -f src/.env.example ]; then
+        cp src/.env.example src/.env
         echo -e "${GREEN}.env file created. Please update it with your values.${NC}"
     else
         echo -e "${YELLOW}.env.example not found. Creating basic .env file...${NC}"
@@ -57,7 +57,9 @@ echo -e "${YELLOW}Creating necessary directories...${NC}"
 mkdir -p src/models
 mkdir -p src/logs
 mkdir -p src/state
+mkdir -p src/config
 mkdir -p fraudguard/data
+mkdir -p fraudguard/static
 
 # Set proper permissions
 echo -e "${YELLOW}Setting permissions...${NC}"
@@ -76,8 +78,11 @@ if ! command -v docker-compose &> /dev/null && ! docker compose version &> /dev/
     exit 1
 fi
 
-echo -e "${GREEN}Local development environment setup complete!${NC}"
+echo -e "${GREEN}Local setup complete!${NC}"
 echo -e "${YELLOW}Next steps:${NC}"
-echo "  1. Review and update src/.env with your configuration"
-echo "  2. Run: cd src && docker compose build"
-echo "  3. Run: docker compose up -d"
+echo "  1. (Optional) Review src/.env"
+echo "  2. make build   # or: cd src && docker compose build"
+echo "  3. make up     # or: cd src && docker compose up -d"
+echo "  4. make init-db   # first time only"
+echo "  5. Open Airflow http://localhost:8080 (airflow/airflow), enable fraud_detection_training DAG"
+echo "  6. Open FraudGuard http://localhost:5000"

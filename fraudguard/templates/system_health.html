@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+        <h3 class="text-lg font-semibold text-gray-900 mb-4">Service Status</h3>
+        <div class="space-y-3" id="svc-status"></div>
+    </div>
+    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+        <h3 class="text-lg font-semibold text-gray-900 mb-4">Local Endpoints</h3>
+        <ul class="space-y-2 text-sm">
+            <li><a href="http://localhost:5000" target="_blank" rel="noopener" class="text-orange-600 hover:underline">FraudGuard</a> — 5000</li>
+            <li><a href="http://localhost:8080" target="_blank" rel="noopener" class="text-orange-600 hover:underline">Airflow</a> — 8080</li>
+            <li><a href="http://localhost:5500" target="_blank" rel="noopener" class="text-orange-600 hover:underline">MLflow</a> — 5500</li>
+            <li><a href="http://localhost:9001" target="_blank" rel="noopener" class="text-orange-600 hover:underline">MinIO Console</a> — 9001</li>
+            <li><a href="http://localhost:9000" target="_blank" rel="noopener" class="text-orange-600 hover:underline">MinIO API</a> — 9000</li>
+            <li><a href="http://localhost:8000" target="_blank" rel="noopener" class="text-orange-600 hover:underline">Inference API</a> — 8000</li>
+            <li><a href="http://localhost:5555" target="_blank" rel="noopener" class="text-orange-600 hover:underline">Flower (Celery)</a> — 5555 <span class="text-gray-400">(use <code>--profile flower</code>)</span></li>
+        </ul>
+    </div>
+</div>
+<script>
+fetch('/api/data').then(function (r) { return r.json(); }).then(function (d) {
+    var m = (d.metrics || {});
+    var services = [
+        { k: 'inference_status', l: 'Inference API' },
+        { k: 'mlflow_status', l: 'MLflow' },
+        { k: 'airflow_status', l: 'Airflow' },
+        { k: 'minio_status', l: 'MinIO' },
+        { k: 'flower_status', l: 'Flower' }
+    ];
+    var html = services.map(function (s) {
+        var ok = m[s.k] === 'ok';
+        return '<p class="flex justify-between"><span>' + s.l + '</span><span class="' + (ok ? 'text-green-600' : 'text-red-600') + '">' + (ok ? 'OK' : 'Unreachable') + '</span></p>';
+    }).join('');
+    document.getElementById('svc-status').innerHTML = html;
+}).catch(function () {
+    document.getElementById('svc-status').innerHTML = '<p class="text-gray-500">Could not load status.</p>';
+});
+</script>
+{% endblock %}

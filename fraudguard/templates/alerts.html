@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="grid gap-6" id="alerts-container">
+    <p class="text-gray-500">Loading alerts…</p>
+</div>
+<script>
+fetch('/api/data').then(function (r) { return r.json(); }).then(function (d) {
+    var m = (d.metrics || {});
+    var html = '';
+    if (m.fraud_detections > 0) {
+        html += '<div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 border-l-4 border-l-orange-500">';
+        html += '<h3 class="text-lg font-bold text-gray-900 mb-1">Fraud detections</h3>';
+        html += '<p class="text-gray-600 mb-4">' + m.fraud_detections + ' transaction(s) flagged as fraud (rate: ' + (m.fraud_rate || 0) + '%).</p>';
+        html += '<a href="/transactions" class="text-orange-600 hover:text-orange-700 text-sm font-medium">View transactions</a></div>';
+    }
+    if (!html) html = '<div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100"><p class="text-gray-600">No active alerts. Run inference to see fraud detections.</p></div>';
+    document.getElementById('alerts-container').innerHTML = html;
+}).catch(function () {
+    document.getElementById('alerts-container').innerHTML = '<div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100"><p class="text-gray-600">Could not load alerts.</p></div>';
+});
+</script>
+{% endblock %}

@@ -1,14 +1,14 @@
 mlflow:
   experiment_name: "fraud_detection"
-  registered_model_name: "fraud_detection_xgboost"
+  registered_model_name: "fraud_detection_model"
   tracking_uri: "http://mlflow-server:5500"
   artifact_location: "s3://mlflow/fraud_detection"
   s3_endpoint_url: "http://minio:9000"
   bucket: "mlflow"
 
-# API configuration for inference service
+# API configuration for inference service (FRAUD_API_URL in env overrides)
 api:
-  url: ${FRAUD_API_URL:-https://3consult-ng.com/fraud_api.php}
+  url: "https://3consult-ng.com/fraud_api.php"
   max_batch_size: 10000
   max_records_per_run: 150000
   timeout_seconds: 60

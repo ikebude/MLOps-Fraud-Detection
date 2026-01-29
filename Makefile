@@ -1,4 +1,4 @@
-.PHONY: help setup build up down logs clean test deploy-azure
+.PHONY: help setup build up down logs clean test
 
 help: ## Show this help message
 	@echo 'Usage: make [target]'
@@ -18,6 +18,9 @@ build-fast: ## Build Docker images without cache
 
 up: ## Start all services
 	@cd src && docker compose up -d
+
+up-flower: ## Start all services including Flower (Celery UI)
+	@cd src && docker compose --profile flower up -d
 
 up-logs: ## Start all services and show logs
 	@cd src && docker compose up
@@ -52,14 +55,12 @@ test: ## Run health checks on all services
 	@curl -s http://localhost:8000/health | python -m json.tool || echo "Inference: Not responding"
 	@curl -s http://localhost:5500/health | python -m json.tool || echo "MLflow: Not responding"
 	@curl -s http://localhost:8080/health | python -m json.tool || echo "Airflow: Not responding"
+	@curl -sf http://localhost:9000/minio/health/live >/dev/null && echo "MinIO: OK" || echo "MinIO: Not responding (optional)"
+	@curl -sf http://localhost:5555/ >/dev/null && echo "Flower: OK" || echo "Flower: Not responding (use 'make up-flower' to enable)"
 
-build-images: ## Build all images using build script
-	@chmod +x scripts/build-images.sh
+build-images: ## Build all images locally (no cloud)
+	@chmod +x scripts/build-images.sh 2>/dev/null || true
 	@./scripts/build-images.sh
-
-deploy-azure: ## Deploy to Azure (requires Azure CLI and configuration)
-	@chmod +x scripts/deploy-to-azure.sh
-	@./scripts/deploy-to-azure.sh
 
 init-db: ## Initialize Airflow database
 	@cd src && docker compose up airflow-init

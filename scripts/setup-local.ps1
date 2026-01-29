@@ -18,11 +18,11 @@ Write-ColorOutput Green "Setting up local development environment..."
 # Check if .env file exists
 if (-not (Test-Path "src\.env")) {
     Write-ColorOutput Yellow "Creating .env file..."
-    if (Test-Path ".env.example") {
-        Copy-Item ".env.example" "src\.env"
+    if (Test-Path "src\.env.example") {
+        Copy-Item "src\.env.example" "src\.env"
         Write-ColorOutput Green ".env file created. Please update it with your values."
     } else {
-        Write-ColorOutput Yellow ".env.example not found. Creating basic .env file..."
+        Write-ColorOutput Yellow "src\.env.example not found. Creating basic .env file..."
         $envContent = @"
 # Airflow Configuration
 AIRFLOW_UID=50000
@@ -65,7 +65,9 @@ Write-ColorOutput Yellow "Creating necessary directories..."
 New-Item -ItemType Directory -Force -Path "src\models" | Out-Null
 New-Item -ItemType Directory -Force -Path "src\logs" | Out-Null
 New-Item -ItemType Directory -Force -Path "src\state" | Out-Null
+New-Item -ItemType Directory -Force -Path "src\config" | Out-Null
 New-Item -ItemType Directory -Force -Path "fraudguard\data" | Out-Null
+New-Item -ItemType Directory -Force -Path "fraudguard\static" | Out-Null
 
 # Check Docker
 if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
@@ -88,9 +90,11 @@ if (-not $dockerComposeAvailable) {
     exit 1
 }
 
-Write-ColorOutput Green "Local development environment setup complete!"
+Write-ColorOutput Green "Local setup complete!"
 Write-ColorOutput Yellow "Next steps:"
-Write-Output "  1. Review and update src\.env with your configuration"
-Write-Output "  2. Run: cd src"
-Write-Output "  3. Run: docker compose build"
-Write-Output "  4. Run: docker compose up -d"
+Write-Output "  1. (Optional) Review src\.env"
+Write-Output "  2. make build   # or: cd src; docker compose build"
+Write-Output "  3. make up     # or: cd src; docker compose up -d"
+Write-Output "  4. make init-db   # first time only"
+Write-Output "  5. Airflow: http://localhost:8080 (airflow/airflow) – enable fraud_detection_training DAG"
+Write-Output "  6. FraudGuard: http://localhost:5000"

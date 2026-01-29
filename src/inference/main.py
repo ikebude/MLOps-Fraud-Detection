@@ -205,6 +205,15 @@ class FraudDetectionInference:
             self.model_source = 'mlflow'
             logger.info('Model loaded successfully from MLflow (version %s)', latest_version)
 
+            # Use threshold from training run if logged (tuned via PR curve)
+            try:
+                run = client.get_run(latest.run_id)
+                if run and run.data.metrics and 'threshold' in run.data.metrics:
+                    self.threshold = float(run.data.metrics['threshold'])
+                    logger.info('Using threshold from MLflow run: %.4f', self.threshold)
+            except Exception as e:
+                logger.debug('Could not get threshold from MLflow run: %s', e)
+
             try:
                 os.makedirs(os.path.dirname(self.model_path), exist_ok=True)
                 joblib.dump(self.model, self.model_path)

@@ -1,5 +1,5 @@
 x-airflow-common: &airflow-common
-  image: mlopsacr12345.azurecr.io/fraud-detection/airflow:latest
+  image: fraud-detection-airflow:latest
   environment: &airflow-common-env
     # Use CeleryExecutor with 2 workers for better parallel task execution.
     AIRFLOW__CORE__EXECUTOR: CeleryExecutor
@@ -124,6 +124,9 @@ services:
 
   airflow-webserver:
     <<: *airflow-common
+    build:
+      context: ..
+      dockerfile: src/airflow/Dockerfile
     command: webserver
     ports:
       - "8080:8080"
@@ -263,7 +266,6 @@ services:
 
   airflow-init:
     <<: *airflow-common
-    build: ./airflow
     entrypoint: /bin/bash
     # yamllint disable rule:line-length
     command:
@@ -414,8 +416,10 @@ services:
   #  MLFLOW SERVER
   mlflow-server:
     restart: always
-    build: ./mlflow
-    image: mlopsacr12345.azurecr.io/fraud-detection/mlflow:latest
+    build:
+      context: ..
+      dockerfile: src/mlflow/Dockerfile
+    image: fraud-detection-mlflow:latest
     container_name: mlflow-server
     depends_on:
       postgres:
@@ -453,8 +457,10 @@ services:
       - 1.1.1.1
 
   inference:
-    build: ./inference
-    image: mlopsacr12345.azurecr.io/fraud-detection/inference:latest
+    build:
+      context: ..
+      dockerfile: src/inference/Dockerfile
+    image: fraud-detection-inference:latest
     container_name: inference-service
     env_file: .env
     environment:
@@ -484,13 +490,15 @@ services:
 
   fraudguard:
     build: ../fraudguard
-    image: mlopsacr12345.azurecr.io/fraud-detection/fraudguard:latest
+    image: fraud-detection-fraudguard:latest
     container_name: fraudguard-web
     env_file: .env
     environment:
       - INFERENCE_SERVICE_URL=${INFERENCE_SERVICE_URL:-http://inference:8000}
       - MLFLOW_TRACKING_URI=${MLFLOW_TRACKING_URI:-http://mlflow-server:5500}
       - AIRFLOW_WEBSERVER_URL=${AIRFLOW_WEBSERVER_URL:-http://airflow-webserver:8080}
+      - MINIO_URL=${MINIO_URL:-http://minio:9000}
+      - FLOWER_URL=${FLOWER_URL:-http://flower:5555}
       - FLASK_DEBUG=${FLASK_DEBUG:-False}
     ports:
       - "5000:5000"
@@ -525,8 +533,8 @@ networks:
   fraud-detection:
     driver: bridge
     driver_opts:
-      # Enable IPv6 (helps with DNS resolution in some environments)
-      com.docker.network.enable_ipv6: "true"
+      # Disable IPv6 to avoid "Address already in use" errors on Windows
+      com.docker.network.enable_ipv6: "false"
     ipam:
       config:
         # Use standard Docker network range for better DNS resolution

@@ -77,12 +77,14 @@ test_endpoint "http://localhost:5000/api/health" "Fraud Guard" || true
 test_endpoint "http://localhost:8000/health" "Inference API" || true
 test_endpoint "http://localhost:5500/health" "MLflow" || true
 test_endpoint "http://localhost:8080/health" "Airflow" || true
+test_endpoint "http://localhost:9000/minio/health/live" "MinIO" || true
+test_endpoint "http://localhost:5555/" "Flower (use 'make up-flower')" || true
 
 echo ""
 echo -e "${GREEN}Verification complete!${NC}"
 echo ""
 echo "Next steps:"
-echo "  1. Ensure all services are running: cd src && docker compose up -d"
-echo "  2. Access Fraud Guard: http://localhost:5000"
-echo "  3. Access Airflow: http://localhost:8080"
-echo "  4. Run training DAG in Airflow UI"
+echo "  1. Ensure all services are running: make up (or: cd src && docker compose up -d)"
+echo "  2. First time: make init-db"
+echo "  3. Fraud Guard: http://localhost:5000 | Airflow: http://localhost:8080 (airflow/airflow)"
+echo "  4. MinIO Console: http://localhost:9001 | Flower: http://localhost:5555 (make up-flower)"

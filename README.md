@@ -1,316 +1,151 @@
-# MLOps Fraud Detection - End-to-End Solution
+# MLOps Fraud Detection – Local End-to-End Solution
 
-A production-grade MLOps solution for fraud detection that includes data ingestion, model training, model storage, real-time inference, and a web dashboard for client IT teams.
+A local MLOps stack for fraud detection: **Airflow** runs the training DAG, **MLflow** stores the model, **Inference** serves predictions on new records, and **FraudGuard** shows metrics. All services run via Docker Compose on your machine.
 
-## 🎯 Overview
+## Overview
 
-This solution provides:
+- **Airflow**: DAG `fraud_detection_training` collects data from the Fraud API, trains an XGBoost model, and logs to MLflow.
+- **MLflow**: Experiment tracking and model registry; artifacts in MinIO.
+- **Inference**: Loads the model (from MLflow or local cache), runs on new API records, exposes REST API.
+- **FraudGuard**: Dashboard that calls Inference (and optionally MLflow/Airflow) to display metrics.
 
-- **Automated Training Pipeline**: Airflow DAGs for scheduled model training
-- **Model Registry**: MLflow for experiment tracking and model versioning
-- **Real-time Inference**: REST API service for fraud detection
-- **Fraud Guard Dashboard**: Web UI for monitoring and managing fraud detection
-- **Azure Ready**: Full support for deployment to Azure Kubernetes Service (AKS) and Azure Container Registry (ACR)
-
-## 🏗️ Architecture
+## Architecture
 
 ```
-┌─────────────────┐
-│  Fraud API      │
-│  (Data Source)  │
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐     ┌──────────────┐     ┌─────────────┐
-│   Airflow       │────▶│   Training   │────▶│   MLflow    │
-│   (Orchestrator)│     │   Pipeline   │     │  (Registry) │
-└─────────────────┘     └──────────────┘     └──────┬──────┘
-                                                      │
-                                                      ▼
-┌─────────────────┐     ┌──────────────┐     ┌─────────────┐
-│  Fraud Guard    │────▶│  Inference   │────▶│   MinIO     │
-│  (Web UI)       │     │   Service    │     │  (Storage)  │
-└─────────────────┘     └──────────────┘     └─────────────┘
+Fraud API (data) → Airflow DAG → Training → MLflow (model)
+                                        ↘
+FraudGuard UI ← Inference API ←──────────┘
 ```
 
-## 🚀 Quick Start
-
-### Prerequisites
+## Prerequisites
 
 - Docker Desktop (Windows/Mac) or Docker Engine (Linux)
 - Docker Compose v2+
-- 8GB+ RAM allocated to Docker
+- 8GB+ RAM for Docker
 - Git
 
-### Local Development
+## Quick Start
 
-1. **Clone and setup**
+1. **Setup**
    ```bash
-   git clone <repository-url>
+   git clone <repo>
    cd MLOps_Fraud_Detection
-   
-   # Run setup script
    chmod +x scripts/setup-local.sh
    ./scripts/setup-local.sh
    ```
+   On **Windows** (PowerShell): `.\scripts\setup-local.ps1` instead.
 
-2. **Configure environment**
+2. **Build and run**
    ```bash
-   cd src
-   # Edit .env file (copy from .env.example if needed)
-   # Set FRAUD_API_URL and other required variables
+   make build
+   make up
+   make init-db    # first time only
    ```
+   **Windows (no `make`):** use `.\make.ps1` instead of `make`, e.g. `.\make.ps1 build`, `.\make.ps1 up`, `.\make.ps1 init-db`.
 
-3. **Build and start**
-   ```bash
-   docker compose build
-   docker compose up -d
-   ```
+3. **Access**
+   - **FraudGuard**: http://localhost:5000  
+   - **Airflow**: http://localhost:8080 (airflow / airflow)  
+   - **MLflow**: http://localhost:5500  
+   - **MinIO Console**: http://localhost:9001 (minioadmin / minioadmin)  
+   - **MinIO API**: http://localhost:9000 (S3-compatible; used by MLflow)  
+   - **Inference API**: http://localhost:8000  
+   - **Flower** (Celery UI): http://localhost:5555 — start with `docker compose --profile flower up -d` (from `src/`).  
 
-4. **Access services**
-   - **Fraud Guard**: http://localhost:5000
-   - **Airflow**: http://localhost:8080 (airflow/airflow)
-   - **MLflow**: http://localhost:5500
-   - **MinIO Console**: http://localhost:9001 (minioadmin/minioadmin)
-   - **Inference API**: http://localhost:8000
-   - **Flower (Celery UI)**: http://localhost:5555 (if enabled with `docker compose --profile flower up`)
+4. **Training**
+   - Airflow UI → enable `fraud_detection_training` DAG → trigger a run.
 
-5. **Run training**
-   - Open Airflow UI → Enable `fraud_detection_training` DAG → Trigger run
+5. **Inference & metrics**
+   - Use “Run Inference” in FraudGuard or `make inference`. Metrics appear in FraudGuard.
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 MLOps_Fraud_Detection/
-├── fraudguard/              # Fraud Guard web application
-│   ├── app.py              # Flask application
-│   ├── Dockerfile          # Container definition
-│   ├── templates/          # HTML templates
-│   └── static/             # CSS, JS, images
+├── fraudguard/           # FraudGuard Flask app
+│   ├── app.py
+│   ├── Dockerfile
+│   ├── templates/
+│   └── static/
 ├── src/
-│   ├── airflow/            # Airflow configuration
-│   │   ├── Dockerfile
-│   │   └── requirements.txt
-│   ├── mlflow/             # MLflow server
-│   │   ├── Dockerfile
-│   │   └── requirements.txt
-│   ├── inference/          # Inference service
-│   │   ├── Dockerfile
-│   │   ├── main.py         # Inference logic
-│   │   ├── api_server.py   # REST API server
-│   │   └── requirements.txt
-│   ├── dags/               # Airflow DAGs
-│   │   └── fraud_detection_training_dag.py
-│   ├── plugins/            # Airflow plugins
-│   ├── utils/              # Utility functions
-│   ├── models/             # Trained models (mounted volume)
-│   ├── config.yaml         # Configuration file
-│   └── docker-compose.yml  # Docker Compose configuration
-├── k8s/                    # Kubernetes manifests for Azure
-├── scripts/                # Deployment scripts
+│   ├── airflow/          # Airflow image & DAGs
+│   ├── mlflow/           # MLflow server
+│   ├── inference/        # Inference API
+│   ├── dags/
+│   ├── plugins/          # Training logic
+│   ├── config.yaml
+│   └── docker-compose.yml
+├── scripts/
 │   ├── setup-local.sh
+│   ├── setup-local.ps1
 │   ├── build-images.sh
-│   └── deploy-to-azure.sh
-├── .env.example            # Environment variables template
-└── README.md              # This file
+│   └── verify-setup.sh
+└── README.md
 ```
 
-## 🔧 Configuration
+## Configuration
 
-### Environment Variables
+- **`src/.env`**: Copy from `src/.env.example`, adjust if needed.  
+- **`src/config.yaml`**: MLflow, API, and model settings.  
+- **FRAUD_API_URL**: Data source for training and inference (default: `https://3consult-ng.com/fraud_api.php`).  
+- **FRAUD_API_MAX_RECORDS**: Cap for training (default 100000). Reduce on low-memory machines.
 
-Key environment variables (see `.env.example` for complete list):
+## End-to-end workflow (verified)
 
-- `FRAUD_API_URL`: API endpoint for transaction data
-- `FRAUD_API_MAX_RECORDS`: Max records for training (default: 100000)
-- `MLFLOW_TRACKING_URI`: MLflow server URL
-- `INFERENCE_SERVICE_URL`: Inference API URL
-- `POSTGRES_*`: Database configuration
-- `MINIO_*`: Object storage configuration
+1. **Postgres** starts → **init-multiple-dbs** creates `mlflow` DB and user. **MinIO** starts → **mc** creates `mlflow` bucket.
+2. **MLflow** starts → backend `mlflow` DB, artifacts `s3://mlflow/fraud_detection` (MinIO).
+3. **Airflow** (scheduler, workers, webserver) start → **fraud_detection_training** DAG is loaded.
+4. **Training** (when DAG runs):
+   - Reads `src/config.yaml` and `src/.env` (mounted at `/app`).
+   - Fetches data from **FRAUD_API_URL** → feature engineering → XGBoost + SMOTE → logs to **MLflow** (metrics, params, `fraud_detection_model`), writes artifacts to MinIO.
+   - Saves `fraud_detection_model.pkl` to **`/app/models`** (mounted `src/models`).
+5. **Inference** starts → loads model from **MLflow** first (`models:/fraud_detection_model/latest`), else from **`/app/models/fraud_detection_model.pkl`**. Uses **threshold** from MLflow run when available.
+6. **Run inference** (FraudGuard “Run Inference” or `make inference`):
+   - Fetches from **FRAUD_API_URL** → same preprocessing/features as training → predictions → cumulative stats persisted.
+7. **FraudGuard** → calls Inference **`/inference/stats`**, **`/inference/results`** → dashboard metrics and transaction table.
 
-### Memory Configuration
+**Model**: `fraud_detection_model` everywhere (config, training, inference). **Data**: same **FRAUD_API_URL** for training and inference.
 
-Adjust `FRAUD_API_MAX_RECORDS` based on available memory:
+## Makefile Targets
 
-- **50k records**: ~1GB peak, 2 min training, fits 2GB workers
-- **100k records**: ~2GB peak, 4 min training, fits 3GB workers  
-- **150k records**: ~3GB peak, 8 min training, requires 4GB+ workers
+| Target | Description |
+|--------|-------------|
+| `make setup` | Run setup-local.sh |
+| `make build` | Build all images |
+| `make up` | Start stack |
+| `make up-flower` | Start stack + Flower (Celery UI on :5555) |
+| `make down` | Stop stack |
+| `make init-db` | Initialize Airflow DB (first run) |
+| `make train` | Trigger training DAG |
+| `make inference` | POST /inference/run (1000 records) |
+| `make stats` | GET /inference/stats |
+| `make test` | Health checks (FraudGuard, Inference, MLflow, Airflow, MinIO, Flower) |
 
-## 🌐 Azure Deployment
+## Local endpoints summary
 
-### Prerequisites
+| Service | URL | Notes |
+|--------|-----|-------|
+| FraudGuard | http://localhost:5000 | Dashboard |
+| Airflow | http://localhost:8080 | airflow / airflow |
+| MLflow | http://localhost:5500 | |
+| MinIO Console | http://localhost:9001 | minioadmin / minioadmin |
+| MinIO API | http://localhost:9000 | S3-compatible |
+| Inference API | http://localhost:8000 | |
+| Flower (Celery) | http://localhost:5555 | `--profile flower` |
 
-- Azure CLI installed and configured
-- Azure subscription
-- kubectl installed
+## Troubleshooting
 
-### Quick Deploy
+- **Services not up**: `make logs` or `cd src && docker compose logs -f`
+- **Out of memory**: Lower `FRAUD_API_MAX_RECORDS` and/or `XGB_N_JOBS=1` in `src/.env`
+- **Port in use**: Change port mappings in `src/docker-compose.yml`
 
-```bash
-# 1. Create Azure resources (one-time setup)
-az group create --name mlops-rg --location eastus
-az acr create --resource-group mlops-rg --name mlopsacr12345 --sku Basic
-az aks create --resource-group mlops-rg --name mlops-aks --node-count 3 --attach-acr mlopsacr12345
+## API (Inference, port 8000)
 
-# 2. Configure .env with Azure values
-# Update ACR_NAME, AKS_RESOURCE_GROUP, AKS_CLUSTER_NAME
-
-# 3. Deploy
-chmod +x scripts/deploy-to-azure.sh
-./scripts/deploy-to-azure.sh
-```
-
-See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed deployment instructions.
-
-For Azure deployment, see [AZURE_DEPLOYMENT.md](AZURE_DEPLOYMENT.md).
-
-For all UI endpoints reference, see [UI_ENDPOINTS.md](UI_ENDPOINTS.md).
-
-## 📊 Usage
-
-### Training a Model
-
-1. **Via Airflow UI**:
-   - Navigate to http://localhost:8080
-   - Find `fraud_detection_training` DAG
-   - Enable and trigger manually or wait for schedule
-
-2. **Via API**:
-   ```bash
-   curl -X POST http://localhost:8000/inference/run \
-     -H "Content-Type: application/json" \
-     -d '{"max_records": 10000}'
-   ```
-
-### Running Inference
-
-1. **Via Fraud Guard UI**:
-   - Navigate to http://localhost:5000
-   - Click "Run Inference" or use API endpoints
-
-2. **Via REST API**:
-   ```bash
-   # Run inference
-   curl -X POST http://localhost:8000/inference/run \
-     -H "Content-Type: application/json" \
-     -d '{"max_records": 1000}'
-   
-   # Get results
-   curl http://localhost:8000/inference/results
-   
-   # Get statistics
-   curl http://localhost:8000/inference/stats
-   ```
-
-### Monitoring
-
-- **Fraud Guard Dashboard**: Real-time fraud detection metrics
-- **MLflow UI**: Model experiments and versions
-- **Airflow UI**: Pipeline execution status
-- **MinIO Console**: Artifact storage
-
-## 🔍 API Endpoints
-
-### Inference Service (`http://localhost:8000`)
-
-- `GET /health` - Health check
-- `POST /inference/run` - Run inference on transactions
-- `GET /inference/results` - Get latest inference results
-- `GET /inference/stats` - Get inference statistics
-
-### Fraud Guard (`http://localhost:5000`)
-
-- `GET /` - Dashboard
-- `GET /api/health` - Service health check
-- `POST /api/inference/run` - Trigger inference
-- `GET /api/inference/results` - Get inference results
-
-## 🛠️ Development
-
-### Building Images
-
-```bash
-# Build all images
-./scripts/build-images.sh
-
-# Build specific service
-cd src/airflow && docker build -t fraud-detection/airflow:latest .
-```
-
-### Running Tests Locally
-
-```bash
-# Start services
-cd src && docker compose up -d
-
-# Run inference test
-curl -X POST http://localhost:8000/inference/run -d '{"max_records": 100}'
-
-# Check logs
-docker compose logs -f inference
-```
-
-### Making Changes
-
-1. Make code changes
-2. Rebuild affected service: `docker compose build [service]`
-3. Restart service: `docker compose up -d [service]`
-4. Check logs: `docker compose logs -f [service]`
-
-## 📝 Key Features
-
-- ✅ **End-to-End Pipeline**: Data ingestion → Training → Storage → Inference
-- ✅ **Production Ready**: Health checks, logging, error handling
-- ✅ **Scalable**: Docker Compose for local, Kubernetes for production
-- ✅ **Azure Integrated**: Ready for AKS and ACR deployment
-- ✅ **Real-time Inference**: REST API for fraud detection
-- ✅ **Web Dashboard**: Fraud Guard UI for client IT teams
-- ✅ **Model Management**: MLflow for experiment tracking
-- ✅ **Automated Training**: Scheduled Airflow DAGs
-
-## 🐛 Troubleshooting
-
-### Services not starting
-```bash
-docker compose logs [service-name]
-docker compose ps
-```
-
-### Out of memory
-- Reduce `FRAUD_API_MAX_RECORDS` in `.env`
-- Increase Docker Desktop memory allocation
-
-### Port conflicts
-- Check if ports are in use: `netstat -an | grep [port]`
-- Update port mappings in `docker-compose.yml`
-
-See [DEPLOYMENT.md](DEPLOYMENT.md) for more troubleshooting tips.
-
-## 📚 Documentation
-
-- [Deployment Guide](DEPLOYMENT.md) - Detailed deployment instructions
-- [API Documentation](src/inference/api_server.py) - Inference API reference
-- [Airflow DAGs](src/dags/) - Training pipeline documentation
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test locally with Docker Compose
-5. Submit a pull request
-
-## 📄 License
-
-[Add your license here]
-
-## 🙏 Acknowledgments
-
-- Apache Airflow for workflow orchestration
-- MLflow for model management
-- XGBoost for fraud detection model
-- Flask for web application framework
+- `GET /health` – Health check  
+- `POST /inference/run` – Run inference (JSON: `max_records`, etc.)  
+- `GET /inference/results` – Latest results  
+- `GET /inference/stats` – Cumulative stats (used by FraudGuard)
 
 ---
 
-**Ready to deploy?** Start with `docker compose build` and `docker compose up -d`!
+**Local only.** No cloud or Kubernetes; everything runs via Docker Compose.

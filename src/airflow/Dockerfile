@@ -1,4 +1,4 @@
-FROM apache/airflow:3.1.6
+FROM apache/airflow:2.10.2
 
 # Improve pip reliability and speed during image builds
 ENV PIP_DEFAULT_TIMEOUT=600 \
