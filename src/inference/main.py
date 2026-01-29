@@ -98,7 +98,7 @@ class FraudDetectionInference:
         self.model_refresh_seconds = int(
             os.getenv(
                 'MLFLOW_MODEL_REFRESH_SECONDS',
-                self.config.get('mlflow', {}).get('refresh_seconds', 60)
+                self.config.get('mlflow', {}).get('refresh_seconds', 28800)
             )
         )
         self._load_model_if_exists()

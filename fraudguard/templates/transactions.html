@@ -36,11 +36,17 @@
         if (r.status === 'Approved') statusCl = 'bg-green-100 text-green-800';
         if (r.status === 'Declined') statusCl = 'bg-red-100 text-red-800';
         if (r.status === 'Flagged') statusCl = 'bg-orange-100 text-orange-800';
+        // Format time if it's an ISO-like string, otherwise show raw
+        let timeStr = r.time || '—';
+        try {
+            const d = new Date(r.time);
+            if (!isNaN(d.getTime())) timeStr = d.toLocaleString();
+        } catch (e) {}
         return `<tr class="hover:bg-gray-50">
-            <td class="px-6 py-4 whitespace-nowrap text-gray-500">${r.time}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-gray-500">${timeStr}</td>
             <td class="px-6 py-4 font-mono text-xs text-gray-600">${r.id}</td>
             <td class="px-6 py-4 font-medium text-gray-900">${r.merchant}</td>
-            <td class="px-6 py-4 text-gray-900">$${Number(r.amount).toFixed(2)}</td>
+            <td class="px-6 py-4 text-gray-900">${r.currency ? (r.currency + ' ') : ''}${Number(r.amount).toFixed(2)}</td>
             <td class="px-6 py-4"><span class="px-2 py-1 rounded-full text-xs font-medium ${riskCl}">${r.risk_score}</span></td>
             <td class="px-6 py-4"><span class="px-2 py-1 rounded-full text-xs font-medium ${statusCl}">${r.status}</span></td>
         </tr>`;
@@ -62,6 +68,22 @@
         }).catch(function () { render([]); });
     }
     load();
+    // Prefer SSE for live updates, fallback to polling
+    if (typeof(EventSource) !== 'undefined') {
+        try {
+            var es = new EventSource('/stream/transactions');
+            es.addEventListener('transactions', function (ev) {
+                try {
+                    var payload = JSON.parse(ev.data || '{}');
+                    window._txnList = (payload.results || []).map(function (r) { return r; });
+                    render(window._txnList);
+                } catch (e) {}
+            });
+            es.onerror = function () { /* keep connection open; fallback to polling */ };
+        } catch (e) { setInterval(load, 5000); }
+    } else {
+        setInterval(load, 5000);
+    }
     var s = document.getElementById('search-txn');
     if (s) s.addEventListener('input', function () { render(window._txnList || []); });
 })();

@@ -36,10 +36,13 @@
             if (r.status === 'Flagged') statusCl = 'bg-orange-100 text-orange-800';
             var tr = document.createElement('tr');
             tr.className = 'hover:bg-gray-50';
-            tr.innerHTML = '<td class="px-6 py-4 whitespace-nowrap text-gray-500">' + r.time + '</td>' +
+                // format time if possible
+                var t = r.time || '—';
+                try { const dd = new Date(r.time); if (!isNaN(dd.getTime())) t = dd.toLocaleString(); } catch (e) {}
+                tr.innerHTML = '<td class="px-6 py-4 whitespace-nowrap text-gray-500">' + t + '</td>' +
                 '<td class="px-6 py-4 font-mono text-xs text-gray-600">' + r.id + '</td>' +
                 '<td class="px-6 py-4 font-medium text-gray-900">' + r.merchant + '</td>' +
-                '<td class="px-6 py-4 text-gray-900">$' + Number(r.amount).toFixed(2) + '</td>' +
+                    '<td class="px-6 py-4 text-gray-900">' + (r.currency ? (r.currency + ' ') : '') + Number(r.amount).toFixed(2) + '</td>' +
                 '<td class="px-6 py-4"><span class="px-2 py-1 rounded-full text-xs font-medium ' + riskCl + '">' + r.risk_score + '</span></td>' +
                 '<td class="px-6 py-4"><span class="px-2 py-1 rounded-full text-xs font-medium ' + statusCl + '">' + r.status + '</span></td>';
             tbody.appendChild(tr);
@@ -85,6 +88,10 @@
                 updateMetric('model-name', h.name || '—');
                 updateMetric('model-version', h.version != null ? String(h.version) : '—');
                 updateMetric('drift-status', h.drift_status || '—');
+                updateMetric('model-precision', h.precision != null ? String(h.precision) : '—');
+                updateMetric('model-recall', h.recall != null ? String(h.recall) : '—');
+                updateMetric('model-f1', h.f1 != null ? String(h.f1) : '—');
+                updateMetric('model-auc', h.auc != null ? String(h.auc) : '—');
                 renderTable(d.transactions || []);
                 var total = m.total_transactions || 0;
                 var fraud = m.fraud_detections || 0;
@@ -102,5 +109,8 @@
             });
     }
 
-    if (el('total-txn')) fetchData();
+    if (el('total-txn')) {
+        fetchData();
+        setInterval(fetchData, 5000);
+    }
 })();

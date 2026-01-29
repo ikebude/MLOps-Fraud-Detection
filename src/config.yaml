@@ -5,6 +5,7 @@ mlflow:
   artifact_location: "s3://mlflow/fraud_detection"
   s3_endpoint_url: "http://minio:9000"
   bucket: "mlflow"
+  refresh_seconds: 28800
 
 # API configuration for inference service (FRAUD_API_URL in env overrides)
 api:
