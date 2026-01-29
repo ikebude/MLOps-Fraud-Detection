@@ -1,0 +1,18 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fraudguard
+  namespace: mlops
+spec:
+  template:
+    spec:
+      volumes:
+      - name: dashboard-js-volume
+        configMap:
+          name: fraudguard-dashboard-js
+      containers:
+      - name: fraudguard
+        volumeMounts:
+        - name: dashboard-js-volume
+          mountPath: /app/static/js/dashboard.js
+          subPath: dashboard.js

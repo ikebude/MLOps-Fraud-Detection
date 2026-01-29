@@ -2,3 +2,5 @@ cryptography
 boto3
 mlflow
 psycopg2-binary
+oracledb>=1.0.0
+SQLAlchemy[oracle]>=2.0.0

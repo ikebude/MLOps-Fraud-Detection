@@ -1,0 +1,20 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: airflow-db-init
+  namespace: mlops
+spec:
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+      - name: airflow-db-init
+        image: docker.io/apache/airflow:2.10.1
+        command: ["airflow", "db", "init"]
+        env:
+        - name: AIRFLOW__DATABASE__SQL_ALCHEMY_CONN
+          value: "postgresql://airflow:Postgress99!@postgres:5432/airflow"
+        - name: AIRFLOW__CORE__EXECUTOR
+          value: "CeleryExecutor"
+      imagePullSecrets:
+      - name: ocir-secret

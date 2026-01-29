@@ -17,7 +17,7 @@ spec:
       - name: ocir-secret
       containers:
       - name: fraudguard
-        image: af-johannesburg-1.ocir.io/axjkxzqfxgqu/fraud-detection/fraudguard:latest
+        image: af-johannesburg-1.ocir.io/axjkxzqfxgqu/fraud-detection/fraudguard:deterministic-v1.0
         imagePullPolicy: Always
         ports:
         - containerPort: 5000

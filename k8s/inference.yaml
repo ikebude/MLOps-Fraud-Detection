@@ -19,14 +19,14 @@ spec:
       - name: ocir-secret
       containers:
       - name: inference
-        image: af-johannesburg-1.ocir.io/axjkxzqfxgqu/fraud-detection/inference:latest
+        image: af-johannesburg-1.ocir.io/axjkxzqfxgqu/fraud-detection/inference:2.10.1
         imagePullPolicy: Always
         ports:
         - containerPort: 8000
           name: http
         env:
         - name: MLFLOW_TRACKING_URI
-          value: "http://mlflow:5000"
+          value: "http://mlflow:5000/mlflow"
         - name: CUMULATIVE_STATS_FILE
           value: "/data/cumulative_stats.json"
         - name: MLFLOW_S3_ENDPOINT_URL

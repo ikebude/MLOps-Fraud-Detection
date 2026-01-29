@@ -1,0 +1,364 @@
+let trend = {
+    labels: [],
+    cumulative_total: [],
+    cumulative_fraud: []
+};
+
+let chartInstance = null;
+
+document.addEventListener('DOMContentLoaded', () => {
+    refreshAll();
+    // Refresh every 2 seconds for truly real-time updates
+    setInterval(refreshAll, 2000);
+});
+
+// Initial load
+refreshAll();
+
+function basePath() {
+    return window.FRAUDGUARD_BASE_PATH || '';
+}
+
+async function refreshAll() {
+    // Show loading indicator
+    const statusIndicator = document.getElementById('real-time-status');
+    if (statusIndicator) {
+        statusIndicator.innerHTML = '<div class="w-2 h-2 bg-yellow-500 rounded-full animate-pulse"></div>';
+        statusIndicator.nextElementSibling.textContent = 'Updating...';
+    }
+    
+    await Promise.all([
+        refreshOverview(),
+        refreshInferenceDetails()
+    ]);
+    
+    // Show ready indicator
+    if (statusIndicator) {
+        statusIndicator.innerHTML = '<div class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>';
+        statusIndicator.nextElementSibling.textContent = 'Live';
+    }
+    
+    // Update last updated time
+    const lastUpdated = document.getElementById('last-updated');
+    if (lastUpdated) {
+        const now = new Date();
+        lastUpdated.textContent = now.toLocaleTimeString();
+    }
+}
+
+async function refreshOverview() {
+    try {
+        const response = await fetch(`${basePath()}/api/overview`, { cache: 'no-store' });
+        const data = await response.json();
+        if (!data || data.status === 'error') {
+            throw new Error((data && data.error) ? data.error : 'Failed to load overview');
+        }
+
+        // Update KPI metrics with animations
+        updateMetric('total-txn', Number(data.metrics.total_transactions || 0).toLocaleString());
+        updateMetric('fraud-rate', `${Number(data.metrics.fraud_rate || 0).toFixed(2)}%`);
+        updateMetric('approval-rate', `${Number(data.metrics.approval_rate || 0).toFixed(2)}%`);
+        updateMetric('active-alerts', String(data.metrics.active_alerts || 0));
+
+        // Update model health with ALL metrics
+        updateMetric('model-name', data.model_health.name || 'Fraud Detection XGBoost');
+        updateMetric('model-version', String(data.model_health.version || '1'));
+        updateMetric('model-accuracy', `${Number(data.model_health.accuracy || 0).toFixed(1)}%`);
+        updateMetric('model-precision', `${Number(data.model_health.precision || 0).toFixed(1)}%`);
+        updateMetric('model-recall', `${Number(data.model_health.recall || 0).toFixed(1)}%`);
+        updateMetric('model-f1', `${Number(data.model_health.f1_score || 0).toFixed(3)}`);
+        updateMetric('model-auc', `${Number(data.model_health.auc_roc || 0).toFixed(1)}%`);
+        updateMetric('model-type', data.model_health.model_type || 'XGBoost');
+        updateMetric('training-date', data.model_health.training_date || 'Unknown');
+        updateMetric('total-samples', Number(data.model_health.total_samples || 0).toLocaleString());
+        updateMetric('fraud-samples', Number(data.model_health.fraud_samples || 0).toLocaleString());
+        
+        updateAccuracyBar(Number(data.model_health.accuracy || 0));
+        
+        // Enhanced drift status with color and icon
+        const driftElement = document.getElementById('drift-status');
+        if (driftElement) {
+            const driftColor = data.model_health.drift_color || 'bg-green-100 text-green-800';
+            const driftIcon = data.model_health.drift_icon || 'ph-check-circle';
+            driftElement.innerHTML = `
+                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${driftColor}">
+                    <i class="${driftIcon} mr-1"></i>${data.model_health.drift_status || 'Normal'}
+                </span>
+            `;
+        }
+
+        // Update chart with cumulative data
+        if (data.chart_data) {
+            updateChart(data.chart_data);
+        }
+
+        // Update transaction table
+        if (data.transactions) {
+            populateTable(data.transactions);
+        }
+        
+    } catch (error) {
+        console.error('Overview refresh failed:', error);
+    }
+}
+
+async function refreshInferenceDetails() {
+    try {
+        const response = await fetch(`${basePath()}/api/inference/details`, { cache: 'no-store' });
+        const data = await response.json();
+        if (!data || data.status === 'error') {
+            throw new Error((data && data.error) ? data.error : 'Failed to load inference details');
+        }
+
+        // Update inference statistics
+        updateMetric('total-inferences', Number(data.inference_stats.total_inferences || 0).toLocaleString());
+        updateMetric('fraud-predictions', Number(data.inference_stats.fraud_predictions || 0).toLocaleString());
+        updateMetric('avg-risk-score', `${Number(data.inference_stats.avg_risk_score || 0).toFixed(1)}`);
+        updateMetric('avg-fraud-prob', `${Number(data.inference_stats.avg_fraud_probability || 0).toFixed(3)}`);
+        updateMetric('inference-rate', `${Number(data.inference_stats.inference_rate || 0).toFixed(1)}/min`);
+        updateMetric('inference-accuracy', `${Number(data.inference_stats.model_accuracy || 0).toFixed(1)}%`);
+        
+        // Update recent inferences table
+        if (data.recent_inferences) {
+            populateInferenceTable(data.recent_inferences);
+        }
+        
+    } catch (error) {
+        console.error('Inference details refresh failed:', error);
+    }
+}
+
+function updateMetric(id, value) {
+    const el = document.getElementById(id);
+    if (el) {
+        const oldValue = el.textContent;
+        el.textContent = value;
+        
+        // Add pulse animation for value changes
+        if (oldValue !== value) {
+            el.classList.add('animate-pulse', 'text-blue-600');
+            setTimeout(() => {
+                el.classList.remove('animate-pulse', 'text-blue-600');
+            }, 1000);
+        }
+    }
+}
+
+function updateAccuracyBar(accuracy) {
+    const bar = document.getElementById('model-accuracy-bar');
+    if (bar) {
+        const targetWidth = Math.min(accuracy, 100);
+        bar.style.width = targetWidth + '%';
+        
+        // Add color coding based on accuracy
+        bar.className = 'h-3 rounded-full transition-all duration-500';
+        if (accuracy >= 90) {
+            bar.classList.add('bg-gradient-to-r', 'from-green-400', 'to-green-600');
+        } else if (accuracy >= 80) {
+            bar.classList.add('bg-gradient-to-r', 'from-yellow-400', 'to-yellow-600');
+        } else {
+            bar.classList.add('bg-gradient-to-r', 'from-red-400', 'to-red-600');
+        }
+    }
+}
+
+function updateChart(chartData) {
+    const ctx = document.getElementById('mainChart');
+    if (!ctx) return;
+
+    const labels = chartData.time_labels || [];
+    const volumeData = chartData.volume_data || [];
+    const fraudData = chartData.fraud_data || [];
+
+    if (!chartInstance) {
+        chartInstance = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Transaction Volume',
+                        data: volumeData,
+                        borderColor: '#3B82F6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        tension: 0.4,
+                        fill: true,
+                        pointRadius: 4,
+                        pointHoverRadius: 6
+                    },
+                    {
+                        label: 'Fraud Detections',
+                        data: fraudData,
+                        borderColor: '#EF4444',
+                        backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                        tension: 0.4,
+                        fill: true,
+                        pointRadius: 4,
+                        pointHoverRadius: 6
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    mode: 'index',
+                    intersect: false,
+                },
+                plugins: {
+                    legend: { 
+                        position: 'bottom',
+                        labels: {
+                            usePointStyle: true,
+                            padding: 20
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        titleColor: '#fff',
+                        bodyColor: '#fff',
+                        borderColor: '#333',
+                        borderWidth: 1,
+                        padding: 12,
+                        displayColors: true,
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.dataset.label || '';
+                                if (label) {
+                                    label += ': ';
+                                }
+                                label += context.parsed.y.toLocaleString();
+                                return label;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: { 
+                        beginAtZero: true,
+                        grid: { 
+                            color: 'rgba(0, 0, 0, 0.05)'
+                        },
+                        ticks: {
+                            callback: function(value) {
+                                return value.toLocaleString();
+                            }
+                        }
+                    },
+                    x: { 
+                        grid: { 
+                            color: 'rgba(0, 0, 0, 0.05)'
+                        }
+                    }
+                }
+            }
+        });
+        return;
+    }
+
+    // Update existing chart
+    chartInstance.data.labels = labels;
+    chartInstance.data.datasets[0].data = volumeData;
+    chartInstance.data.datasets[1].data = fraudData;
+    chartInstance.update('none');
+}
+
+function populateTable(transactions) {
+    const tbody = document.getElementById('txn-table-body');
+    if (!tbody) return;
+
+    tbody.innerHTML = '';
+
+    const recentTxns = transactions.slice(0, 10); // Show 10 most recent
+
+    recentTxns.forEach(txn => {
+        const row = document.createElement('tr');
+        row.className = 'hover:bg-gray-50 cursor-pointer transition-colors border-b border-gray-100';
+        
+        let riskColor = 'text-green-600 bg-green-50';
+        if (txn.risk_score > 80) riskColor = 'text-red-600 bg-red-50 font-bold';
+        else if (txn.risk_score > 50) riskColor = 'text-orange-600 bg-orange-50';
+
+        let statusColor = 'bg-gray-100 text-gray-800';
+        if (txn.status === 'Approved') statusColor = 'bg-green-100 text-green-800';
+        if (txn.status === 'Declined') statusColor = 'bg-red-100 text-red-800';
+        if (txn.status === 'Flagged') statusColor = 'bg-orange-100 text-orange-800';
+        if (txn.status === 'Review') statusColor = 'bg-yellow-100 text-yellow-800';
+
+        // Format currency properly for NGN
+        const currency = txn.currency || 'NGN';
+        const currencySymbol = currency === 'NGN' ? '₦' : currency === 'USD' ? '$' : currency;
+
+        row.innerHTML = `
+            <td class="px-4 py-3 whitespace-nowrap text-gray-500 text-sm">${txn.time}</td>
+            <td class="px-4 py-3 font-mono text-xs text-gray-600">${txn.id}</td>
+            <td class="px-4 py-3 font-medium text-gray-900 text-sm">${txn.merchant}</td>
+            <td class="px-4 py-3 font-semibold text-gray-900 text-sm">
+                <span class="inline-flex items-center">
+                    <span class="text-lg mr-1">${currencySymbol}</span>
+                    <span>${Number(txn.amount).toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                </span>
+            </td>
+            <td class="px-4 py-3">
+                <span class="px-2 py-1 rounded-full text-xs font-bold ${riskColor}" title="Fraud Probability">
+                    ${txn.risk_score}/100
+                </span>
+            </td>
+            <td class="px-4 py-3">
+                <span class="px-2 py-1 rounded-full text-xs font-bold ${statusColor}">
+                    ${txn.status}
+                </span>
+            </td>
+            <td class="px-4 py-3 text-xs text-gray-500">${txn.location || 'Unknown'}</td>
+        `;
+        row.onclick = () => {
+            // Show transaction details in modal or expand
+            showTransactionDetails(txn);
+        };
+        tbody.appendChild(row);
+    });
+}
+
+function populateInferenceTable(inferences) {
+    const tbody = document.getElementById('inference-table-body');
+    if (!tbody) return;
+
+    tbody.innerHTML = '';
+
+    inferences.forEach(inference => {
+        const row = document.createElement('tr');
+        row.className = 'hover:bg-blue-50 cursor-pointer transition-colors border-b border-gray-100';
+        
+        const predictionColor = inference.fraud_prediction === 1 ? 'text-red-600 bg-red-50' : 'text-green-600 bg-green-50';
+
+        row.innerHTML = `
+            <td class="px-4 py-3 font-mono text-xs text-gray-600">${inference.id}</td>
+            <td class="px-4 py-3">
+                <span class="px-2 py-1 rounded-full text-xs font-bold ${predictionColor}">
+                    ${inference.fraud_prediction === 1 ? 'FRAUD' : 'LEGIT'}
+                </span>
+            </td>
+            <td class="px-4 py-3 font-semibold text-gray-900">${(inference.fraud_probability * 100).toFixed(1)}%</td>
+            <td class="px-4 py-3">${inference.risk_score}/100</td>
+            <td class="px-4 py-3 text-xs text-gray-500">${inference.time}</td>
+        `;
+        tbody.appendChild(row);
+    });
+}
+
+function showTransactionDetails(txn) {
+    // Create a simple modal or alert with transaction details
+    const details = `
+Transaction ID: ${txn.id}
+Merchant: ${txn.merchant}
+Amount: ${txn.currency || 'NGN'} ${Number(txn.amount).toLocaleString()}
+Risk Score: ${txn.risk_score}/100
+Fraud Probability: ${(txn.fraud_probability * 100).toFixed(1)}%
+Status: ${txn.status}
+Location: ${txn.location || 'Unknown'}
+Device: ${txn.device_id || 'Unknown'}
+IP: ${txn.ip_address || 'Unknown'}
+    `;
+    console.log('Transaction Details:', details);
+    // You could also show a modal here instead of console.log
+}

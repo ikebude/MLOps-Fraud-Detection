@@ -128,23 +128,23 @@ Write-ColorOutput Green "[OK] Docker login successful"
 Write-ColorOutput Yellow "`nBuilding and pushing images to OCIR..."
 
 Write-Output "Building Airflow..."
-docker build -f src/airflow/Dockerfile -t "${OCIR_REPO_BASE}/${IMAGE_PREFIX}/airflow:latest" .
+docker build -f src/airflow/Dockerfile -t "${OCIR_REPO_BASE}/${IMAGE_PREFIX}/airflow:2.10.1" .
 if ($LASTEXITCODE -ne 0) { throw "Failed to build Airflow image" }
-docker push "${OCIR_REPO_BASE}/${IMAGE_PREFIX}/airflow:latest"
+docker push "${OCIR_REPO_BASE}/${IMAGE_PREFIX}/airflow:2.10.1"
 if ($LASTEXITCODE -ne 0) { throw "Failed to push Airflow image" }
 Write-ColorOutput Green "[OK] Airflow image pushed"
 
 Write-Output "Building MLflow..."
-docker build -f src/mlflow/Dockerfile -t "${OCIR_REPO_BASE}/${IMAGE_PREFIX}/mlflow:latest" .
+docker build -f src/mlflow/Dockerfile -t "${OCIR_REPO_BASE}/${IMAGE_PREFIX}/mlflow:2.10.1" .
 if ($LASTEXITCODE -ne 0) { throw "Failed to build MLflow image" }
-docker push "${OCIR_REPO_BASE}/${IMAGE_PREFIX}/mlflow:latest"
+docker push "${OCIR_REPO_BASE}/${IMAGE_PREFIX}/mlflow:2.10.1"
 if ($LASTEXITCODE -ne 0) { throw "Failed to push MLflow image" }
 Write-ColorOutput Green "[OK] MLflow image pushed"
 
 Write-Output "Building Inference..."
-docker build -f src/inference/Dockerfile -t "${OCIR_REPO_BASE}/${IMAGE_PREFIX}/inference:latest" .
+docker build -f src/inference/Dockerfile -t "${OCIR_REPO_BASE}/${IMAGE_PREFIX}/inference:2.10.1" .
 if ($LASTEXITCODE -ne 0) { throw "Failed to build Inference image" }
-docker push "${OCIR_REPO_BASE}/${IMAGE_PREFIX}/inference:latest"
+docker push "${OCIR_REPO_BASE}/${IMAGE_PREFIX}/inference:2.10.1"
 if ($LASTEXITCODE -ne 0) { throw "Failed to push Inference image" }
 Write-ColorOutput Green "[OK] Inference image pushed"
 
@@ -152,9 +152,9 @@ $fraudguardDir = Join-Path $ProjectRoot "fraudGuard"
 $deployFraudGuard = $false
 if (Test-Path $fraudguardDir) {
     Write-Output "Building FraudGuard..."
-    docker build -f fraudGuard/Dockerfile -t "${OCIR_REPO_BASE}/${IMAGE_PREFIX}/fraudguard:latest" .
+    docker build -f fraudGuard/Dockerfile -t "${OCIR_REPO_BASE}/${IMAGE_PREFIX}/fraudguard:2.10.1" .
     if ($LASTEXITCODE -ne 0) { throw "Failed to build FraudGuard image" }
-    docker push "${OCIR_REPO_BASE}/${IMAGE_PREFIX}/fraudguard:latest"
+    docker push "${OCIR_REPO_BASE}/${IMAGE_PREFIX}/fraudguard:2.10.1"
     if ($LASTEXITCODE -ne 0) { throw "Failed to push FraudGuard image" }
     $deployFraudGuard = $true
     Write-ColorOutput Green "[OK] FraudGuard image pushed"
@@ -226,7 +226,7 @@ Write-ColorOutput Yellow "Creating ADB credentials secret..."
 kubectl delete secret adb-credentials -n $NAMESPACE --ignore-not-found
 
 # Build connection strings for OCI ADB
-# Format: oracle://username:password@host:port/?service_name=service&thin_mode=true
+# Format: oracle://username:password@host:port/?service_name=service&thin_mode=true&driver=oracledb
 $adbMlflowConn = "oracle://mlflow:${adbMlflowPasswordEnc}@${ADB_HOST}:${ADB_PORT}/?service_name=${ADB_SERVICE}&thin_mode=true&wallet_location=${ADB_WALLET_LOCATION}"
 $adbAirflowConn = "oracle://airflow:${adbAirflowPasswordEnc}@${ADB_HOST}:${ADB_PORT}/?service_name=${ADB_SERVICE}&thin_mode=true&wallet_location=${ADB_WALLET_LOCATION}"
 $adbAirflowResultBackend = "db+oracle://airflow:${adbAirflowPasswordEnc}@${ADB_HOST}:${ADB_PORT}/?service_name=${ADB_SERVICE}&thin_mode=true&wallet_location=${ADB_WALLET_LOCATION}"
@@ -243,6 +243,14 @@ kubectl create secret generic adb-credentials -n $NAMESPACE `
   --from-literal=airflow-password="$adbAirflowPassword"
 Write-ColorOutput Green "[OK] ADB credentials secret created"
 
+# Create PostgreSQL credentials secret
+Write-ColorOutput Yellow "Creating PostgreSQL credentials secret..."
+kubectl delete secret postgres-credentials -n $NAMESPACE --ignore-not-found
+kubectl create secret generic postgres-credentials -n $NAMESPACE `
+  --from-literal=username=postgres `
+  --from-literal=password=Postgress99!
+Write-ColorOutput Green "[OK] PostgreSQL credentials secret created"
+
 # Create Object Storage credentials secret
 Write-ColorOutput Yellow "Creating Object Storage credentials secret..."
 kubectl delete secret object-storage-credentials -n $NAMESPACE --ignore-not-found
@@ -253,9 +261,11 @@ Write-ColorOutput Green "[OK] Object Storage credentials secret created"
 
 # Deploy core services
 Write-ColorOutput Yellow "`nDeploying core services..."
+kubectl apply -f k8s/postgres.yaml
+kubectl rollout status statefulset/postgres -n $NAMESPACE --timeout=300s
 kubectl apply -f k8s/redis.yaml
 kubectl rollout status deployment/redis -n $NAMESPACE --timeout=300s
-Write-ColorOutput Green "[OK] Redis deployed"
+Write-ColorOutput Green "[OK] PostgreSQL and Redis deployed"
 
 # Deploy MLflow
 Write-ColorOutput Yellow "Deploying MLflow..."

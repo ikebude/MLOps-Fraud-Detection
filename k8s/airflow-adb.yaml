@@ -60,10 +60,7 @@ spec:
           name: webserver
         env:
         - name: AIRFLOW__DATABASE__SQL_ALCHEMY_CONN
-          valueFrom:
-            secretKeyRef:
-              name: adb-credentials
-              key: airflow-conn
+          value: "postgresql://airflow:Postgress99!@postgres:5432/airflow"
         - name: AIRFLOW__CORE__EXECUTOR
           valueFrom:
             configMapKeyRef:
@@ -77,10 +74,7 @@ spec:
               name: airflow-config
               key: AIRFLOW__CELERY__BROKER_URL
         - name: AIRFLOW__CELERY__RESULT_BACKEND
-          valueFrom:
-            secretKeyRef:
-              name: adb-credentials
-              key: airflow-result-backend
+          value: "db+postgresql://airflow:Postgress99!@postgres:5432/airflow"
         - name: AIRFLOW__CORE__LOAD_EXAMPLES
           value: "false"
         - name: AIRFLOW__CORE__DAGS_FOLDER
@@ -181,7 +175,7 @@ spec:
         emptyDir: {}
       - name: app-config
         configMap:
-          name: app-config
+          name: airflow-app-config
           optional: true
       - name: models
         emptyDir: {}
@@ -231,10 +225,7 @@ spec:
         command: ["airflow", "scheduler"]
         env:
         - name: AIRFLOW__DATABASE__SQL_ALCHEMY_CONN
-          valueFrom:
-            secretKeyRef:
-              name: adb-credentials
-              key: airflow-conn
+          value: "postgresql://airflow:Postgress99!@postgres:5432/airflow"
         - name: AIRFLOW__CORE__EXECUTOR
           valueFrom:
             configMapKeyRef:
@@ -248,10 +239,7 @@ spec:
               name: airflow-config
               key: AIRFLOW__CELERY__BROKER_URL
         - name: AIRFLOW__CELERY__RESULT_BACKEND
-          valueFrom:
-            secretKeyRef:
-              name: adb-credentials
-              key: airflow-result-backend
+          value: "db+postgresql://airflow:Postgress99!@postgres:5432/airflow"
         - name: AIRFLOW__CORE__LOAD_EXAMPLES
           value: "false"
         - name: AIRFLOW__CORE__DAGS_FOLDER
@@ -308,7 +296,7 @@ spec:
         emptyDir: {}
       - name: app-config
         configMap:
-          name: app-config
+          name: airflow-app-config
           optional: true
       - name: models
         emptyDir: {}
@@ -360,10 +348,7 @@ spec:
         command: ["airflow", "celery", "worker"]
         env:
         - name: AIRFLOW__DATABASE__SQL_ALCHEMY_CONN
-          valueFrom:
-            secretKeyRef:
-              name: adb-credentials
-              key: airflow-conn
+          value: "postgresql://airflow:Postgress99!@postgres:5432/airflow"
         - name: AIRFLOW__CORE__EXECUTOR
           valueFrom:
             configMapKeyRef:
@@ -385,10 +370,7 @@ spec:
               name: airflow-config
               key: AIRFLOW__CELERY__BROKER_URL
         - name: AIRFLOW__CELERY__RESULT_BACKEND
-          valueFrom:
-            secretKeyRef:
-              name: adb-credentials
-              key: airflow-result-backend
+          value: "db+postgresql://airflow:Postgress99!@postgres:5432/airflow"
         - name: AIRFLOW__CORE__LOAD_EXAMPLES
           value: "false"
         - name: AIRFLOW__CORE__DAGS_FOLDER
@@ -449,7 +431,7 @@ spec:
         emptyDir: {}
       - name: app-config
         configMap:
-          name: app-config
+          name: airflow-app-config
           optional: true
       - name: models
         emptyDir: {}
