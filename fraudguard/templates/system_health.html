@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- System Status Overview -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+            <div class="flex items-center justify-between mb-4">
+                <h4 class="text-sm font-medium text-gray-600">Inference Service</h4>
+                <span class="px-2 py-1 text-xs font-medium rounded {% if inference_health.status == 'healthy' %}bg-green-100 text-green-700{% else %}bg-red-100 text-red-700{% endif %}">
+                    {{ inference_health.status|upper }}
+                </span>
+            </div>
+            <p class="text-2xl font-bold text-gray-900">{{ stats.get('total_records', 0)|int }} transactions</p>
+            <p class="text-sm text-gray-500 mt-1">Processed</p>
+        </div>
+        
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+            <div class="flex items-center justify-between mb-4">
+                <h4 class="text-sm font-medium text-gray-600">Model Health</h4>
+                <span class="px-2 py-1 text-xs font-medium rounded {% if model_health.accuracy > 80 %}bg-green-100 text-green-700{% elif model_health.accuracy > 50 %}bg-yellow-100 text-yellow-700{% else %}bg-red-100 text-red-700{% endif %}">
+                    {{ "%.1f"|format(model_health.accuracy) }}%
+                </span>
+            </div>
+            <p class="text-2xl font-bold text-gray-900">{{ model_health.name }}</p>
+            <p class="text-sm text-gray-500 mt-1">Version {{ model_health.version }}</p>
+        </div>
+        
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+            <div class="flex items-center justify-between mb-4">
+                <h4 class="text-sm font-medium text-gray-600">Fraud Detection Rate</h4>
+                <span class="px-2 py-1 text-xs font-medium rounded bg-orange-100 text-orange-700">
+                    {{ "%.2f"|format(stats.get('fraud_rate', 0)) }}%
+                </span>
+            </div>
+            <p class="text-2xl font-bold text-gray-900">{{ stats.get('fraud_detections', 0)|int }}</p>
+            <p class="text-sm text-gray-500 mt-1">Flagged Transactions</p>
+        </div>
+    </div>
+    
+    <!-- Model Performance Metrics -->
+    <div class="bg-white p-8 rounded-xl shadow-sm border border-gray-100">
+        <h3 class="text-xl font-semibold text-gray-900 mb-6">Model Performance Metrics</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div>
+                <h4 class="font-medium text-gray-700 mb-4">Model Accuracy</h4>
+                <div class="h-48 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg flex flex-col items-center justify-center border border-blue-200">
+                    <p class="text-5xl font-bold text-blue-600 mb-2">{{ "%.2f"|format(model_health.accuracy) }}%</p>
+                    <p class="text-sm text-gray-600">Current Model Performance</p>
+                    <p class="text-xs text-gray-500 mt-2">Model: {{ model_health.name }}</p>
+                    <p class="text-xs text-gray-500">Version: {{ model_health.version }}</p>
+                </div>
+            </div>
+            <div>
+                <h4 class="font-medium text-gray-700 mb-4">System Statistics</h4>
+                <div class="space-y-4">
+                    <div class="flex justify-between items-center p-3 bg-gray-50 rounded">
+                        <span class="text-sm text-gray-600">Total Transactions</span>
+                        <span class="text-sm font-semibold text-gray-900">{{ stats.get('total_records', 0)|int }}</span>
+                    </div>
+                    <div class="flex justify-between items-center p-3 bg-gray-50 rounded">
+                        <span class="text-sm text-gray-600">Fraud Detections</span>
+                        <span class="text-sm font-semibold text-red-600">{{ stats.get('fraud_detections', 0)|int }}</span>
+                    </div>
+                    <div class="flex justify-between items-center p-3 bg-gray-50 rounded">
+                        <span class="text-sm text-gray-600">Fraud Rate</span>
+                        <span class="text-sm font-semibold text-orange-600">{{ "%.2f"|format(stats.get('fraud_rate', 0)) }}%</span>
+                    </div>
+                    <div class="flex justify-between items-center p-3 bg-gray-50 rounded">
+                        <span class="text-sm text-gray-600">Avg Fraud Probability</span>
+                        <span class="text-sm font-semibold text-gray-900">{{ "%.2f"|format(stats.get('avg_fraud_probability', 0)) }}%</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
