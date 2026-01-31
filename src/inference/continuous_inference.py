@@ -1,195 +1,130 @@
 """
-Continuous Real-Time Inference Worker
+Continuous Inference Worker for Real-Time Fraud Detection
 
-This worker continuously polls the fraud API and runs inference on new transactions.
-It runs as a background thread in the API server to ensure real-time processing.
+Runs inference continuously in background thread, polling for new transactions
+every N seconds and scoring them automatically.
+
+This worker:
+1. Polls the database every poll_interval seconds
+2. Calls run_inference() to score new transactions
+3. Updates cumulative statistics
+4. Maintains live inference stream for dashboard
 """
-import os
-import time
+
 import logging
 import threading
+import time
 from datetime import datetime
-from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    from main import FraudDetectionInference
+logger = logging.getLogger('fraud_detection_continuous')
 
-logger = logging.getLogger(__name__)
 
 class ContinuousInferenceWorker:
     """
-    Background worker that continuously polls the fraud API and processes transactions.
+    Background worker that continuously runs inference on new transactions.
     
-    This ensures real-time fraud detection without manual intervention.
+    Polls the database at regular intervals and scores transactions that
+    haven't been scored yet. Updates are streamed to dashboard via API.
     """
     
     def __init__(self, inference_pipeline, poll_interval: int = 5):
         """
-        Initialize the continuous inference worker.
+        Initialize continuous inference worker.
         
         Args:
-            inference_pipeline: Initialized FraudDetectionInference instance
-            poll_interval: Seconds between API polls (default: 5 seconds for real-time)
+            inference_pipeline: FraudDetectionInference instance
+            poll_interval: Seconds between polling for new transactions (default: 5)
         """
         self.inference_pipeline = inference_pipeline
         self.poll_interval = poll_interval
         self.running = False
         self.thread = None
-        self.last_processed_count = 0
-        self.last_poll_time = None
-        self.processed_transaction_ids = set()  # Track processed transaction IDs to avoid duplicates
-        self.last_max_id = 0  # Track highest transaction ID seen
+        self._append_results_func = None  # Will be set by api_server.py
         
+        logger.info(f"ContinuousInferenceWorker initialized (poll_interval={poll_interval}s)")
+    
     def start(self):
-        """Start the continuous inference worker in a background thread."""
+        """Start continuous inference in background thread."""
         if self.running:
-            logger.warning('Continuous inference worker already running')
+            logger.warning("Continuous inference worker already running")
             return
-            
-        self.running = True
-        self.thread = threading.Thread(target=self._run_loop, daemon=True)
-        self.thread.start()
-        logger.info('Continuous inference worker started (poll interval: %ds)', self.poll_interval)
         
+        self.running = True
+        self.thread = threading.Thread(target=self._worker_loop, daemon=True)
+        self.thread.start()
+        logger.info("Continuous inference worker started")
+    
     def stop(self):
-        """Stop the continuous inference worker."""
+        """Stop continuous inference worker."""
         self.running = False
         if self.thread:
-            self.thread.join(timeout=5)
-        logger.info('Continuous inference worker stopped')
+            self.thread.join(timeout=10)
+        logger.info("Continuous inference worker stopped")
+    
+    def _worker_loop(self):
+        """
+        Main worker loop - runs continuously until stopped.
         
-    def _run_loop(self):
-        """Main loop that continuously polls and processes transactions."""
-        logger.info('Starting continuous inference loop')
+        Polls for new transactions and scores them automatically.
+        """
+        logger.info(f"Continuous inference loop started (polling every {self.poll_interval}s)")
+        
+        last_log_time = time.time()
         
         while self.running:
             try:
-                self.last_poll_time = datetime.now()
+                # Run inference on unscored transactions
+                results = self.inference_pipeline.run_inference(
+                    max_records=1000,
+                    explain=False,
+                    top_k=5
+                )
                 
-                # Poll for new transactions (small batch for real-time processing)
-                # Process 1-5 transactions at a time for true real-time
-                batch_size = int(os.getenv('CONTINUOUS_INFERENCE_BATCH_SIZE', '3'))
-                
-                logger.debug('Polling fraud API for new transactions (batch_size=%d)', batch_size)
-                
-                # Fetch raw transactions from API and filter to only NEW ones
-                # The API returns transactions, we need to track which ones we've seen
-                try:
-                    # Fetch a larger batch to ensure we get new transactions
-                    raw_records, _ = self.inference_pipeline.fetch_transactions_from_api(offset=0, limit=50)
-                    
-                    # Filter to only NEW transactions we haven't processed
-                    new_records = []
-                    for record in raw_records:
-                        if not isinstance(record, dict):
-                            continue
-                            
-                        # Get transaction ID - prefer transaction_id, fallback to id
-                        txn_id = record.get('transaction_id') or record.get('id') or record.get('txn_id')
-                        
-                        # If still no ID, create a composite ID from timestamp + user_id
-                        if not txn_id:
-                            txn_id = f"{record.get('timestamp', '')}_{record.get('user_id', '')}"
-                        
-                        if txn_id and str(txn_id) not in self.processed_transaction_ids:
-                            new_records.append(record)
-                            self.processed_transaction_ids.add(str(txn_id))
-                            # Keep set size manageable (keep last 10000)
-                            if len(self.processed_transaction_ids) > 10000:
-                                # Remove oldest 1000
-                                ids_list = list(self.processed_transaction_ids)
-                                self.processed_transaction_ids = set(ids_list[-9000:])
-                    
-                    # Limit to batch_size for processing
-                    new_records = new_records[:batch_size]
-                    
-                    if not new_records:
-                        logger.debug('No new transactions found (tracking %d processed)', len(self.processed_transaction_ids))
-                        time.sleep(self.poll_interval)
-                        continue
-                    
-                    logger.info('Found %d new transactions to process', len(new_records))
-                    
-                    # Use the full inference pipeline but with our filtered new records
-                    import pandas as pd
-                    df = pd.DataFrame(new_records)
-                    
-                    # Run through the full pipeline: preprocess -> engineer -> predict
-                    df = self.inference_pipeline.preprocess_data(df)
-                    df = self.inference_pipeline.engineer_features(df)
-                    
-                    if self.inference_pipeline.model is None:
-                        logger.warning('Model not available')
-                        time.sleep(self.poll_interval)
-                        continue
-                    
-                    # Get feature columns
-                    feature_cols = self.inference_pipeline.model.feature_names_in_.tolist()
-                    missing_cols = [col for col in feature_cols if col not in df.columns]
-                    if missing_cols:
-                        for col in missing_cols:
-                            df[col] = 0
-                    
-                    X = df[feature_cols]
-                    
-                    # Get predictions
-                    predictions, probabilities, confidence = self.inference_pipeline.predict(X)
-                    
-                    # Build results dataframe
-                    results = df[['transaction_id', 'user_id', 'amount', 'timestamp'] 
-                                if all(c in df.columns for c in ['transaction_id', 'user_id', 'amount', 'timestamp'])
-                                else df.columns[:4]].copy()
-                    
-                    results['fraud_prediction'] = predictions
-                    results['fraud_probability'] = probabilities
-                    results['confidence'] = confidence
-                    results['prediction_timestamp'] = datetime.now()
-                    
-                except Exception as e:
-                    logger.error('Error in continuous inference processing: %s', str(e), exc_info=True)
-                    # Fallback: just skip this cycle
-                    time.sleep(self.poll_interval)
-                    continue
-                
-                if isinstance(results, dict) and results.get('status') == 'model_unavailable':
-                    logger.warning('Model unavailable, skipping inference cycle')
-                    time.sleep(self.poll_interval)
-                    continue
-                
-                # IMPORTANT: Update results via the API server's _append_results function
-                # This ensures cumulative totals are updated
-                if hasattr(results, '__len__') and len(results) > 0:
-                    # Use the append function passed from api_server
-                    if self._append_results_func:
+                # Update results if callback provided
+                if self._append_results_func and results is not None:
+                    try:
                         self._append_results_func(results)
-                    else:
-                        # Fallback: try to import (may cause circular dependency issues)
-                        try:
-                            import api_server
-                            api_server._append_results(results)
-                        except:
-                            logger.warning('Could not update results via _append_results')
-                    
-                    processed_count = len(results)
-                    fraud_count = int(results['fraud_prediction'].sum()) if hasattr(results, 'columns') and 'fraud_prediction' in results.columns else 0
-                    logger.info('Processed %d transactions (%d fraud) in continuous inference', 
-                              processed_count, fraud_count)
-                    self.last_processed_count = processed_count
-                else:
-                    logger.debug('No new transactions to process')
-                    
-            except Exception as e:
-                logger.error('Error in continuous inference loop: %s', str(e), exc_info=True)
-                # Don't crash on errors, just wait and retry
+                    except Exception as e:
+                        logger.error(f"Error appending results: {e}")
                 
+                # Log status periodically (every 60 seconds)
+                current_time = time.time()
+                if current_time - last_log_time >= 60:
+                    if hasattr(results, '__len__'):
+                        logger.info(f"Continuous inference: scored {len(results)} transactions")
+                    last_log_time = current_time
+                
+            except Exception as e:
+                logger.error(f"Error in continuous inference loop: {e}", exc_info=True)
+            
             # Wait before next poll
             time.sleep(self.poll_interval)
-            
-    def get_status(self):
-        """Get current worker status."""
+        
+        logger.info("Continuous inference loop stopped")
+    
+    def is_running(self) -> bool:
+        """Check if worker is running."""
+        return self.running and self.thread and self.thread.is_alive()
+    
+    def set_poll_interval(self, interval: int):
+        """
+        Update polling interval.
+        
+        Args:
+            interval: New poll interval in seconds
+        """
+        self.poll_interval = interval
+        logger.info(f"Poll interval updated to {interval}s")
+    
+    def get_status(self) -> dict:
+        """
+        Get worker status.
+        
+        Returns:
+            Dictionary with worker status info
+        """
         return {
-            'running': self.running,
+            'running': self.is_running(),
             'poll_interval': self.poll_interval,
-            'last_poll_time': self.last_poll_time.isoformat() if self.last_poll_time else None,
-            'last_processed_count': self.last_processed_count
+            'thread_alive': self.thread.is_alive() if self.thread else False
         }

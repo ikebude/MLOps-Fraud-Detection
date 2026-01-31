@@ -1,11 +1,24 @@
 {% extends "base.html" %}
 {% block content %}
+<style>
+  .live-badge { display: inline-block; width: 8px; height: 8px; background: #22c55e; border-radius: 50%; animation: pulse 2s infinite; }
+  @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+  .risk-cell-very-high { background: rgba(239, 68, 68, 0.1); }
+  .risk-cell-high { background: rgba(251, 146, 60, 0.1); }
+</style>
 <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-    <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-        <h3 class="text-lg font-semibold text-gray-900">All Transactions</h3>
-        <div class="flex gap-2">
-            <input type="text" id="search-txn" placeholder="Search ID or user…" class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500">
+    <div class="px-6 py-4 border-b border-gray-200">
+        <div class="flex justify-between items-center mb-4">
+            <div class="flex items-center gap-2">
+                <h3 class="text-lg font-semibold text-gray-900">Live Transactions</h3>
+                <span class="live-badge" title="Live data"></span>
+            </div>
+            <div class="flex gap-2">
+                <input type="text" id="search-txn" placeholder="Search ID or user…" class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500">
+                <button id="refresh-btn" class="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg text-sm font-medium transition">🔄 Refresh</button>
+            </div>
         </div>
+        <div class="text-xs text-gray-500">Last update: <span id="last-update">—</span> | Total: <span id="txn-count">0</span> transactions</div>
     </div>
     <div class="overflow-x-auto">
         <table class="w-full text-left">
@@ -15,15 +28,14 @@
                     <th class="px-6 py-3 font-medium">ID</th>
                     <th class="px-6 py-3 font-medium">User</th>
                     <th class="px-6 py-3 font-medium">Amount</th>
-                    <th class="px-6 py-3 font-medium">Risk</th>
+                    <th class="px-6 py-3 font-medium">Risk Score</th>
                     <th class="px-6 py-3 font-medium">Status</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-gray-200 text-sm" id="all-txn-table-body"></tbody>
+            <tbody class="divide-y divide-gray-200 text-sm" id="all-txn-table-body">
+                <tr><td colspan="6" class="px-6 py-8 text-center text-gray-500">Loading transactions…</td></tr>
+            </tbody>
         </table>
-    </div>
-    <div class="px-6 py-4 border-t border-gray-200">
-        <span class="text-sm text-gray-500" id="txn-count">—</span>
     </div>
 </div>
 <script>

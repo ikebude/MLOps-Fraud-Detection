@@ -50,13 +50,6 @@ x-airflow-common: &airflow-common
     # to a resolvable hostname reachable by your browser.
     AIRFLOW__LOGGING__LOG_SERVER_HOST: "localhost"
     AIRFLOW__LOGGING__LOG_SERVER_PORT: "8793"
-    # XGBoost and ingestion limits are controlled via environment (.env) or
-    # the later defaults below; avoid duplicate keys in this mapping.
-    # Fraud Detection API configuration
-    FRAUD_API_URL: ${FRAUD_API_URL:-https://3consult-ng.com/fraud_api.php}
-    # Cap records at 150k for comprehensive training on recent fraud data.
-    # 150k records = ~3GB peak during feature engineering + training.
-    FRAUD_API_MAX_RECORDS: ${FRAUD_API_MAX_RECORDS:-100000}
   volumes:
     - ${AIRFLOW_PROJ_DIR:-.}/dags:/opt/airflow/dags
     - ${AIRFLOW_PROJ_DIR:-.}/logs:/opt/airflow/logs
@@ -80,6 +73,10 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-airflow}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-airflow}
       POSTGRES_DB: ${POSTGRES_DB:-airflow}
+    ports:
+      # Expose PostgreSQL to host machine (allows standalone producer to connect)
+      # This enables: producer (localhost:5432) + docker services (postgres:5432)
+      - "5432:5432"
     volumes:
       - postgres-db-volume:/var/lib/postgresql/data
       - ./init-multiple-dbs.sh:/docker-entrypoint-initdb.d/init-multiple-dbs.sh
@@ -471,6 +468,7 @@ services:
       - ./models:/app/models
       - ./config.yaml:/app/config.yaml
       - ./.env:/app/.env
+      - inference-data:/app/data
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
@@ -524,10 +522,49 @@ services:
       - 8.8.4.4
       - 1.1.1.1
 
+  producer:
+    build:
+      context: ../producer
+      dockerfile: Dockerfile
+    image: fraud-detection-producer:latest
+    container_name: fraud_detection_producer
+    profiles:
+      - producer
+    environment:
+      # Database connection
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${POSTGRES_TRANSACTIONS_DB:-transactions_db}
+      DB_USER: ${POSTGRES_TRANSACTIONS_USER:-fraud_producer}
+      DB_PASSWORD: ${POSTGRES_TRANSACTIONS_PASSWORD:-fraud_producer_pass}
+      # Producer settings
+      PRODUCER_INTERVAL: ${PRODUCER_INTERVAL:-0.6}
+      PRODUCER_BATCH_SIZE: ${PRODUCER_BATCH_SIZE:-100}
+      PYTHONUNBUFFERED: "1"
+    volumes:
+      - ../.env:/app/.env
+      - ../producer/main.py:/app/main.py
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - fraud-detection
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+      - 1.1.1.1
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
 volumes:
   postgres-db-volume:
   redis-data:
   minio_data:
+  inference-data:
 
 networks:
   fraud-detection:
