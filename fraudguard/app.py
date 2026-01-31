@@ -57,27 +57,50 @@ def _post(url: str, json=None, default=None):
 
 def _map_result_to_txn(r):
     """Map inference result record to dashboard transaction format."""
+    # Handle timestamp: prefer prediction_timestamp (from DB), fallback to timestamp (from inference)
     ts = r.get("prediction_timestamp") or r.get("timestamp") or r.get("created_at")
-    # Prefer ISO formatted timestamp strings; keep full precision so frontend can format
     if hasattr(ts, "isoformat"):
         try:
             ts = ts.isoformat()
         except Exception:
             ts = str(ts)
     else:
-        ts = ts if ts is not None else "—"
-    prob = float(r.get("fraud_probability", 0) or 0)
-    pred = int(r.get("fraud_prediction", 0) or 0)
+        ts = str(ts) if ts is not None else "—"
+    
+    # Extract fraud probability (handle both float and string)
+    prob_raw = r.get("fraud_probability", 0) or 0
+    prob = float(prob_raw) if prob_raw else 0.0
+    prob = max(0.0, min(1.0, prob))  # Clamp to [0, 1]
+    
+    # Extract fraud prediction (0=legitimate, 1=fraud)
+    pred_raw = r.get("fraud_prediction", 0) or r.get("fraud_label")
+    if isinstance(pred_raw, str):
+        pred = 1 if pred_raw.upper() == "FRAUD" else 0
+    else:
+        pred = int(pred_raw) if pred_raw else 0
+    
+    # Determine status based on prediction and probability
     if pred == 1:
         status = "Declined" if prob >= 0.8 else "Flagged"
     else:
         status = "Approved"
+    
+    # Extract transaction ID (required for dashboard)
+    transaction_id = str(r.get("transaction_id") or r.get("id") or r.get("order_id") or "-")
+    
+    # Extract user ID (displayed as merchant/user in dashboard)
+    user_id = str(r.get("user_id") or r.get("full_name") or "—")
+    
+    # Extract amount and currency
+    amount = float(r.get("amount", 0) or 0)
+    currency = str(r.get('currency') or r.get('currency_code') or r.get('amount_currency') or 'NGN')
+    
     return {
-        "id": str(r.get("transaction_id") or r.get("id") or r.get("user_id") or "-"),
-        "time": ts or "—",
-        "merchant": str(r.get("user_id") or "—"),
-        "amount": float(r.get("amount", 0) or 0),
-        "currency": str(r.get('currency') or r.get('currency_code') or r.get('amount_currency') or 'USD'),
+        "id": transaction_id,
+        "time": ts,
+        "merchant": user_id,
+        "amount": amount,
+        "currency": currency,
         "risk_score": min(100, int(round(100 * prob))),
         "status": status,
     }
@@ -85,6 +108,12 @@ def _map_result_to_txn(r):
 
 @app.route("/")
 def index():
+    return render_template("live-dashboard.html", page="overview")
+
+
+@app.route("/dashboard")
+def dashboard():
+    """Legacy dashboard route for compatibility"""
     return render_template("dashboard.html", page="overview")
 
 

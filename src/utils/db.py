@@ -9,6 +9,20 @@ logger = logging.getLogger(__name__)
 
 
 def get_db_url_from_env() -> str:
+    """
+    Construct PostgreSQL connection URL from environment variables.
+    
+    Priority:
+    1. Environment variables (DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD)
+    2. .env file in repository root
+    3. Defaults for local development
+    
+    Returns:
+        PostgreSQL connection URL for SQLAlchemy
+        
+    Raises:
+        RuntimeError: If DB_PASSWORD is not set
+    """
     # Ensure we load .env from repository root if present. This file lives at src/utils,
     # so repo root is two levels up.
     try:
@@ -19,15 +33,22 @@ def get_db_url_from_env() -> str:
         # ignore dotenv loading errors; os.getenv will still work for environment-set vars
         pass
 
-    host = os.getenv("DB_HOST", "127.0.0.200")
+    # Use correct defaults for local development
+    host = os.getenv("DB_HOST", "127.0.0.1")
     port = os.getenv("DB_PORT", "5432")
-    db = os.getenv("DB_NAME", "nconsu5_frauddetection")
-    user = os.getenv("DB_USER", "nconsu5_frauddata")
+    db = os.getenv("DB_NAME", "transactions_db")
+    user = os.getenv("DB_USER", "fraud_user")
     password = os.getenv("DB_PASSWORD")
     sslmode = os.getenv("DB_SSLMODE", "prefer")
+    
     if not password:
-        raise RuntimeError("DB_PASSWORD environment variable is required to connect to the Postgres instance. Copy .env.example -> .env and fill values.")
+        raise RuntimeError(
+            "DB_PASSWORD environment variable is required. "
+            "Copy .env.example -> .env and fill in the values."
+        )
+    
     return f"postgresql+psycopg2://{user}:{password}@{host}:{port}/{db}?sslmode={sslmode}"
+
 
 
 def get_engine():
