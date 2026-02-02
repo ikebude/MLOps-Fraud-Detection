@@ -108,13 +108,20 @@ def _map_result_to_txn(r):
 
 @app.route("/")
 def index():
-    return render_template("live-dashboard.html", page="overview")
+    """Redirect to enterprise dashboard"""
+    return render_template("enterprise_dashboard.html")
 
 
 @app.route("/dashboard")
 def dashboard():
-    """Legacy dashboard route for compatibility"""
-    return render_template("dashboard.html", page="overview")
+    """Legacy dashboard route - redirects to enterprise dashboard"""
+    return render_template("enterprise_dashboard.html")
+
+
+@app.route("/enterprise")
+def enterprise_dashboard():
+    """Advanced enterprise-grade dashboard for clients"""
+    return render_template("enterprise_dashboard.html", page="overview")
 
 
 @app.route("/transactions")
@@ -159,23 +166,44 @@ def api_model_metrics():
         # Import mlflow only when needed to avoid startup failures when mlflow not installed
         import mlflow
         from mlflow.tracking import MlflowClient
+        
+        logger.info(f"Fetching model metrics from MLflow at {MLFLOW_URI}")
         client = MlflowClient(tracking_uri=MLFLOW_URI)
+        
         # Try to get latest registered model versions for default name
         registered_name = os.getenv('MLFLOW_REGISTERED_MODEL', 'fraud_detection_model')
+        logger.info(f"Looking for registered model: {registered_name}")
+        
         versions = client.get_latest_versions(registered_name, stages=["None", "Staging", "Production"])
+        logger.info(f"Found {len(versions)} versions")
+        
         if not versions:
+            logger.warning(f"No registered model found for {registered_name}")
             return jsonify({"status": "no_model", "message": "No registered model found"})
+        
         latest = versions[0]
+        logger.info(f"Using latest version: {latest.version}, run_id: {latest.run_id}")
+        
         # Attempt to pull run metrics
         run = client.get_run(latest.run_id)
+        if not run:
+            logger.error(f"Could not find run {latest.run_id}")
+            return jsonify({"status": "no_run", "message": f"Run {latest.run_id} not found"})
+        
         metrics = {}
-        if run and run.data and hasattr(run.data, 'metrics'):
+        if run.data and hasattr(run.data, 'metrics') and run.data.metrics:
+            logger.info(f"Found {len(run.data.metrics)} metrics in run")
             for k, v in run.data.metrics.items():
                 try:
                     metrics[k] = float(v)
-                except Exception:
-                    metrics[k] = v
-
+                    logger.debug(f"Metric {k}: {v}")
+                except Exception as metric_error:
+                    logger.warning(f"Failed to convert metric {k}={v} to float: {metric_error}")
+                    metrics[k] = str(v)
+        else:
+            logger.warning(f"No metrics found in run {latest.run_id}")
+        
+        # Build response
         response = {
             "status": "success",
             "model_name": registered_name,
@@ -183,12 +211,23 @@ def api_model_metrics():
             "run_id": latest.run_id,
             "metrics": metrics,
         }
+        
+        # Add key metrics at top level for easier access
+        key_metrics = ['precision', 'recall', 'f1', 'auc_pr', 'threshold']
+        for metric in key_metrics:
+            if metric in metrics:
+                response[metric] = metrics[metric]
+        
+        logger.info(f"Returning model metrics: precision={metrics.get('precision', 'N/A')}, "
+                   f"recall={metrics.get('recall', 'N/A')}, f1={metrics.get('f1', 'N/A')}")
+        
         return jsonify(response)
+        
     except ImportError:
         logger.warning('MLflow not installed in FraudGuard environment; skipping metrics fetch')
         return jsonify({"status": "unavailable", "message": "MLflow not available in this environment"}), 503
     except Exception as e:
-        logger.warning('Failed to fetch model metrics from MLflow: %s', e)
+        logger.error('Failed to fetch model metrics from MLflow: %s', e, exc_info=True)
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
@@ -242,29 +281,53 @@ def api_data():
     try:
         import mlflow
         from mlflow.tracking import MlflowClient
+        logger.info(f"Connecting to MLflow at {MLFLOW_URI}")
         client = MlflowClient(tracking_uri=MLFLOW_URI)
         registered_name = os.getenv('MLFLOW_REGISTERED_MODEL', 'fraud_detection_model')
+        
+        # Get latest model versions
         versions = client.get_latest_versions(registered_name, stages=["None", "Staging", "Production"])
+        logger.info(f"Found {len(versions)} model versions for {registered_name}")
+        
         if versions:
             latest = versions[0]
+            logger.info(f"Using model version {latest.version} with run_id {latest.run_id}")
+            
+            # Get run and metrics
             run = client.get_run(latest.run_id)
             if run and run.data and hasattr(run.data, 'metrics'):
+                logger.info(f"Found {len(run.data.metrics)} metrics in run")
+                
+                # Extract and log key metrics
                 for k, v in run.data.metrics.items():
                     try:
-                        model_health[k] = float(v)
-                    except Exception:
+                        metric_value = float(v)
+                        model_health[k] = metric_value
+                        logger.info(f"Loaded metric {k}: {metric_value}")
+                    except Exception as metric_error:
+                        logger.warning(f"Failed to convert metric {k}={v} to float: {metric_error}")
                         model_health[k] = v
+                
                 model_health['version'] = str(latest.version)
                 if 'run_id' not in model_health:
                     model_health['run_id'] = latest.run_id
                 if 'last_retrained' not in model_health and run.info and run.info.start_time:
                     try:
                         model_health['last_retrained'] = datetime.fromtimestamp(run.info.start_time/1000).isoformat()[:10]
-                    except Exception:
-                        pass
-    except Exception:
-        # If MLflow not available or fails, keep existing model_health values
-        logger.debug('MLflow metrics unavailable for api_data aggregation')
+                    except Exception as time_error:
+                        logger.warning(f"Failed to convert timestamp: {time_error}")
+                
+                logger.info(f"Model health updated: {model_health}")
+            else:
+                logger.warning(f"Run {latest.run_id} found but no metrics available")
+        else:
+            logger.warning(f"No model versions found for {registered_name}")
+            
+    except ImportError as import_error:
+        logger.warning(f'MLflow not installed in FraudGuard environment: {import_error}')
+    except Exception as mlflow_error:
+        logger.error(f'Failed to fetch model metrics from MLflow: {mlflow_error}', exc_info=True)
+        # Keep existing model_health values if MLflow fails
 
     metrics["mlflow_status"] = "ok" if _get_raw(f"{MLFLOW_URI}/health") else "unreachable"
     metrics["airflow_status"] = "ok" if _get_raw(f"{AIRFLOW_URL}/health") else "unreachable"

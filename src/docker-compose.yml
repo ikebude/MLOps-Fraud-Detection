@@ -11,7 +11,7 @@ x-airflow-common: &airflow-common
     # Celery result backend
     AIRFLOW__CELERY__RESULT_BACKEND: "db+postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}"
     AIRFLOW__CELERY__BROKER_URL: "redis://:@redis:6379/0"
-    AIRFLOW__CORE__FERNET_KEY: ''
+    AIRFLOW__CORE__FERNET_KEY: '${AIRFLOW__CORE__FERNET_KEY:-dGVzdF9rZXlfZm9yX2RldmVsb3BtZW50X29ubHk_}'
     AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
     AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
     AIRFLOW__API__AUTH_BACKENDS: 'airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.session'
@@ -536,7 +536,7 @@ services:
       DB_PORT: 5432
       DB_NAME: ${POSTGRES_TRANSACTIONS_DB:-transactions_db}
       DB_USER: ${POSTGRES_TRANSACTIONS_USER:-fraud_producer}
-      DB_PASSWORD: ${POSTGRES_TRANSACTIONS_PASSWORD:-fraud_producer_pass}
+      DB_PASSWORD: ${POSTGRES_TRANSACTIONS_PASSWORD:-producer_password}
       # Producer settings
       PRODUCER_INTERVAL: ${PRODUCER_INTERVAL:-0.6}
       PRODUCER_BATCH_SIZE: ${PRODUCER_BATCH_SIZE:-100}

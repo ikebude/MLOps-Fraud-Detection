@@ -121,6 +121,57 @@ psql -v ON_ERROR_STOP=1 --username "fraud_producer" --dbname "transactions_db" <
     
     -- Analyze table for query optimization
     ANALYZE transactions;
+    
+    -- ============================================
+    -- FRAUD PREDICTIONS TABLE (for inference results)
+    -- ============================================
+    -- This table stores fraud predictions from the inference service
+    CREATE TABLE IF NOT EXISTS fraud_predictions (
+        id SERIAL PRIMARY KEY,
+        transaction_id VARCHAR(50) NOT NULL UNIQUE,
+        user_id VARCHAR(50),
+        amount DECIMAL(15, 2),
+        currency VARCHAR(10),
+        fraud_probability DECIMAL(5, 4),
+        fraud_prediction INTEGER,
+        prediction_timestamp TIMESTAMP DEFAULT NOW(),
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW(),
+        
+        -- Foreign key to transactions table
+        CONSTRAINT fk_transaction 
+            FOREIGN KEY(transaction_id) 
+            REFERENCES transactions(transaction_id) 
+            ON DELETE CASCADE
+    );
+    
+    -- Indexes for fraud_predictions table
+    CREATE INDEX IF NOT EXISTS idx_fraud_predictions_transaction_id 
+        ON fraud_predictions(transaction_id);
+    CREATE INDEX IF NOT EXISTS idx_fraud_predictions_user_id 
+        ON fraud_predictions(user_id);
+    CREATE INDEX IF NOT EXISTS idx_fraud_predictions_timestamp 
+        ON fraud_predictions(prediction_timestamp);
+    CREATE INDEX IF NOT EXISTS idx_fraud_predictions_prediction 
+        ON fraud_predictions(fraud_prediction);
+    
+    -- Trigger for updated_at timestamp
+    CREATE OR REPLACE FUNCTION update_updated_at_column()
+    RETURNS TRIGGER AS $$
+    BEGIN
+        NEW.updated_at = NOW();
+        RETURN NEW;
+    END;
+    $$ language 'plpgsql';
+    
+    DROP TRIGGER IF EXISTS update_fraud_predictions_updated_at 
+        ON fraud_predictions;
+    CREATE TRIGGER update_fraud_predictions_updated_at 
+        BEFORE UPDATE ON fraud_predictions 
+        FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+    
+    -- Analyze fraud_predictions table
+    ANALYZE fraud_predictions;
 
 EOSQL
 
@@ -139,9 +190,15 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "transactions_db" <
     GRANT SELECT ON ALL TABLES IN SCHEMA public TO fraud_inference;
     GRANT SELECT ON ALL TABLES IN SCHEMA public TO fraud_training;
     
+    -- Grant INSERT/UPDATE on fraud_predictions for inference user (needed for predictions)
+    GRANT INSERT, UPDATE, SELECT ON fraud_predictions TO fraud_inference;
+    
     -- Make sure future tables also have read-only permissions
     ALTER DEFAULT PRIVILEGES FOR USER fraud_producer IN SCHEMA public GRANT SELECT ON TABLES TO fraud_inference;
     ALTER DEFAULT PRIVILEGES FOR USER fraud_producer IN SCHEMA public GRANT SELECT ON TABLES TO fraud_training;
+    
+    -- Future fraud_predictions table permissions
+    ALTER DEFAULT PRIVILEGES FOR USER fraud_producer IN SCHEMA public GRANT INSERT, UPDATE, SELECT ON TABLES TO fraud_inference;
 
 EOSQL
 
