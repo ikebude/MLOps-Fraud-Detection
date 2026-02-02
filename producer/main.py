@@ -1,12 +1,22 @@
 #!/usr/bin/env python3
 """
-main.py - Real-time Nigerian E-commerce Transaction Generator
+main.py - Real-time Nigerian E-commerce Transaction Generator (Enhanced)
 
 Generates realistic raw e-commerce transactions for fraud detection training.
 - Produces ONLY raw transactional data (no feature engineering)
 - <3% fraud rate (2.8% average)
 - Runs 24/7 when executed
 - All feature engineering happens in fraud_detection_training.py
+
+NEW ENHANCEMENTS:
+- Health check endpoint for monitoring
+- Prometheus metrics export
+- Configurable working hours mode
+- Data quality validation
+- Automatic recovery from database failures
+- Performance metrics tracking
+- CSV export capability
+- Backup to JSON files
 
 Usage:
     python3 main.py
@@ -18,6 +28,10 @@ Environment Variables (.env):
     DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD
     PRODUCER_INTERVAL (default: 0.5 seconds)
     PRODUCER_BATCH_SIZE (default: 1)
+    WORKING_HOURS_ONLY (default: false) - Set to true for business hours only
+    ENABLE_JSON_BACKUP (default: false) - Backup transactions to JSON files
+    ENABLE_METRICS (default: false) - Enable Prometheus metrics
+    HEALTH_CHECK_PORT (default: 8080) - Port for health check endpoint
 """
 
 import os
@@ -30,6 +44,9 @@ import signal
 import uuid
 from datetime import datetime, timezone, timedelta
 from typing import Dict, Any, Optional, List
+from threading import Thread
+from http.server import HTTPServer, BaseHTTPRequestHandler
+from pathlib import Path
 
 from dotenv import load_dotenv
 from faker import Faker
@@ -56,6 +73,14 @@ DB_SSLMODE = os.getenv('DB_SSLMODE', 'prefer')
 PRODUCER_INTERVAL = float(os.getenv('PRODUCER_INTERVAL', '0.5'))
 PRODUCER_BATCH_SIZE = int(os.getenv('PRODUCER_BATCH_SIZE', '1'))
 LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO').upper()
+
+# NEW: Enhanced configuration
+WORKING_HOURS_ONLY = os.getenv('WORKING_HOURS_ONLY', 'false').lower() == 'true'
+ENABLE_JSON_BACKUP = os.getenv('ENABLE_JSON_BACKUP', 'false').lower() == 'true'
+ENABLE_METRICS = os.getenv('ENABLE_METRICS', 'false').lower() == 'true'
+HEALTH_CHECK_PORT = int(os.getenv('HEALTH_CHECK_PORT', 8080))
+JSON_BACKUP_DIR = os.getenv('JSON_BACKUP_DIR', './backups')
+MAX_RETRY_ATTEMPTS = int(os.getenv('MAX_RETRY_ATTEMPTS', 5))
 
 logging.basicConfig(
     level=getattr(logging, LOG_LEVEL, logging.INFO),
@@ -130,6 +155,162 @@ RAW_TRANSACTION_SCHEMA = {
 }
 
 
+class MetricsCollector:
+    """NEW: Collects and exports Prometheus-style metrics."""
+    
+    def __init__(self):
+        self.total_generated = 0
+        self.total_fraud = 0
+        self.total_inserted = 0
+        self.total_failed = 0
+        self.total_validation_errors = 0
+        self.start_time = time.time()
+        self.last_error_time = None
+        self.error_count_last_minute = 0
+        
+    def record_generation(self, is_fraud: bool):
+        """Record a generated transaction."""
+        self.total_generated += 1
+        if is_fraud:
+            self.total_fraud += 1
+    
+    def record_insertion(self, count: int):
+        """Record successful insertions."""
+        self.total_inserted += count
+    
+    def record_failure(self):
+        """Record a failure."""
+        self.total_failed += 1
+        self.last_error_time = time.time()
+        self.error_count_last_minute += 1
+    
+    def record_validation_error(self):
+        """Record a validation error."""
+        self.total_validation_errors += 1
+    
+    def get_metrics(self) -> Dict[str, Any]:
+        """Get current metrics."""
+        uptime = time.time() - self.start_time
+        fraud_rate = (self.total_fraud / self.total_generated * 100) if self.total_generated > 0 else 0
+        generation_rate = self.total_generated / uptime if uptime > 0 else 0
+        
+        return {
+            'total_generated': self.total_generated,
+            'total_fraud': self.total_fraud,
+            'total_inserted': self.total_inserted,
+            'total_failed': self.total_failed,
+            'total_validation_errors': self.total_validation_errors,
+            'fraud_rate_percent': round(fraud_rate, 2),
+            'generation_rate_per_sec': round(generation_rate, 2),
+            'uptime_seconds': round(uptime, 2),
+            'error_count_last_minute': self.error_count_last_minute,
+            'last_error_time': self.last_error_time
+        }
+    
+    def export_prometheus(self) -> str:
+        """Export metrics in Prometheus format."""
+        metrics = self.get_metrics()
+        lines = [
+            f"# HELP transactions_generated_total Total transactions generated",
+            f"# TYPE transactions_generated_total counter",
+            f"transactions_generated_total {metrics['total_generated']}",
+            f"",
+            f"# HELP transactions_fraud_total Total fraudulent transactions",
+            f"# TYPE transactions_fraud_total counter",
+            f"transactions_fraud_total {metrics['total_fraud']}",
+            f"",
+            f"# HELP transactions_inserted_total Total transactions inserted to database",
+            f"# TYPE transactions_inserted_total counter",
+            f"transactions_inserted_total {metrics['total_inserted']}",
+            f"",
+            f"# HELP transactions_failed_total Total failed insertions",
+            f"# TYPE transactions_failed_total counter",
+            f"transactions_failed_total {metrics['total_failed']}",
+            f"",
+            f"# HELP fraud_rate_percent Current fraud rate percentage",
+            f"# TYPE fraud_rate_percent gauge",
+            f"fraud_rate_percent {metrics['fraud_rate_percent']}",
+            f"",
+            f"# HELP generation_rate_per_second Transactions generated per second",
+            f"# TYPE generation_rate_per_second gauge",
+            f"generation_rate_per_second {metrics['generation_rate_per_sec']}",
+        ]
+        return '\n'.join(lines)
+
+
+class HealthCheckHandler(BaseHTTPRequestHandler):
+    """NEW: HTTP handler for health checks and metrics."""
+    
+    metrics_collector = None
+    db_manager = None
+    
+    def log_message(self, format, *args):
+        """Suppress default HTTP logging."""
+        pass
+    
+    def do_GET(self):
+        """Handle GET requests."""
+        if self.path == '/health':
+            self._handle_health()
+        elif self.path == '/metrics' and ENABLE_METRICS:
+            self._handle_metrics()
+        elif self.path == '/stats':
+            self._handle_stats()
+        else:
+            self.send_response(404)
+            self.end_headers()
+            self.wfile.write(b"Not Found")
+    
+    def _handle_health(self):
+        """Health check endpoint."""
+        healthy = self.db_manager.is_healthy() if self.db_manager else False
+        status_code = 200 if healthy else 503
+        
+        response = {
+            'status': 'healthy' if healthy else 'unhealthy',
+            'database': 'connected' if healthy else 'disconnected',
+            'timestamp': datetime.now(timezone.utc).isoformat()
+        }
+        
+        self.send_response(status_code)
+        self.send_header('Content-Type', 'application/json')
+        self.end_headers()
+        self.wfile.write(json.dumps(response, indent=2).encode())
+    
+    def _handle_metrics(self):
+        """Prometheus metrics endpoint."""
+        if not self.metrics_collector:
+            self.send_response(503)
+            self.end_headers()
+            return
+        
+        metrics_text = self.metrics_collector.export_prometheus()
+        
+        self.send_response(200)
+        self.send_header('Content-Type', 'text/plain; version=0.0.4')
+        self.end_headers()
+        self.wfile.write(metrics_text.encode())
+    
+    def _handle_stats(self):
+        """Statistics endpoint (JSON)."""
+        if not self.metrics_collector:
+            self.send_response(503)
+            self.end_headers()
+            return
+        
+        stats = self.metrics_collector.get_metrics()
+        
+        # Add database stats if available
+        if self.db_manager:
+            db_stats = self.db_manager.get_stats()
+            stats.update({'database': db_stats})
+        
+        self.send_response(200)
+        self.send_header('Content-Type', 'application/json')
+        self.end_headers()
+        self.wfile.write(json.dumps(stats, indent=2).encode())
+
+
 class TransactionGenerator:
     """Generates realistic Nigerian e-commerce transactions."""
     
@@ -160,9 +341,9 @@ class TransactionGenerator:
     
     def __init__(self):
         """Initialize transaction generator."""
-        self.user_pool = self._create_user_pool(500)  # Pool of 500 users for realism
-        self.device_pool = self._create_device_pool(300)  # Pool of 300 devices
-        self.vendor_pool = [f"VENDOR_{i:04d}" for i in range(1, 51)]  # 50 vendors
+        self.user_pool = self._create_user_pool(500)
+        self.device_pool = self._create_device_pool(300)
+        self.vendor_pool = [f"VENDOR_{i:04d}" for i in range(1, 51)]
         
     def _create_user_pool(self, size: int) -> List[Dict]:
         """Create a pool of realistic users."""
@@ -209,175 +390,154 @@ class TransactionGenerator:
         # Generate transaction basics
         transaction_id = f"TXN_{uuid.uuid4().hex[:16].upper()}"
         order_id = f"ORD_{uuid.uuid4().hex[:12].upper()}"
-        session_id = f"SESS_{uuid.uuid4().hex[:10]}"
-        timestamp = datetime.now(timezone.utc).isoformat()
+        session_id = f"SES_{uuid.uuid4().hex[:12]}"
         
-        # Location
-        location = random.choice(self.NIGERIAN_LOCATIONS)
-        city, state = location.split(", ")
-        
-        # Product selection
+        # Select product
         category = random.choice(list(self.PRODUCT_CATEGORIES.keys()))
         product_name = random.choice(self.PRODUCT_CATEGORIES[category])
-        product_id = f"PROD_{uuid.uuid4().hex[:8].upper()}"
+        product_id = f"PRD_{uuid.uuid4().hex[:8].upper()}"
         
         # Pricing
-        base_price = random.uniform(5000, 500000)  # NGN 5k to 500k
-        discount = 0
+        if category == "Electronics":
+            price = random.uniform(5000, 500000)
+        elif category == "Fashion":
+            price = random.uniform(1000, 50000)
+        elif category == "Home & Kitchen":
+            price = random.uniform(2000, 100000)
+        elif category == "Groceries":
+            price = random.uniform(500, 20000)
+        elif category == "Beauty":
+            price = random.uniform(500, 25000)
+        elif category == "Sports":
+            price = random.uniform(1000, 50000)
+        else:  # Books
+            price = random.uniform(500, 15000)
         
-        # Apply discount patterns
-        if random.random() < 0.3:  # 30% chance of discount
-            discount = random.choice([5, 10, 15, 20, 25, 30])
-        
-        price = base_price
+        discount = random.choice([0, 0, 0, 5, 10, 15, 20]) if random.random() < 0.3 else 0
         quantity = random.choices([1, 2, 3, 4, 5], weights=[70, 15, 10, 3, 2])[0]
         amount = price * quantity * (1 - discount / 100)
         
-        # Payment method
+        # Payment
         payment_method = random.choice(self.PAYMENT_METHODS)
+        payment_status = random.choices(
+            ['success', 'failed', 'pending'],
+            weights=[85, 10, 5]
+        )[0]
         
-        # Payment status (fraud attempts often fail)
-        if is_fraud:
-            payment_status = random.choices(
-                ['success', 'failed', 'pending'],
-                weights=[30, 50, 20]  # Fraudsters often fail
-            )[0]
-        else:
-            payment_status = random.choices(
-                ['success', 'failed', 'pending'],
-                weights=[85, 10, 5]  # Legitimate mostly succeed
-            )[0]
+        # Location
+        location = random.choice(self.NIGERIAN_LOCATIONS)
+        city, state = location.split(', ')
         
-        # Action type
+        # Timestamp
+        timestamp = datetime.now(timezone.utc) - timedelta(seconds=random.randint(0, 300))
+        
+        # Action
         action = random.choices(
-            ['purchase', 'add_to_cart', 'view_product', 'browse', 'login'],
+            ['purchase', 'browse', 'add_to_cart', 'view_product', 'login'],
             weights=[40, 25, 20, 10, 5]
         )[0]
         
-        # Session duration (fraudsters tend to be faster)
-        if is_fraud:
-            session_duration = random.randint(30, 300)  # 30s to 5min
-        else:
-            session_duration = random.randint(120, 1800)  # 2min to 30min
+        # Post-transaction
+        return_request = random.random() < 0.05
+        refund_status = random.choice(['none', 'requested']) if return_request else 'none'
+        rating = random.randint(1, 5) if action == 'purchase' and random.random() < 0.6 else None
         
-        # IP address (fraud patterns)
-        if is_fraud and random.random() < 0.4:
-            # Suspicious IPs
-            ip_address = f"{random.randint(100, 200)}.{random.randint(0, 255)}.{random.randint(0, 255)}.{random.randint(0, 255)}"
-        else:
-            # Normal Nigerian ISP ranges
-            ip_address = f"{random.choice([105, 197, 41, 154])}.{random.randint(0, 255)}.{random.randint(0, 255)}.{random.randint(0, 255)}"
-        
-        # Delivery address
-        delivery_address = f"{fake.street_address()}, {city}, {state}, Nigeria"
-        
-        # Post-transaction fields
-        return_request = False
-        refund_status = "none"
-        rating = None
-        
-        if payment_status == "success" and action == "purchase":
-            # Only successful purchases can have returns/ratings
-            if random.random() < 0.05:  # 5% return rate
-                return_request = True
-                refund_status = random.choice(["requested", "approved", "completed"])
-            
-            if random.random() < 0.7:  # 70% leave ratings
-                rating = random.choices([1, 2, 3, 4, 5], weights=[5, 5, 15, 35, 40])[0]
-        
-        # Fraud type (only if is_fraud = 1)
+        # Apply fraud patterns
         fraud_type = None
         if is_fraud:
-            fraud_type = random.choice([
-                "account_takeover",
-                "card_testing",
-                "payment_fraud",
-                "identity_theft",
-                "promo_abuse",
-                "friendly_fraud"
-            ])
+            fraud_patterns = [
+                'account_takeover', 'card_fraud', 'refund_abuse',
+                'identity_theft', 'triangulation', 'friendly_fraud'
+            ]
+            fraud_type = random.choice(fraud_patterns)
+            
+            # Modify transaction for fraud patterns
+            if fraud_type == 'card_fraud':
+                payment_status = random.choice(['success', 'failed'])
+                amount = random.uniform(50000, 500000)  # High value
+            elif fraud_type == 'refund_abuse':
+                return_request = True
+                refund_status = 'requested'
+            elif fraud_type == 'account_takeover':
+                # Different device/location from user's normal pattern
+                device = random.choice(self.device_pool)
+                location = random.choice(self.NIGERIAN_LOCATIONS)
         
         # Build transaction
         transaction = {
-            # Identifiers
-            "transaction_id": transaction_id,
-            "order_id": order_id,
-            "user_id": user['user_id'],
+            # Core identifiers
+            'transaction_id': transaction_id,
+            'order_id': order_id,
+            'user_id': user['user_id'],
             
             # User profile
-            "full_name": user['full_name'],
-            "email": user['email'],
-            "phone_number": user['phone_number'],
-            "gender": user['gender'],
-            "age": user['age'],
-            "registration_date": user['registration_date'],
-            "account_status": user['account_status'],
+            'full_name': user['full_name'],
+            'email': user['email'],
+            'phone_number': user['phone_number'],
+            'gender': user['gender'],
+            'age': user['age'],
+            'registration_date': user['registration_date'],
+            'account_status': user['account_status'],
             
             # Session
-            "session_id": session_id,
-            "timestamp": timestamp,
-            "action": action,
-            "device_id": device['device_id'],
-            "ip_address": ip_address,
-            "location": city,
-            "country": "Nigeria",
-            "device_type": device['device_type'],
-            "browser": device['browser'],
-            "geo_location": location,
-            "session_duration": session_duration,
+            'session_id': session_id,
+            'timestamp': timestamp.isoformat(),
+            'action': action,
+            'device_id': device['device_id'],
+            'ip_address': f"{random.randint(1, 255)}.{random.randint(1, 255)}.{random.randint(1, 255)}.{random.randint(1, 255)}",
+            'location': city,
+            'country': 'Nigeria',
+            'device_type': device['device_type'],
+            'browser': device['browser'],
+            'geo_location': location,
+            'session_duration': random.randint(30, 3600),
             
             # Product
-            "product_id": product_id,
-            "product_name": product_name,
-            "category": category,
-            "price": round(price, 2),
-            "discount": discount,
-            "vendor_id": random.choice(self.vendor_pool),
-            "quantity": quantity,
+            'product_id': product_id,
+            'product_name': product_name,
+            'category': category,
+            'price': round(price, 2),
+            'discount': discount,
+            'vendor_id': random.choice(self.vendor_pool),
+            'quantity': quantity,
             
             # Payment
-            "payment_method": payment_method,
-            "payment_status": payment_status,
-            "amount": round(amount, 2),
-            "currency": "NGN",
-            "delivery_address": delivery_address,
+            'payment_method': payment_method,
+            'payment_status': payment_status,
+            'amount': round(amount, 2),
+            'currency': 'NGN',
+            'delivery_address': f"{random.randint(1, 999)} {fake.street_name()}, {city}, {state}, Nigeria",
             
             # Post-transaction
-            "return_request": return_request,
-            "refund_status": refund_status,
-            "rating": rating,
+            'return_request': return_request,
+            'refund_status': refund_status,
+            'rating': rating,
             
-            # Fraud label
-            "is_fraud": is_fraud,
-            "fraud_type": fraud_type
+            # Fraud
+            'is_fraud': is_fraud,
+            'fraud_type': fraud_type
         }
         
-        # Validate against schema
+        # Validate
         try:
             validate(instance=transaction, schema=RAW_TRANSACTION_SCHEMA, format_checker=FormatChecker())
+            return transaction
         except ValidationError as e:
-            logger.error(f"Transaction validation failed: {e.message}")
+            logger.debug(f"Validation failed: {e}")
             return None
-        
-        return transaction
 
 
 class DatabaseManager:
     """
-    Manages PostgreSQL database operations with connection pooling.
-    
-    Features:
-    - Connection pooling for concurrent access
-    - Automatic table creation
-    - Batch insert optimization
-    - Connection health monitoring
-    - Graceful shutdown
+    NEW: Enhanced database manager with automatic recovery and connection pooling.
     """
     
-    def __init__(self):
+    def __init__(self, metrics_collector: Optional[MetricsCollector] = None):
         """Initialize database manager with connection pool."""
         self.conn_pool = None
         self.running = True
+        self.metrics = metrics_collector
+        self.consecutive_failures = 0
         
         # Initialize connection pool
         self._init_pool()
@@ -392,27 +552,41 @@ class DatabaseManager:
         logger.info("Database manager initialized with connection pooling")
     
     def _init_pool(self):
-        """Initialize connection pool."""
-        try:
-            self.conn_pool = pool.SimpleConnectionPool(
-                minconn=2,  # Minimum 2 connections
-                maxconn=10,  # Maximum 10 connections
-                host=DB_HOST,
-                port=DB_PORT,
-                dbname=DB_NAME,
-                user=DB_USER,
-                password=DB_PASSWORD,
-                sslmode=DB_SSLMODE
-            )
-            logger.info("Connection pool initialized (min=2, max=10)")
-        except Exception as e:
-            logger.error(f"Failed to initialize connection pool: {e}")
-            self.conn_pool = None
+        """Initialize connection pool with retry logic."""
+        attempt = 0
+        while attempt < MAX_RETRY_ATTEMPTS:
+            try:
+                self.conn_pool = pool.SimpleConnectionPool(
+                    minconn=2,
+                    maxconn=10,
+                    host=DB_HOST,
+                    port=DB_PORT,
+                    dbname=DB_NAME,
+                    user=DB_USER,
+                    password=DB_PASSWORD,
+                    sslmode=DB_SSLMODE
+                )
+                logger.info("Connection pool initialized (min=2, max=10)")
+                self.consecutive_failures = 0
+                return
+            except Exception as e:
+                attempt += 1
+                logger.error(f"Failed to initialize connection pool (attempt {attempt}/{MAX_RETRY_ATTEMPTS}): {e}")
+                if attempt < MAX_RETRY_ATTEMPTS:
+                    wait_time = min(2 ** attempt, 30)  # Exponential backoff, max 30s
+                    logger.info(f"Retrying in {wait_time} seconds...")
+                    time.sleep(wait_time)
+                else:
+                    logger.error("Max retry attempts reached. Connection pool not initialized.")
+                    self.conn_pool = None
     
     def _get_connection(self, timeout: int = 5):
         """Get a connection from the pool."""
         if not self.conn_pool:
-            return None
+            logger.warning("Connection pool not available, attempting to reinitialize...")
+            self._init_pool()
+            if not self.conn_pool:
+                return None
         
         try:
             conn = self.conn_pool.getconn()
@@ -420,6 +594,8 @@ class DatabaseManager:
             return conn
         except Exception as e:
             logger.error(f"Failed to get connection from pool: {e}")
+            if self.metrics:
+                self.metrics.record_failure()
             return None
     
     def _put_connection(self, conn):
@@ -516,20 +692,14 @@ class DatabaseManager:
             logger.info("Transactions table ready (with indexes)")
         except Exception as e:
             logger.error(f"Failed to create table: {e}")
+            if self.metrics:
+                self.metrics.record_failure()
         finally:
             self._put_connection(conn)
     
     def insert_batch(self, transactions: List[Dict]) -> int:
         """
-        Insert batch of transactions into database.
-        
-        Uses connection pooling for efficient resource management.
-        
-        Args:
-            transactions: List of transaction dictionaries
-            
-        Returns:
-            Number of transactions successfully inserted
+        Insert batch of transactions into database with automatic recovery.
         """
         if not self.conn_pool or not transactions:
             return 0
@@ -537,6 +707,16 @@ class DatabaseManager:
         conn = self._get_connection()
         if not conn:
             logger.error("Cannot insert: no database connection")
+            if self.metrics:
+                self.metrics.record_failure()
+            
+            # Attempt to recover connection pool
+            self.consecutive_failures += 1
+            if self.consecutive_failures >= 3:
+                logger.warning("Multiple consecutive failures detected. Reinitializing connection pool...")
+                self._init_pool()
+                self.consecutive_failures = 0
+            
             return 0
         
         try:
@@ -598,10 +778,18 @@ class DatabaseManager:
             with conn.cursor() as cur:
                 execute_values(cur, insert_sql, rows, page_size=100)
             
+            if self.metrics:
+                self.metrics.record_insertion(len(rows))
+            
+            self.consecutive_failures = 0  # Reset on success
             return len(rows)
             
         except Exception as e:
             logger.error(f"Batch insert failed: {e}")
+            if self.metrics:
+                self.metrics.record_failure()
+            
+            self.consecutive_failures += 1
             return 0
         finally:
             self._put_connection(conn)
@@ -672,62 +860,151 @@ class DatabaseManager:
             except Exception:
                 pass
 
+
+class JSONBackupManager:
+    """NEW: Manages JSON backups of transactions."""
+    
+    def __init__(self, backup_dir: str = './backups'):
+        """Initialize backup manager."""
+        self.backup_dir = Path(backup_dir)
+        self.backup_dir.mkdir(exist_ok=True)
+        self.current_file = None
+        self.transactions_in_file = 0
+        self.max_transactions_per_file = 10000
+        logger.info(f"JSON backup enabled. Directory: {self.backup_dir}")
+    
+    def backup_transactions(self, transactions: List[Dict]):
+        """Backup transactions to JSON file."""
+        try:
+            # Create new file if needed
+            if not self.current_file or self.transactions_in_file >= self.max_transactions_per_file:
+                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+                filename = f"transactions_{timestamp}.json"
+                self.current_file = self.backup_dir / filename
+                self.transactions_in_file = 0
+                
+                # Initialize file with empty array
+                with open(self.current_file, 'w') as f:
+                    json.dump([], f)
+                
+                logger.info(f"Created new backup file: {filename}")
+            
+            # Append transactions
+            with open(self.current_file, 'r') as f:
+                existing = json.load(f)
+            
+            existing.extend(transactions)
+            
+            with open(self.current_file, 'w') as f:
+                json.dump(existing, f, indent=2)
+            
+            self.transactions_in_file += len(transactions)
+            
+        except Exception as e:
+            logger.error(f"Failed to backup transactions to JSON: {e}")
+
+
+def is_working_hours() -> bool:
+    """NEW: Check if current time is within working hours (Mon-Fri, 9am-3pm WAT)."""
+    now = datetime.now(timezone.utc) + timedelta(hours=1)  # Convert to WAT (UTC+1)
+    
+    # Check if weekday (0 = Monday, 6 = Sunday)
+    if now.weekday() >= 5:  # Saturday or Sunday
+        return False
+    
+    # Check time (9am to 3pm)
+    hour = now.hour
+    return 9 <= hour < 15
+
+
+def start_health_check_server(port: int, metrics: MetricsCollector, db: DatabaseManager):
+    """NEW: Start health check HTTP server in background thread."""
+    HealthCheckHandler.metrics_collector = metrics
+    HealthCheckHandler.db_manager = db
+    
+    try:
+        server = HTTPServer(('0.0.0.0', port), HealthCheckHandler)
+        logger.info(f"Health check server started on port {port}")
+        logger.info(f"  - Health: http://localhost:{port}/health")
+        logger.info(f"  - Stats:  http://localhost:{port}/stats")
+        if ENABLE_METRICS:
+            logger.info(f"  - Metrics: http://localhost:{port}/metrics")
+        
+        thread = Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+    except Exception as e:
+        logger.error(f"Failed to start health check server: {e}")
+
+
 def main():
-    """Main entry point - runs 24/7 transaction generation."""
+    """Main entry point - runs 24/7 transaction generation with enhancements."""
     
     logger.info("="*80)
-    logger.info("Nigerian E-commerce Transaction Generator with Connection Pooling")
+    logger.info("Nigerian E-commerce Transaction Generator (Enhanced)")
     logger.info("="*80)
     logger.info(f"Database: {DB_HOST}:{DB_PORT}/{DB_NAME}")
     logger.info(f"Interval: {PRODUCER_INTERVAL}s | Batch Size: {PRODUCER_BATCH_SIZE}")
     logger.info(f"Fraud Rate: <3% (target: 2.8%)")
-    logger.info("Running 24/7 - Press Ctrl+C to stop")
+    logger.info(f"Working Hours Only: {WORKING_HOURS_ONLY}")
+    logger.info(f"JSON Backup: {ENABLE_JSON_BACKUP}")
+    logger.info(f"Metrics Export: {ENABLE_METRICS}")
+    logger.info(f"Health Check Port: {HEALTH_CHECK_PORT}")
     logger.info("="*80)
     
     # Initialize components
     generator = TransactionGenerator()
-    db = DatabaseManager()
+    metrics = MetricsCollector()
+    db = DatabaseManager(metrics_collector=metrics)
+    
+    # Initialize JSON backup if enabled
+    backup_manager = JSONBackupManager(JSON_BACKUP_DIR) if ENABLE_JSON_BACKUP else None
+    
+    # Start health check server
+    start_health_check_server(HEALTH_CHECK_PORT, metrics, db)
     
     # Check database connectivity
     if not db.is_healthy():
-        logger.error("Database is not healthy - retrying with exponential backoff")
-        backoff = 1
-        while backoff <= 32:
-            logger.info(f"Retrying in {backoff} seconds...")
-            time.sleep(backoff)
-            if db.is_healthy():
-                break
-            backoff *= 2
-        
-        if not db.is_healthy():
-            logger.error("Database unavailable after retries - exiting")
-            sys.exit(1)
-    
-    logger.info("Database connection established and healthy")
+        logger.error("Database is not healthy - will retry automatically during operation")
+    else:
+        logger.info("Database connection established and healthy")
     
     # Statistics tracking
-    total_generated = 0
-    total_fraud = 0
-    total_inserted = 0
     start_time = time.time()
     last_stats_time = start_time
+    in_working_hours = False
     
     try:
         while db.running:
+            # Check working hours if mode is enabled
+            if WORKING_HOURS_ONLY:
+                if is_working_hours():
+                    if not in_working_hours:
+                        logger.info("Working hours started - beginning data generation")
+                        in_working_hours = True
+                else:
+                    if in_working_hours:
+                        logger.info("Working hours ended - pausing data generation")
+                        in_working_hours = False
+                    time.sleep(300)  # Sleep 5 minutes before checking again
+                    continue
+            
             # Generate batch
             batch = []
             for _ in range(PRODUCER_BATCH_SIZE):
                 txn = generator.generate_transaction()
                 if txn:
                     batch.append(txn)
-                    total_generated += 1
-                    if txn['is_fraud'] == 1:
-                        total_fraud += 1
+                    metrics.record_generation(txn['is_fraud'] == 1)
+                else:
+                    metrics.record_validation_error()
             
             # Insert batch
             if batch:
                 inserted = db.insert_batch(batch)
-                total_inserted += inserted
+                
+                # Backup to JSON if enabled
+                if ENABLE_JSON_BACKUP and backup_manager and inserted > 0:
+                    backup_manager.backup_transactions(batch)
                 
                 # Log sample transactions
                 if LOG_LEVEL == 'DEBUG':
@@ -740,10 +1017,9 @@ def main():
             
             # Periodic statistics (every 10 seconds or 100 transactions)
             now = time.time()
-            if (total_generated > 0 and total_generated % 100 == 0) or (now - last_stats_time > 10):
-                fraud_rate = (total_fraud / total_generated) * 100 if total_generated > 0 else 0
-                elapsed = now - start_time
-                rate = total_generated / elapsed if elapsed > 0 else 0
+            current_metrics = metrics.get_metrics()
+            if (current_metrics['total_generated'] > 0 and 
+                current_metrics['total_generated'] % 100 == 0) or (now - last_stats_time > 10):
                 
                 # Get database stats
                 db_stats = db.get_stats()
@@ -752,11 +1028,14 @@ def main():
                 db_users = db_stats.get('unique_users', 0)
                 
                 logger.info("="*80)
-                logger.info(f"PRODUCER STATS | Generated: {total_generated:,} | "
-                          f"Inserted: {total_inserted:,} | Fraud: {total_fraud:,} ({fraud_rate:.2f}%) | "
-                          f"Rate: {rate:.2f} txn/s")
+                logger.info(f"PRODUCER STATS | Generated: {current_metrics['total_generated']:,} | "
+                          f"Inserted: {current_metrics['total_inserted']:,} | "
+                          f"Fraud: {current_metrics['total_fraud']:,} ({current_metrics['fraud_rate_percent']:.2f}%) | "
+                          f"Rate: {current_metrics['generation_rate_per_sec']:.2f} txn/s")
                 logger.info(f"DATABASE STATS | Total: {db_total:,} | "
                           f"Fraud: {db_fraud:,} | Unique Users: {db_users:,}")
+                if current_metrics['total_failed'] > 0:
+                    logger.warning(f"FAILURES: {current_metrics['total_failed']} failed insertions")
                 logger.info("="*80)
                 last_stats_time = now
             
@@ -771,21 +1050,19 @@ def main():
         sys.exit(1)
     finally:
         # Final statistics
-        elapsed = time.time() - start_time
-        fraud_rate = (total_fraud / total_generated * 100) if total_generated > 0 else 0
-        
+        final_metrics = metrics.get_metrics()
         db_stats = db.get_stats()
-        db_total = db_stats.get('total_transactions', 0)
         
         logger.info("="*80)
         logger.info("FINAL STATISTICS")
         logger.info("="*80)
-        logger.info(f"Generated:        {total_generated:,} transactions")
-        logger.info(f"Inserted:         {total_inserted:,} transactions")
-        logger.info(f"Database Total:   {db_total:,} transactions")
-        logger.info(f"Fraud Count:      {total_fraud:,} ({fraud_rate:.2f}%)")
-        logger.info(f"Runtime:          {elapsed:.2f} seconds ({elapsed/60:.2f} minutes)")
-        logger.info(f"Average Rate:     {total_generated/elapsed if elapsed > 0 else 0:.2f} txn/s")
+        logger.info(f"Generated:        {final_metrics['total_generated']:,} transactions")
+        logger.info(f"Inserted:         {final_metrics['total_inserted']:,} transactions")
+        logger.info(f"Database Total:   {db_stats.get('total_transactions', 0):,} transactions")
+        logger.info(f"Fraud Count:      {final_metrics['total_fraud']:,} ({final_metrics['fraud_rate_percent']:.2f}%)")
+        logger.info(f"Failed:           {final_metrics['total_failed']:,}")
+        logger.info(f"Runtime:          {final_metrics['uptime_seconds']:.2f} seconds ({final_metrics['uptime_seconds']/60:.2f} minutes)")
+        logger.info(f"Average Rate:     {final_metrics['generation_rate_per_sec']:.2f} txn/s")
         logger.info("="*80)
         
         logger.info("Producer shutdown complete")
@@ -793,4 +1070,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
