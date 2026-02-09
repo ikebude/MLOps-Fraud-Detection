@@ -324,6 +324,12 @@ services:
     env_file: .env
     environment:
       - INFERENCE_PORT=${INFERENCE_PORT:-8000}
+      # Database connection for fetching transactions and saving predictions
+      - DB_HOST=${POSTGRES_HOST:-postgres}
+      - DB_PORT=${POSTGRES_PORT:-5432}
+      - DB_NAME=${POSTGRES_TRANSACTIONS_DB:-transactions_db}
+      - DB_USER=${POSTGRES_TRANSACTIONS_USER:-fraud_producer}
+      - DB_PASSWORD=${POSTGRES_TRANSACTIONS_PASSWORD:-producer_password}
     ports:
       - "8000:8000"
     volumes:
@@ -354,6 +360,12 @@ services:
       - MINIO_URL=${MINIO_URL:-http://minio:9000}
       - FLOWER_URL=${FLOWER_URL:-http://flower:5555}
       - FLASK_DEBUG=${FLASK_DEBUG:-False}
+      # Database connection for direct fraud_predictions queries
+      - DB_HOST=${POSTGRES_HOST:-postgres}
+      - DB_PORT=${POSTGRES_PORT:-5432}
+      - DB_NAME=${POSTGRES_TRANSACTIONS_DB:-transactions_db}
+      - DB_USER=${POSTGRES_TRANSACTIONS_USER:-fraud_training}
+      - DB_PASSWORD=${POSTGRES_TRANSACTIONS_PASSWORD:-training_password}
     ports:
       - "5000:5000"
     volumes:
@@ -368,6 +380,7 @@ services:
       start_period: 30s
     restart: always
     depends_on:
+      - postgres
       - inference
       - mlflow-server
       - airflow-webserver
@@ -386,7 +399,7 @@ services:
       DB_NAME: ${POSTGRES_TRANSACTIONS_DB:-transactions_db}
       DB_USER: ${POSTGRES_TRANSACTIONS_USER:-fraud_producer}
       DB_PASSWORD: ${POSTGRES_TRANSACTIONS_PASSWORD:-producer_password}
-      PRODUCER_INTERVAL: ${PRODUCER_INTERVAL:-0.6}
+      PRODUCER_INTERVAL: ${PRODUCER_INTERVAL:-2.0}
       PRODUCER_BATCH_SIZE: ${PRODUCER_BATCH_SIZE:-100}
       PYTHONUNBUFFERED: "1"
     ports:

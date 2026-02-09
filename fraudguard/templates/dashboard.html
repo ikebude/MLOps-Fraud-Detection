@@ -7,7 +7,8 @@
         <span class="realtime-indicator" id="realtime-indicator"></span>
         <span id="data-timestamp">Loading...</span>
     </div>
-    <button id="refresh-model-btn" class="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors text-sm font-medium flex items-center gap-2">
+    <button id="refresh-model-btn"
+        class="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors text-sm font-medium flex items-center gap-2">
         <i class="ph ph-arrow-clockwise"></i>
         <span>Refresh Model</span>
     </button>
@@ -15,7 +16,8 @@
 
 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
     <!-- Metric Card 1 - Total Transactions -->
-    <div class="metric-card bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-all cursor-pointer group">
+    <div
+        class="metric-card bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-all cursor-pointer group">
         <div class="flex justify-between items-start mb-4">
             <div class="flex-1">
                 <p class="text-sm text-gray-500 mb-1 flex items-center gap-2">
@@ -40,7 +42,8 @@
     </div>
 
     <!-- Metric Card 2 - Fraud Rate -->
-    <div class="metric-card bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-all cursor-pointer group">
+    <div
+        class="metric-card bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-all cursor-pointer group">
         <div class="flex justify-between items-start mb-4">
             <div class="flex-1">
                 <p class="text-sm text-gray-500 mb-1 flex items-center gap-2">
@@ -65,7 +68,8 @@
     </div>
 
     <!-- Metric Card 3 - Approval Rate -->
-    <div class="metric-card bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-all cursor-pointer group">
+    <div
+        class="metric-card bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-all cursor-pointer group">
         <div class="flex justify-between items-start mb-4">
             <div class="flex-1">
                 <p class="text-sm text-gray-500 mb-1 flex items-center gap-2">
@@ -90,7 +94,8 @@
     </div>
 
     <!-- Metric Card 4 - Active Alerts -->
-    <div class="metric-card bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-all cursor-pointer group">
+    <div
+        class="metric-card bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-all cursor-pointer group">
         <div class="flex justify-between items-start mb-4">
             <div class="flex-1">
                 <p class="text-sm text-gray-500 mb-1 flex items-center gap-2">
@@ -122,9 +127,12 @@
                 <p class="text-xs text-gray-500 mt-1">Real-time monitoring with 15-minute intervals</p>
             </div>
             <div class="flex gap-2">
-                <button class="px-3 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded chart-time-btn active" data-period="1h">1H</button>
-                <button class="px-3 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded chart-time-btn" data-period="6h">6H</button>
-                <button class="px-3 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded chart-time-btn" data-period="24h">24H</button>
+                <button class="px-3 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded chart-time-btn active"
+                    data-period="1h">1H</button>
+                <button class="px-3 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded chart-time-btn"
+                    data-period="6h">6H</button>
+                <button class="px-3 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded chart-time-btn"
+                    data-period="24h">24H</button>
             </div>
         </div>
         <div class="chart-container h-64 relative">
@@ -174,11 +182,12 @@
                     </div>
                     <div class="flex justify-between items-center">
                         <span class="text-sm text-gray-600">Source</span>
-                        <span class="text-xs font-medium px-2 py-1 bg-blue-100 text-blue-700 rounded" id="model-source-badge">-</span>
+                        <span class="text-xs font-medium px-2 py-1 bg-blue-100 text-blue-700 rounded"
+                            id="model-source-badge">-</span>
                     </div>
                 </div>
             </div>
-            
+
             <div>
                 <div class="flex justify-between items-center mb-2">
                     <span class="text-sm text-gray-600">Accuracy (Precision)</span>
@@ -187,7 +196,8 @@
                     </span>
                 </div>
                 <div class="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
-                    <div class="bg-gradient-to-r from-green-400 to-green-600 h-3 rounded-full transition-all duration-500 ease-out" id="accuracy-progress-bar" style="width: 0%"></div>
+                    <div class="bg-gradient-to-r from-green-400 to-green-600 h-3 rounded-full transition-all duration-500 ease-out"
+                        id="accuracy-progress-bar" style="width: 0%"></div>
                 </div>
                 <p class="text-xs text-gray-500 mt-1">Based on test set precision score</p>
             </div>
@@ -202,9 +212,10 @@
                         <span class="skeleton inline-block w-16 h-4 rounded"></span>
                     </span>
                 </div>
-                <p class="text-xs text-gray-600 mt-2" id="drift-explanation">Monitoring fraud rate against baseline...</p>
+                <p class="text-xs text-gray-600 mt-2" id="drift-explanation">Monitoring fraud rate against baseline...
+                </p>
             </div>
-            
+
             <!-- Enhanced Inference Stats -->
             <div class="p-4 bg-gradient-to-br from-indigo-50 to-purple-50 rounded-lg border border-indigo-200">
                 <div class="flex items-center gap-2 mb-3">
@@ -236,13 +247,22 @@
 
 <!-- Live Feed -->
 <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-    <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+    <div
+        class="px-6 py-4 border-b border-gray-200 flex justify-between items-center bg-gradient-to-r from-red-50 to-white">
         <div>
-            <h3 class="text-lg font-semibold text-gray-900">Live Transaction Feed</h3>
-            <p class="text-xs text-gray-500 mt-1">Real-time updates • Click rows for details</p>
+            <div class="flex items-center gap-2">
+                <span class="relative flex h-3 w-3">
+                    <span
+                        class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                </span>
+                <h3 class="text-lg font-bold text-gray-900">Live Fraud Transaction Feed</h3>
+            </div>
+            <p class="text-xs text-gray-500 mt-1 ml-5">Real-time stream of detected high-risk transactions</p>
         </div>
-        <a href="{{ base_path }}/transactions" class="text-sm text-orange-600 hover:text-orange-700 font-medium flex items-center gap-1">
-            <span>View All</span>
+        <a href="{{ base_path }}/transactions"
+            class="text-sm text-indigo-600 hover:text-indigo-700 font-medium flex items-center gap-1">
+            <span>View All History</span>
             <i class="ph ph-arrow-right"></i>
         </a>
     </div>
@@ -253,18 +273,20 @@
                     <th class="px-6 py-3 font-medium">Time</th>
                     <th class="px-6 py-3 font-medium">Transaction ID</th>
                     <th class="px-6 py-3 font-medium">Merchant</th>
+                    <th class="px-6 py-3 font-medium">Location</th>
                     <th class="px-6 py-3 font-medium">Amount</th>
                     <th class="px-6 py-3 font-medium">Risk Score</th>
                     <th class="px-6 py-3 font-medium">Status</th>
-                    <th class="px-6 py-3 font-medium">Actions</th>
+                    <th class="px-6 py-3 font-medium">Details</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-200 text-sm" id="txn-table-body">
                 <tr>
-                    <td colspan="7" class="px-6 py-8 text-center text-gray-400">
+                    <td colspan="8" class="px-6 py-8 text-center text-gray-400">
                         <div class="flex flex-col items-center gap-2">
-                            <div class="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-orange-600"></div>
-                            <span>Loading transactions...</span>
+                            <div class="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-orange-600">
+                            </div>
+                            <span>Connecting to live fraud stream...</span>
                         </div>
                     </td>
                 </tr>

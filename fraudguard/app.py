@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 from functools import lru_cache
 import concurrent.futures
 import logging
+import threading
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -19,6 +20,14 @@ try:
     MLFLOW_AVAILABLE = True
 except ImportError:
     MLFLOW_AVAILABLE = False
+
+try:
+    import psycopg2
+    from psycopg2 import pool
+    PSYCOPG2_AVAILABLE = True
+except ImportError:
+    PSYCOPG2_AVAILABLE = False
+    logger.warning("psycopg2 not available - database queries will fall back to Inference API")
 
 # Load environment variables
 load_dotenv()
@@ -35,6 +44,304 @@ FRAUDGUARD_REALTIME_MODE = os.getenv('FRAUDGUARD_REALTIME_MODE', 'per_transactio
 FRAUDGUARD_REALTIME_MAX_RECORDS = int(os.getenv('FRAUDGUARD_REALTIME_MAX_RECORDS', '1'))
 if FRAUDGUARD_BASE_PATH and not FRAUDGUARD_BASE_PATH.startswith('/'):
     FRAUDGUARD_BASE_PATH = f'/{FRAUDGUARD_BASE_PATH}'
+
+# Database configuration for direct fraud_predictions access
+DB_HOST = os.getenv('DB_HOST', os.getenv('POSTGRES_HOST', 'postgres'))
+DB_PORT = int(os.getenv('DB_PORT', os.getenv('POSTGRES_PORT', '5432')))
+DB_NAME = os.getenv('DB_NAME', os.getenv('POSTGRES_TRANSACTIONS_DB', 'transactions_db'))
+DB_USER = os.getenv('DB_USER', os.getenv('POSTGRES_TRANSACTIONS_USER', 'fraud_producer'))
+DB_PASSWORD = os.getenv('DB_PASSWORD', os.getenv('POSTGRES_TRANSACTIONS_PASSWORD', 'producer_password'))
+
+# Database connection pool
+db_pool = None
+db_pool_lock = threading.Lock()
+
+def _init_db_pool():
+    """Initialize database connection pool."""
+    global db_pool
+    if not PSYCOPG2_AVAILABLE:
+        logger.warning("psycopg2 not available, cannot create database pool")
+        return None
+    
+    with db_pool_lock:
+        if db_pool is not None:
+            return db_pool
+        try:
+            db_pool = pool.ThreadedConnectionPool(
+                minconn=2,
+                maxconn=10,
+                host=DB_HOST,
+                port=DB_PORT,
+                dbname=DB_NAME,
+                user=DB_USER,
+                password=DB_PASSWORD
+            )
+            logger.info(f"Database connection pool initialized: {DB_HOST}:{DB_PORT}/{DB_NAME}")
+            return db_pool
+        except Exception as e:
+            logger.error(f"Failed to create database connection pool: {e}")
+            return None
+
+def _get_db_connection():
+    """Get a connection from the pool."""
+    global db_pool
+    if db_pool is None:
+        _init_db_pool()
+    if db_pool is None:
+        return None
+    try:
+        return db_pool.getconn()
+    except Exception as e:
+        logger.error(f"Failed to get database connection: {e}")
+        return None
+
+def _put_db_connection(conn):
+    """Return a connection to the pool."""
+    global db_pool
+    if db_pool is not None and conn is not None:
+        try:
+            db_pool.putconn(conn)
+        except Exception as e:
+            logger.error(f"Failed to return connection to pool: {e}")
+
+def get_live_fraud_feed(limit: int = 100):
+    """
+    Query fraud_predictions table for live fraud feed.
+    Returns transactions where fraud_prediction=1 OR actual_fraud=1.
+    """
+    conn = _get_db_connection()
+    if conn is None:
+        logger.warning("No database connection, falling back to empty results")
+        return []
+    
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT 
+                    fp.transaction_id, fp.user_id, fp.amount, fp.fraud_probability,
+                    fp.fraud_prediction, fp.fraud_label, fp.risk_level,
+                    fp.prediction_timestamp, fp.actual_fraud,
+                    t.vendor_id as merchant, t.location, t.country
+                FROM fraud_predictions fp
+                LEFT JOIN transactions t ON fp.transaction_id = t.transaction_id
+                WHERE fp.fraud_prediction = 1 OR fp.actual_fraud = 1
+                ORDER BY fp.prediction_timestamp DESC
+                LIMIT %s
+            """, (limit,))
+            
+            columns = ['transaction_id', 'user_id', 'amount', 'fraud_probability',
+                      'fraud_prediction', 'fraud_label', 'risk_level',
+                      'prediction_timestamp', 'actual_fraud', 'merchant', 'location', 'country']
+            rows = cur.fetchall()
+            
+            results = []
+            for row in rows:
+                record = dict(zip(columns, row))
+                # Format timestamp
+                if record.get('prediction_timestamp'):
+                    record['timestamp'] = record['prediction_timestamp'].isoformat()
+                else:
+                    record['timestamp'] = datetime.now().isoformat()
+                
+                # Ensure merchant is not None
+                if not record.get('merchant'):
+                    record['merchant'] = 'Unknown Merchant'
+                    
+                results.append(record)
+            
+            logger.debug(f"Fetched {len(results)} fraud records from database")
+            return results
+    except Exception as e:
+        logger.error(f"Error fetching live fraud feed: {e}")
+        return []
+    finally:
+        _put_db_connection(conn)
+
+def get_all_predictions_feed(limit: int = 100, offset: int = 0, search: str = None):
+    """
+    Query fraud_predictions table for ALL predictions (fraud and legitimate).
+    Returns the most recent predictions, with optional search filter.
+    """
+    conn = _get_db_connection()
+    if conn is None:
+        logger.warning("No database connection, falling back to empty results")
+        return []
+    
+    try:
+        with conn.cursor() as cur:
+            query = """
+                SELECT 
+                    fp.transaction_id, fp.user_id, fp.amount, fp.fraud_probability,
+                    fp.fraud_prediction, fp.fraud_label, fp.risk_level,
+                    fp.prediction_timestamp, fp.actual_fraud,
+                    t.vendor_id as merchant, t.location, t.country
+                FROM fraud_predictions fp
+                LEFT JOIN transactions t ON fp.transaction_id = t.transaction_id
+            """
+            params = []
+            
+            if search:
+                query += """
+                    WHERE fp.transaction_id ILIKE %s 
+                    OR fp.user_id ILIKE %s 
+                    OR fp.fraud_label ILIKE %s
+                """
+                search_term = f"%{search}%"
+                params.extend([search_term, search_term, search_term])
+            
+            query += " ORDER BY fp.prediction_timestamp DESC LIMIT %s OFFSET %s"
+            params.extend([limit, offset])
+            
+            cur.execute(query, tuple(params))
+            
+            columns = ['transaction_id', 'user_id', 'amount', 'fraud_probability',
+                      'fraud_prediction', 'fraud_label', 'risk_level',
+                      'prediction_timestamp', 'actual_fraud', 'merchant', 'location', 'country']
+            rows = cur.fetchall()
+            
+            results = []
+            for row in rows:
+                record = dict(zip(columns, row))
+                # Format timestamp
+                if record.get('prediction_timestamp'):
+                    record['timestamp'] = record.get('prediction_timestamp').isoformat()
+                else:
+                    record['timestamp'] = datetime.now().isoformat()
+                
+                # Ensure merchant is not None
+                if not record.get('merchant'):
+                    record['merchant'] = 'Transaction'
+                    
+                results.append(record)
+            
+            logger.debug(f"Fetched {len(results)} prediction records from database")
+            return results
+    except Exception as e:
+        logger.error(f"Error fetching predictions feed: {e}")
+        return []
+    finally:
+        _put_db_connection(conn)
+
+def get_total_predictions_count(search: str = None) -> int:
+    """Get total count of predictions for pagination."""
+    conn = _get_db_connection()
+    if conn is None:
+        return 0
+    
+    try:
+        with conn.cursor() as cur:
+            query = "SELECT COUNT(*) FROM fraud_predictions"
+            params = []
+            
+            if search:
+                query += """
+                    WHERE transaction_id ILIKE %s 
+                    OR user_id ILIKE %s 
+                    OR fraud_label ILIKE %s
+                """
+                search_term = f"%{search}%"
+                params.extend([search_term, search_term, search_term])
+            
+            cur.execute(query, tuple(params))
+            return cur.fetchone()[0]
+    except Exception as e:
+        logger.error(f"Error counting predictions: {e}")
+        return 0
+    finally:
+        _put_db_connection(conn)
+
+def get_realtime_stats():
+    """
+    Get real-time statistics directly from fraud_predictions table.
+    """
+    conn = _get_db_connection()
+    if conn is None:
+        logger.warning("No database connection for stats")
+        return None
+    
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT 
+                    COUNT(*) as total_transactions,
+                    COALESCE(SUM(CASE WHEN fraud_prediction = 1 OR actual_fraud = 1 THEN 1 ELSE 0 END), 0) as fraud_detections,
+                    COALESCE(ROUND(100.0 * SUM(CASE WHEN fraud_prediction = 1 OR actual_fraud = 1 THEN 1 ELSE 0 END) / NULLIF(COUNT(*), 0), 2), 0) as fraud_rate,
+                    COALESCE(AVG(fraud_probability), 0) as avg_fraud_probability
+                FROM fraud_predictions
+                WHERE prediction_timestamp >= NOW() - INTERVAL '24 hours'
+            """)
+            row = cur.fetchone()
+            
+            if row:
+                stats = {
+                    'total_records': int(row[0]) if row[0] else 0,
+                    'fraud_detections': int(row[1]) if row[1] else 0,
+                    'fraud_rate': float(row[2]) if row[2] else 0.0,
+                    'avg_fraud_probability': float(row[3]) if row[3] else 0.0,
+                    'timestamp': datetime.now().isoformat()
+                }
+                logger.debug(f"Database stats: total={stats['total_records']}, fraud={stats['fraud_detections']}")
+                return stats
+            return None
+    except Exception as e:
+        logger.error(f"Error fetching real-time stats: {e}")
+        return None
+    finally:
+        _put_db_connection(conn)
+
+def get_trend_data(hours: int = 6):
+    """
+    Get trend data from fraud_predictions table grouped by 15-minute buckets.
+    """
+    conn = _get_db_connection()
+    if conn is None:
+        logger.warning("No database connection for trend data")
+        return {'labels': [], 'valid_transactions': [], 'fraud_attempts': []}
+    
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT 
+                    DATE_TRUNC('hour', prediction_timestamp) + 
+                    INTERVAL '15 min' * FLOOR(EXTRACT(MINUTE FROM prediction_timestamp) / 15) as time_bucket,
+                    COUNT(*) as total,
+                    COALESCE(SUM(CASE WHEN fraud_prediction = 1 OR actual_fraud = 1 THEN 1 ELSE 0 END), 0) as fraud_count
+                FROM fraud_predictions
+                WHERE prediction_timestamp >= NOW() - INTERVAL '%s hours'
+                GROUP BY time_bucket
+                ORDER BY time_bucket
+            """ % hours)  # Using string formatting for interval since parameterized doesn't work well here
+            
+            rows = cur.fetchall()
+            
+            labels = []
+            valid_transactions = []
+            fraud_attempts = []
+            
+            for row in rows:
+                time_bucket, total, fraud_count = row
+                if time_bucket:
+                    labels.append(time_bucket.strftime('%H:%M'))
+                else:
+                    labels.append('--:--')
+                valid_transactions.append(int(total) - int(fraud_count))
+                fraud_attempts.append(int(fraud_count))
+            
+            logger.debug(f"Trend data: {len(labels)} buckets over {hours} hours")
+            return {
+                'labels': labels,
+                'valid_transactions': valid_transactions,
+                'fraud_attempts': fraud_attempts
+            }
+    except Exception as e:
+        logger.error(f"Error fetching trend data: {e}")
+        return {'labels': [], 'valid_transactions': [], 'fraud_attempts': []}
+    finally:
+        _put_db_connection(conn)
+
+# Initialize database pool on startup
+if PSYCOPG2_AVAILABLE:
+    _init_db_pool()
 
 DEFAULT_DATA = {
     'metrics': {
@@ -125,8 +432,11 @@ def _build_transactions(results, sort_by: str = 'timestamp', sort_order: str = '
         # Get top features if available
         top_features = result.get('top_features', []) if isinstance(result, dict) else []
         
-        # Get merchant/vendor info if available
-        merchant = _pick_first(result, ['merchant', 'vendor', 'vendor_name', 'merchant_name'], 'Transaction')
+        # Get merchant/vendor info - Prioritize the joined 'merchant' column
+        merchant = _pick_first(result, ['merchant', 'vendor_id', 'vendor', 'vendor_name', 'merchant_name'], 'Transaction')
+        
+        # Get location info
+        location = _pick_first(result, ['location', 'country', 'geo_location'], 'Unknown')
         
         transactions.append({
             'id': txn_id,
@@ -135,6 +445,7 @@ def _build_transactions(results, sort_by: str = 'timestamp', sort_order: str = '
             'timestamp': time_str,
             '_sort_timestamp': sort_timestamp,
             'merchant': merchant,
+            'location': location,
             'amount': float(amount) if amount else 0.0,
             'risk_score': risk_score,
             '_sort_risk_score': risk_score,
@@ -202,7 +513,9 @@ def _build_trends(results):
             buckets[bucket_key] = {'total': 0, 'fraud': 0, 'timestamp': bucket_time, 'label': label}
         buckets[bucket_key]['total'] += 1
         fraud_pred = _pick_first(txn, ['fraud_prediction'], 0)
-        if str(fraud_pred) in ('1', 'True', 'true'):
+        actual_fraud = _pick_first(txn, ['actual_fraud'], 0)
+        
+        if str(fraud_pred) in ('1', 'True', 'true') or str(actual_fraud) in ('1', 'True', 'true'):
             buckets[bucket_key]['fraud'] += 1
 
     # Sort buckets by timestamp (chronological order)
@@ -380,6 +693,26 @@ def _get_model_health_impl():
         import traceback
         traceback.print_exc()
     
+        traceback.print_exc()
+    
+    # Check for local model if MLflow failed or returned nothing
+    if (model_version == "N/A" or model_version is None):
+        local_model_path = '/app/models/fraud_detection_model.pkl'
+        # Also check local development path
+        if not os.path.exists(local_model_path):
+             local_model_path = os.path.join(os.getcwd(), 'models', 'fraud_detection_model.pkl')
+             
+        if os.path.exists(local_model_path):
+            try:
+                mtime = os.path.getmtime(local_model_path)
+                dt = datetime.fromtimestamp(mtime)
+                model_version = "Local"
+                if not run_name:
+                    run_name = f"Local Model ({dt.strftime('%Y-%m-%d %H:%M')})"
+                logger.info(f"Found local model at {local_model_path}")
+            except Exception as e:
+                logger.error(f"Error checking local model: {e}")
+
     # Ensure accuracy is valid
     if math.isnan(model_accuracy) or math.isinf(model_accuracy) or model_accuracy < 0:
         model_accuracy = 0.0
@@ -389,7 +722,7 @@ def _get_model_health_impl():
     # Format display name
     display_name = model_name
     if run_name:
-        display_name = run_name.replace('-', ' ').title()
+        display_name = run_name.replace('-', ' ').title() if isinstance(run_name, str) else str(run_name)
         logger.info(f"Using display name: {display_name}")
     
     logger.info(f"Returning model health: name={display_name}, version={model_version}, accuracy={model_accuracy}%")
@@ -436,12 +769,15 @@ def system_health():
         inference_health = get_inference_health()
         model_health = _get_model_health()
         
-        # Get real-time stats
-        try:
-            stats_response = requests.get(f"{INFERENCE_SERVICE_URL}/inference/stats", timeout=5)
-            stats = stats_response.json() if stats_response.status_code == 200 else {}
-        except:
-            stats = {}
+        # Get real-time stats directly from DB
+        stats = get_realtime_stats()
+        
+        # If DB stats empty, fallback or initialize defaults
+        if not stats:
+            stats = {
+                'total_records': 0, 'fraud_detections': 0, 
+                'fraud_rate': 0.0, 'active_alerts': 0
+            }
         
         return render_template('system_health.html', 
                              inference_health=inference_health,
@@ -458,21 +794,11 @@ def system_health():
 def alerts():
     """Alerts page"""
     try:
-        # Get flagged transactions (alerts)
-        try:
-            results_response = requests.get(f"{INFERENCE_SERVICE_URL}/inference/results", 
-                                          params={'page': 1, 'per_page': 100}, timeout=5)
-            results = []
-            if results_response.status_code == 200:
-                results_data = results_response.json()
-                if results_data.get('status') == 'success':
-                    all_results = results_data.get('results', [])
-                    # Filter only flagged transactions
-                    results = [r for r in all_results if _pick_first(r, ['fraud_prediction', 'is_fraud', 'fraud'], 0) in (1, '1', True, 'True', 'true')]
-        except:
-            results = []
+        # Get flagged transactions (alerts) directly from database
+        # Reusing get_live_fraud_feed which returns fraud_prediction=1 OR actual_fraud=1
+        results = get_live_fraud_feed(limit=100)
         
-        return render_template('alerts.html', alerts=results[:50])  # Show top 50 alerts
+        return render_template('alerts.html', alerts=results)
     except Exception as e:
         logger.error(f"Error loading alerts: {e}")
         return render_template('alerts.html', alerts=[])
@@ -496,153 +822,149 @@ def settings():
 
 @app.route('/api/data')
 def api_data():
-    """API endpoint for dashboard data - fetches real data from inference service"""
+    """API endpoint for dashboard data - fetches REAL-TIME data from fraud_predictions database."""
     try:
-        # Try to get real data from inference service
-        try:
-            # Don't trigger inference here - continuous worker handles it
-            # Just fetch the latest stats and results
+        # PRIMARY: Get real-time data directly from database
+        db_stats = get_realtime_stats()
+        db_has_data = db_stats is not None and db_stats.get('total_records', 0) > 0
+        
+        if db_has_data:
+            # Use direct database queries for real-time data
+            logger.info("Using direct database queries for dashboard data")
             
-            # Get inference stats (with longer timeout for first load)
-            # Use parallel requests for better performance
-            with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
-                stats_future = executor.submit(requests.get, f"{INFERENCE_SERVICE_URL}/inference/stats", timeout=15)
-                results_future = executor.submit(requests.get, f"{INFERENCE_SERVICE_URL}/inference/results", 
-                                                  params={'page': 1, 'per_page': 1000}, timeout=15)
-                
-                stats_response = stats_future.result()
-                results_response = results_future.result()
+            # Get all predictions for the transaction feed (not just fraud)
+            # USER REQUEST: "The live transaction feed is supposed to show records where, the fraud_predictions and the actual fraud are 1"
+            results = get_live_fraud_feed(limit=20)
+            transactions = _build_transactions(results)
             
-            if stats_response.status_code == 200:
-                stats = stats_response.json()
-                transactions = []
-                trends = None
-                results = []
-                total_from_results = 0
-                if results_response.status_code == 200:
-                    results_data = results_response.json()
-                    if results_data.get('status') == 'success':
-                        results = results_data.get('results', [])
-                        total_from_results = results_data.get('total_records', len(results))
-                        # Sort by timestamp descending to get latest first
-                        transactions = _build_transactions(results)
-                        trends = _build_trends(results)
-                
-                model_health = _get_model_health()
-                
-                # Build response with real data
-                # Get ACTUAL total from stats (not limited to 1000)
-                total_txns = int(stats.get('total_records', 0) or 0)
-                # If stats show 0 or exactly 1000 (might be a limit/cache), use results total
-                if total_from_results > 0:
-                    if total_from_results > total_txns or total_txns == 1000:
-                        total_txns = total_from_results
-                elif total_txns == 0 and results:
-                    total_txns = len(results)
-                
-                fraud_count = int(stats.get('fraud_detections', 0) or 0)
-                fraud_rate = float(stats.get('fraud_rate', 0.0) or 0.0)
-                approval_rate = round(100 - fraud_rate, 2)
-                
-                # Better drift detection: compare current fraud rate to expected baseline (e.g., 2-3%)
-                # If fraud rate is significantly higher than baseline, show warning
-                # Made less sensitive - only warn if fraud rate is > 2x baseline
-                baseline_fraud_rate = 2.5  # Expected baseline fraud rate
-                drift_threshold = 2.0  # 2.0x baseline = warning (less sensitive)
-                drift_status = 'Normal'
-                if fraud_rate > (baseline_fraud_rate * drift_threshold):
-                    drift_status = 'Warning'
-                elif fraud_rate > (baseline_fraud_rate * 3.0):
-                    drift_status = 'Critical'
-                
-                # Get inference stats for presentation (enhanced)
-                inference_stats = {
-                    'avg_fraud_probability': stats.get('avg_fraud_probability', 0.0),
-                    'avg_confidence': stats.get('avg_confidence', 0.0),
-                    'model_version': stats.get('model_version'),
-                    'model_source': stats.get('model_source'),
-                    'timestamp': stats.get('timestamp') or datetime.now().isoformat()
-                }
-                
-                # Add enhanced metrics if available
-                enhanced_metrics = stats.get('enhanced_metrics', {})
-                business_metrics = enhanced_metrics.get('business_metrics', {})
-                operational_metrics = enhanced_metrics.get('operational_metrics', {})
-                
-                # Add business impact metrics
-                if business_metrics:
-                    inference_stats['business_impact'] = {
-                        'fraud_prevented_value_usd': business_metrics.get('fraud_prevented_value_usd', 0),
-                        'revenue_preserved_usd': business_metrics.get('revenue_preserved_usd', 0),
-                        'estimated_roi_percent': business_metrics.get('estimated_roi_percent', 0),
-                        'total_volume_usd': business_metrics.get('total_volume_usd', 0)
-                    }
-                
-                # Add operational metrics
-                if operational_metrics:
-                    inference_stats['operational'] = {
-                        'avg_latency_ms': operational_metrics.get('avg_latency_ms', 0),
-                        'throughput_tps': operational_metrics.get('throughput_tps', 0),
-                        'p95_latency_ms': operational_metrics.get('p95_latency_ms', 0)
-                    }
-                
-                return jsonify({
-                    'status': 'success',
-                    'metrics': {
-                        'total_transactions': total_txns,
-                        'fraud_rate': round(fraud_rate, 2) if not math.isnan(fraud_rate) else 0.0,
-                        'approval_rate': round(approval_rate, 2) if not math.isnan(approval_rate) else 0.0,
-                        'active_alerts': fraud_count
-                    },
-                    'model_health': {
-                        'name': model_health['name'],
-                        'version': model_health['version'],
-                        'accuracy': model_health['accuracy'] if not (isinstance(model_health['accuracy'], float) and math.isnan(model_health['accuracy'])) else 0.0,
-                        'drift_status': drift_status,
-                        'run_name': model_health.get('run_name')  # Include original run name
-                    },
-                    'transactions': transactions,
-                    'trends': trends if trends else {
-                        'labels': [],
-                        'valid_transactions': [],
-                        'fraud_attempts': []
-                    },
-                    'inference_stats': inference_stats
-                }), 200
-            else:
-                # Fallback to default data if inference service is unavailable
-                return jsonify({
-                    'status': 'inference_unavailable',
-                    'metrics': {
-                        'total_transactions': 0,
-                        'fraud_rate': 0.0,
-                        'approval_rate': 0.0,
-                        'active_alerts': 0
-                    },
-                    'model_health': {
-                        'name': 'Unknown',
-                        'version': 'N/A',
-                        'accuracy': 0.0,
-                        'drift_status': 'Unknown'
-                    },
-                    'transactions': [],
-                    'trends': {
-                        'labels': [],
-                        'valid_transactions': [],
-                        'fraud_attempts': []
-                    }
-                }), 200
-        except Exception as e:
-            logger.error(f"Error fetching data from inference service: {e}")
-            import traceback
-            traceback.print_exc()
+            # Get trend data from database
+            trends = get_trend_data(hours=6)
+            
+            # Get model health from MLflow
+            model_health = _get_model_health()
+            
+            # Extract stats from database query
+            total_txns = db_stats.get('total_records', 0)
+            fraud_count = db_stats.get('fraud_detections', 0)
+            fraud_rate = db_stats.get('fraud_rate', 0.0)
+            approval_rate = round(100 - fraud_rate, 2) if fraud_rate else 100.0
+            avg_fraud_prob = db_stats.get('avg_fraud_probability', 0.0)
+            
+            # Drift detection based on fraud rate
+            baseline_fraud_rate = 2.5
+            drift_threshold = 2.0
+            drift_status = 'Normal'
+            if fraud_rate > (baseline_fraud_rate * drift_threshold):
+                drift_status = 'Warning'
+            elif fraud_rate > (baseline_fraud_rate * 3.0):
+                drift_status = 'Critical'
+            
+            # Build inference stats
+            inference_stats = {
+                'avg_fraud_probability': avg_fraud_prob,
+                'avg_confidence': 0.0,
+                'model_version': model_health.get('version'),
+                'model_source': 'database',
+                'timestamp': db_stats.get('timestamp', datetime.now().isoformat())
+            }
+            
             return jsonify({
-                'status': 'error',
-                'error': str(e),
+                'status': 'success',
+                'source': 'database',  # Indicate data source
+                'metrics': {
+                    'total_transactions': total_txns,
+                    'fraud_rate': round(fraud_rate, 2) if not math.isnan(fraud_rate) else 0.0,
+                    'approval_rate': round(approval_rate, 2) if not math.isnan(approval_rate) else 100.0,
+                    'active_alerts': fraud_count
+                },
+                'model_health': {
+                    'name': model_health['name'],
+                    'version': model_health['version'],
+                    'accuracy': model_health['accuracy'] if not (isinstance(model_health['accuracy'], float) and math.isnan(model_health['accuracy'])) else 0.0,
+                    'drift_status': drift_status,
+                    'run_name': model_health.get('run_name')
+                },
+                'transactions': transactions,
+                'trends': trends if trends else {
+                    'labels': [],
+                    'valid_transactions': [],
+                    'fraud_attempts': []
+                },
+                'inference_stats': inference_stats
+            }), 200
+        else:
+            # FALLBACK: Try inference service API if database is empty or unavailable
+            logger.info("Database empty or unavailable, falling back to Inference API")
+            try:
+                with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+                    stats_future = executor.submit(requests.get, f"{INFERENCE_SERVICE_URL}/inference/stats", timeout=15)
+                    results_future = executor.submit(requests.get, f"{INFERENCE_SERVICE_URL}/inference/results", 
+                                                      params={'page': 1, 'per_page': 1000}, timeout=15)
+                    
+                    stats_response = stats_future.result()
+                    results_response = results_future.result()
+                
+                if stats_response.status_code == 200:
+                    stats = stats_response.json()
+                    transactions = []
+                    trends = None
+                    results = []
+                    if results_response.status_code == 200:
+                        results_data = results_response.json()
+                        if results_data.get('status') == 'success':
+                            results = results_data.get('results', [])
+                            transactions = _build_transactions(results)
+                            trends = _build_trends(results)
+                    
+                    model_health = _get_model_health()
+                    total_txns = int(stats.get('total_records', 0) or 0)
+                    fraud_count = int(stats.get('fraud_detections', 0) or 0)
+                    fraud_rate = float(stats.get('fraud_rate', 0.0) or 0.0)
+                    approval_rate = round(100 - fraud_rate, 2)
+                    
+                    baseline_fraud_rate = 2.5
+                    drift_threshold = 2.0
+                    drift_status = 'Normal'
+                    if fraud_rate > (baseline_fraud_rate * drift_threshold):
+                        drift_status = 'Warning'
+                    elif fraud_rate > (baseline_fraud_rate * 3.0):
+                        drift_status = 'Critical'
+                    
+                    return jsonify({
+                        'status': 'success',
+                        'source': 'inference_api',  # Indicate data source
+                        'metrics': {
+                            'total_transactions': total_txns,
+                            'fraud_rate': round(fraud_rate, 2) if not math.isnan(fraud_rate) else 0.0,
+                            'approval_rate': round(approval_rate, 2) if not math.isnan(approval_rate) else 0.0,
+                            'active_alerts': fraud_count
+                        },
+                        'model_health': {
+                            'name': model_health['name'],
+                            'version': model_health['version'],
+                            'accuracy': model_health['accuracy'] if not (isinstance(model_health['accuracy'], float) and math.isnan(model_health['accuracy'])) else 0.0,
+                            'drift_status': drift_status,
+                            'run_name': model_health.get('run_name')
+                        },
+                        'transactions': transactions,
+                        'trends': trends if trends else {
+                            'labels': [],
+                            'valid_transactions': [],
+                            'fraud_attempts': []
+                        },
+                        'inference_stats': stats
+                    }), 200
+            except Exception as api_e:
+                logger.warning(f"Inference API fallback also failed: {api_e}")
+            
+            # Final fallback: return empty data
+            return jsonify({
+                'status': 'no_data',
+                'source': 'none',
                 'metrics': {
                     'total_transactions': 0,
                     'fraud_rate': 0.0,
-                    'approval_rate': 0.0,
+                    'approval_rate': 100.0,
                     'active_alerts': 0
                 },
                 'model_health': {
@@ -657,7 +979,7 @@ def api_data():
                     'valid_transactions': [],
                     'fraud_attempts': []
                 }
-            }), 500
+            }), 200
     except Exception as e:
         logger.error(f"Unexpected error in api_data: {e}")
         import traceback
@@ -685,105 +1007,169 @@ def api_data():
             }
         }), 500
 
+@app.route('/api/transactions')
+def api_transactions():
+    """API endpoint for paginated transactions list."""
+    try:
+        limit = int(request.args.get('limit', 50))
+        offset = int(request.args.get('offset', 0))
+        search = request.args.get('search', None)
+        
+        # Get data
+        transactions = get_all_predictions_feed(limit=limit, offset=offset, search=search)
+        total_count = get_total_predictions_count(search=search)
+        
+        return jsonify({
+            'transactions': _build_transactions(transactions),
+            'pagination': {
+                'total': total_count,
+                'limit': limit,
+                'offset': offset,
+                'has_more': (offset + limit) < total_count
+            }
+        })
+    except Exception as e:
+        logger.error(f"Error in transactions API: {e}")
+        return jsonify({'error': str(e)}), 500
+
 
 @app.route('/api/stream')
 def api_stream():
-    """Server-Sent Events stream for per-transaction updates - OPTIMIZED FOR REAL-TIME."""
+    """Server-Sent Events stream for REAL-TIME database updates."""
     interval_ms = int(request.args.get('interval_ms', '500'))  # 500ms for TRUE real-time
     interval_s = max(interval_ms / 1000.0, 0.3)  # Minimum 0.3 second for real-time
-    last_timestamp = None  # Track last transaction timestamp to detect new ones
 
     def generate():
         yield "retry: 2000\n\n"
-        last_timestamp = None  # Track last transaction timestamp to detect new ones
+        last_txn_id = None  # Track last transaction ID to detect new ones
         while True:
             try:
-                # Use parallel requests for better performance
-                with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
-                    stats_future = executor.submit(requests.get, f"{INFERENCE_SERVICE_URL}/inference/stats", timeout=3)
-                    # Get latest transactions (sorted by newest first)
-                    results_future = executor.submit(requests.get, 
-                                                    f"{INFERENCE_SERVICE_URL}/inference/results?page=1&per_page=10",
-                                                    timeout=3)
-                    
-                    stats_response = stats_future.result()
-                    results_response = results_future.result()
-
-                stats = {}
-                if stats_response.status_code == 200:
-                    stats = stats_response.json()
-
-                results = []
-                if results_response.status_code == 200:
-                    results_data = results_response.json()
-                    if results_data.get('status') == 'success':
-                        results = results_data.get('results', [])
-
-                # Build transactions (already sorted newest first)
-                transactions = _build_transactions(results)
-                # ALWAYS send the latest transaction if available - ensure real-time feed
-                transaction = None
-                if transactions:
-                    # Send the most recent transaction every cycle to ensure feed is live
-                    transaction = transactions[0]
-                    latest_ts_str = transaction.get('timestamp')
-                    if latest_ts_str:
-                        try:
-                            latest_ts = datetime.fromisoformat(latest_ts_str.replace('Z', '+00:00'))
-                            if last_timestamp is None or latest_ts > last_timestamp:
-                                last_timestamp = latest_ts
-                        except:
-                            last_timestamp = datetime.now()
-                    else:
-                        last_timestamp = datetime.now()
-                else:
-                    # No transactions yet, but still send metrics update
-                    pass
-
-                # Get actual total (not limited to 1000)
-                total_txns = int(stats.get('total_records', 0) or 0)
-                # Get real total from results pagination if available
-                if results_response.status_code == 200:
-                    try:
-                        results_data = results_response.json()
-                        if results_data.get('status') == 'success':
-                            total_from_results = results_data.get('total_records', 0)
-                            if total_from_results > total_txns or total_txns == 1000:
-                                total_txns = total_from_results
-                    except:
-                        pass
-                if total_txns == 0 and results:
-                    total_txns = len(results)
-                fraud_count = int(stats.get('fraud_detections', 0) or 0)
-                fraud_rate = float(stats.get('fraud_rate', 0.0) or 0.0)
-                approval_rate = round(100 - fraud_rate, 2)
-                model_health = _get_model_health()
+                # PRIMARY: Get data directly from database
+                db_stats = get_realtime_stats()
                 
-                # Better drift detection (less sensitive)
-                baseline_fraud_rate = 2.5
-                drift_threshold = 2.0  # Less sensitive
-                drift_status = 'Normal'
-                if fraud_rate > (baseline_fraud_rate * drift_threshold):
-                    drift_status = 'Warning'
-                elif fraud_rate > (baseline_fraud_rate * 3.0):
-                    drift_status = 'Critical'
+                if db_stats is not None:
+                    # Get latest transaction from database
+                    # USER REQUEST: Live feed should only show fraud/potential fraud
+                    results = get_live_fraud_feed(limit=10)
+                    transactions = _build_transactions(results)
+                    
+                    # Get the most recent transaction
+                    transaction = None
+                    if transactions:
+                        transaction = transactions[0]
+                        current_txn_id = transaction.get('id')
+                        # Only update if it's a new transaction
+                        if current_txn_id != last_txn_id:
+                            last_txn_id = current_txn_id
+                    
+                    # Get stats from database
+                    total_txns = db_stats.get('total_records', 0)
+                    fraud_count = db_stats.get('fraud_detections', 0)
+                    fraud_rate = float(db_stats.get('fraud_rate', 0.0) or 0.0)
+                    approval_rate = round(100 - fraud_rate, 2) if fraud_rate else 100.0
+                    
+                    model_health = _get_model_health()
+                    
+                    # Drift detection
+                    baseline_fraud_rate = 2.5
+                    drift_threshold = 2.0
+                    drift_status = 'Normal'
+                    if fraud_rate > (baseline_fraud_rate * drift_threshold):
+                        drift_status = 'Warning'
+                    elif fraud_rate > (baseline_fraud_rate * 3.0):
+                        drift_status = 'Critical'
+                    
+                    payload = {
+                        'source': 'database',
+                        'metrics': {
+                            'total_transactions': total_txns,
+                            'fraud_rate': round(fraud_rate, 2) if not math.isnan(fraud_rate) else 0.0,
+                            'approval_rate': round(approval_rate, 2) if not math.isnan(approval_rate) else 100.0,
+                            'active_alerts': fraud_count
+                        },
+                        'model_health': {
+                            'name': model_health['name'],
+                            'version': model_health['version'],
+                            'accuracy': model_health['accuracy'] if not (isinstance(model_health['accuracy'], float) and math.isnan(model_health['accuracy'])) else 0.0,
+                            'drift_status': drift_status
+                        },
+                        'transaction': transaction,
+                        'timestamp': datetime.now().isoformat()
+                    }
+                else:
+                    # FALLBACK: Use Inference API
+                    try:
+                        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+                            stats_future = executor.submit(requests.get, f"{INFERENCE_SERVICE_URL}/inference/stats", timeout=3)
+                            results_future = executor.submit(requests.get, 
+                                                            f"{INFERENCE_SERVICE_URL}/inference/results?page=1&per_page=10",
+                                                            timeout=3)
+                            stats_response = stats_future.result()
+                            results_response = results_future.result()
 
-                payload = {
-                    'metrics': {
-                        'total_transactions': total_txns,
-                        'fraud_rate': round(fraud_rate, 2) if not math.isnan(fraud_rate) else 0.0,
-                        'approval_rate': round(approval_rate, 2) if not math.isnan(approval_rate) else 0.0,
-                        'active_alerts': fraud_count
-                    },
-                    'model_health': {
-                        'name': model_health['name'],
-                        'version': model_health['version'],
-                        'accuracy': model_health['accuracy'] if not (isinstance(model_health['accuracy'], float) and math.isnan(model_health['accuracy'])) else 0.0,
-                        'drift_status': drift_status
-                    },
-                    'transaction': transaction,
-                    'timestamp': datetime.now().isoformat()
-                }
+                        stats = {}
+                        if stats_response.status_code == 200:
+                            stats = stats_response.json()
+
+                        results = []
+                        if results_response.status_code == 200:
+                            results_data = results_response.json()
+                            if results_data.get('status') == 'success':
+                                results = results_data.get('results', [])
+
+                        transactions = _build_transactions(results)
+                        transaction = transactions[0] if transactions else None
+                        
+                        total_txns = int(stats.get('total_records', 0) or 0)
+                        fraud_count = int(stats.get('fraud_detections', 0) or 0)
+                        fraud_rate = float(stats.get('fraud_rate', 0.0) or 0.0)
+                        approval_rate = round(100 - fraud_rate, 2)
+                        model_health = _get_model_health()
+                        
+                        baseline_fraud_rate = 2.5
+                        drift_threshold = 2.0
+                        drift_status = 'Normal'
+                        if fraud_rate > (baseline_fraud_rate * drift_threshold):
+                            drift_status = 'Warning'
+                        elif fraud_rate > (baseline_fraud_rate * 3.0):
+                            drift_status = 'Critical'
+
+                        payload = {
+                            'source': 'inference_api',
+                            'metrics': {
+                                'total_transactions': total_txns,
+                                'fraud_rate': round(fraud_rate, 2) if not math.isnan(fraud_rate) else 0.0,
+                                'approval_rate': round(approval_rate, 2) if not math.isnan(approval_rate) else 0.0,
+                                'active_alerts': fraud_count
+                            },
+                            'model_health': {
+                                'name': model_health['name'],
+                                'version': model_health['version'],
+                                'accuracy': model_health['accuracy'] if not (isinstance(model_health['accuracy'], float) and math.isnan(model_health['accuracy'])) else 0.0,
+                                'drift_status': drift_status
+                            },
+                            'transaction': transaction,
+                            'timestamp': datetime.now().isoformat()
+                        }
+                    except Exception:
+                        # No data available
+                        payload = {
+                            'source': 'none',
+                            'metrics': {
+                                'total_transactions': 0,
+                                'fraud_rate': 0.0,
+                                'approval_rate': 100.0,
+                                'active_alerts': 0
+                            },
+                            'model_health': {
+                                'name': 'Unknown',
+                                'version': 'N/A',
+                                'accuracy': 0.0,
+                                'drift_status': 'Unknown'
+                            },
+                            'transaction': None,
+                            'timestamp': datetime.now().isoformat()
+                        }
                 
                 # Clean NaN values before JSON serialization
                 payload = clean_nan_values(payload)

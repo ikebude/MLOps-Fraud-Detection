@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -24,6 +25,7 @@
         }
     </script>
 </head>
+
 <body class="bg-gray-100 text-gray-800 font-sans">
     <div class="flex h-screen overflow-hidden">
         <!-- Sidebar -->
@@ -34,19 +36,24 @@
                 </h1>
             </div>
             <nav class="flex-1 px-4 space-y-2">
-                <a href="{{ base_path }}/" class="flex items-center gap-3 px-4 py-3 rounded-lg transition-colors {% if page == 'overview' %}bg-orange-500 text-white{% else %}text-gray-400 hover:bg-gray-800 hover:text-white{% endif %}">
+                <a href="{{ base_path }}/"
+                    class="flex items-center gap-3 px-4 py-3 rounded-lg transition-colors {% if page == 'overview' %}bg-orange-500 text-white{% else %}text-gray-400 hover:bg-gray-800 hover:text-white{% endif %}">
                     <i class="ph ph-squares-four text-xl"></i> Overview
                 </a>
-                <a href="{{ base_path }}/transactions" class="flex items-center gap-3 px-4 py-3 rounded-lg transition-colors {% if page == 'transactions' %}bg-orange-500 text-white{% else %}text-gray-400 hover:bg-gray-800 hover:text-white{% endif %}">
+                <a href="{{ base_path }}/transactions"
+                    class="flex items-center gap-3 px-4 py-3 rounded-lg transition-colors {% if page == 'transactions' %}bg-orange-500 text-white{% else %}text-gray-400 hover:bg-gray-800 hover:text-white{% endif %}">
                     <i class="ph ph-list-dashes text-xl"></i> Transactions
                 </a>
-                <a href="{{ base_path }}/alerts" class="flex items-center gap-3 px-4 py-3 rounded-lg transition-colors {% if page == 'alerts' %}bg-orange-500 text-white{% else %}text-gray-400 hover:bg-gray-800 hover:text-white{% endif %}">
+                <a href="{{ base_path }}/alerts"
+                    class="flex items-center gap-3 px-4 py-3 rounded-lg transition-colors {% if page == 'alerts' %}bg-orange-500 text-white{% else %}text-gray-400 hover:bg-gray-800 hover:text-white{% endif %}">
                     <i class="ph ph-warning text-xl"></i> Alerts
                 </a>
-                <a href="{{ base_path }}/system_health" class="flex items-center gap-3 px-4 py-3 rounded-lg transition-colors {% if page == 'system_health' %}bg-orange-500 text-white{% else %}text-gray-400 hover:bg-gray-800 hover:text-white{% endif %}">
+                <a href="{{ base_path }}/system-health"
+                    class="flex items-center gap-3 px-4 py-3 rounded-lg transition-colors {% if page == 'system_health' %}bg-orange-500 text-white{% else %}text-gray-400 hover:bg-gray-800 hover:text-white{% endif %}">
                     <i class="ph ph-heartbeat text-xl"></i> System Health
                 </a>
-                <a href="{{ base_path }}/settings" class="flex items-center gap-3 px-4 py-3 rounded-lg transition-colors {% if page == 'settings' %}bg-orange-500 text-white{% else %}text-gray-400 hover:bg-gray-800 hover:text-white{% endif %}">
+                <a href="{{ base_path }}/settings"
+                    class="flex items-center gap-3 px-4 py-3 rounded-lg transition-colors {% if page == 'settings' %}bg-orange-500 text-white{% else %}text-gray-400 hover:bg-gray-800 hover:text-white{% endif %}">
                     <i class="ph ph-gear text-xl"></i> Settings
                 </a>
             </nav>
@@ -76,10 +83,12 @@
                     {% endif %}
                 </h2>
                 <div class="flex items-center gap-4">
-                    <button onclick="alert('Exporting report...')" class="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+                    <button onclick="alert('Exporting report...')"
+                        class="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
                         Export Report
                     </button>
-                    <button id="refresh-model-btn" class="px-4 py-2 bg-orange-500 text-white rounded-lg text-sm font-medium hover:bg-orange-600 transition-colors flex items-center gap-2">
+                    <button id="refresh-model-btn"
+                        class="px-4 py-2 bg-orange-500 text-white rounded-lg text-sm font-medium hover:bg-orange-600 transition-colors flex items-center gap-2">
                         <i class="ph ph-arrows-clockwise"></i> Refresh Model
                     </button>
                 </div>
@@ -100,4 +109,5 @@
     <script src="{{ base_path }}/static/js/enhanced-visualizations.js"></script>
     <script src="{{ base_path }}/static/charts/charts.js"></script>
 </body>
+
 </html>

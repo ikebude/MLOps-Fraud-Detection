@@ -65,15 +65,15 @@ function initSparklines() {
 // Update sparkline
 function updateSparkline(id, value) {
     if (!sparklineCharts[id]) return;
-    
+
     const chart = sparklineCharts[id];
     const maxPoints = 20;
-    
+
     if (chart.data.labels.length >= maxPoints) {
         chart.data.labels.shift();
         chart.data.datasets[0].data.shift();
     }
-    
+
     chart.data.labels.push(new Date().toLocaleTimeString());
     chart.data.datasets[0].data.push(value);
     chart.update('none');
@@ -82,12 +82,12 @@ function updateSparkline(id, value) {
 // Calculate trend
 function calculateTrend(current, previous) {
     if (!previous || previous === 0) return { direction: 'stable', percent: 0 };
-    
+
     const change = ((current - previous) / previous) * 100;
     let direction = 'stable';
     if (change > 1) direction = 'up';
     else if (change < -1) direction = 'down';
-    
+
     return { direction, percent: Math.abs(change) };
 }
 
@@ -96,12 +96,12 @@ function formatTrend(trend, metricType) {
     if (trend.direction === 'stable') {
         return { html: '<span class="text-gray-500">Stable</span>', color: 'text-gray-500' };
     }
-    
+
     const icon = trend.direction === 'up' ? 'ph-trend-up' : 'ph-trend-down';
-    const color = metricType === 'fraud' 
+    const color = metricType === 'fraud'
         ? (trend.direction === 'up' ? 'text-red-600' : 'text-green-600')
         : (trend.direction === 'up' ? 'text-green-600' : 'text-red-600');
-    
+
     return {
         html: `<i class="ph ${icon} mr-1"></i><span>${trend.direction === 'up' ? '+' : '-'}${trend.percent.toFixed(1)}%</span>`,
         color
@@ -112,13 +112,13 @@ function formatTrend(trend, metricType) {
 function updateDataFreshness(timestamp) {
     const indicator = document.getElementById('realtime-indicator');
     const timestampEl = document.getElementById('data-timestamp');
-    
+
     if (!timestamp || !indicator || !timestampEl) return;
-    
+
     const now = new Date();
     const lastUpdate = new Date(timestamp);
     const diffSeconds = Math.floor((now - lastUpdate) / 1000);
-    
+
     if (diffSeconds < 10) {
         indicator.classList.remove('stale');
         indicator.classList.add('realtime-indicator');
@@ -139,18 +139,18 @@ function updateDataFreshness(timestamp) {
 function updateMetricEnhanced(id, value, previousValue = null) {
     const el = document.getElementById(id);
     if (!el) return;
-    
+
     // Remove skeleton
     const skeleton = el.querySelector('.skeleton');
     if (skeleton) {
         skeleton.remove();
     }
-    
+
     // Animate number change
     if (previousValue !== null && previousValue !== value) {
         el.classList.add('updating');
         setTimeout(() => el.classList.remove('updating'), 500);
-        
+
         // Animate number transition
         animateValue(el, previousValue, value, 500);
     } else {
@@ -162,27 +162,27 @@ function updateMetricEnhanced(id, value, previousValue = null) {
 function animateValue(element, start, end, duration) {
     const startTime = performance.now();
     const isNumber = !isNaN(parseFloat(start)) && !isNaN(parseFloat(end));
-    
+
     function update(currentTime) {
         const elapsed = currentTime - startTime;
         const progress = Math.min(elapsed / duration, 1);
-        
+
         if (isNumber) {
             const current = start + (end - start) * progress;
-            element.textContent = typeof end === 'string' && end.includes('%') 
+            element.textContent = typeof end === 'string' && end.includes('%')
                 ? current.toFixed(2) + '%'
                 : Math.floor(current).toLocaleString();
         } else {
             element.textContent = end;
         }
-        
+
         if (progress < 1) {
             requestAnimationFrame(update);
         } else {
             element.textContent = end;
         }
     }
-    
+
     requestAnimationFrame(update);
 }
 
@@ -192,14 +192,14 @@ function updateDriftStatus(status) {
     const statusEl = document.getElementById('drift-status');
     const iconEl = document.getElementById('drift-icon');
     const explanationEl = document.getElementById('drift-explanation');
-    
+
     if (!container || !statusEl) return;
-    
+
     let bgColor = 'bg-gray-50 border-gray-200';
     let textColor = 'text-gray-600';
     let iconColor = 'text-gray-500';
     let explanation = 'Monitoring fraud rate against baseline (2.5%)';
-    
+
     if (status === 'Warning') {
         bgColor = 'bg-yellow-50 border-yellow-300';
         textColor = 'text-yellow-700';
@@ -219,7 +219,7 @@ function updateDriftStatus(status) {
         explanation = 'Fraud rate within normal range. System operating normally.';
         container.classList.remove('alert-pulse');
     }
-    
+
     container.className = `p-4 rounded-lg border-2 ${bgColor}`;
     statusEl.className = `status-badge text-sm font-semibold ${textColor}`;
     statusEl.textContent = status;
@@ -233,28 +233,34 @@ function initChartsEnhanced() {
     if (!ctx) return;
 
     window.mainChart = new Chart(ctx, {
-        type: 'line',
+        type: 'bar',
         data: {
             labels: [],
             datasets: [{
                 label: 'Valid Transactions',
                 data: [],
+                backgroundColor: 'rgba(31, 41, 55, 0.7)',
                 borderColor: '#1F2937',
-                backgroundColor: 'rgba(31, 41, 55, 0.1)',
-                tension: 0.4,
-                fill: true,
-                pointRadius: 3,
-                pointHoverRadius: 5
+                borderWidth: 1,
+                borderRadius: 4,
+                order: 2,
+                yAxisID: 'y'
             },
             {
                 label: 'Fraud Attempts',
                 data: [],
+                type: 'line',
                 borderColor: '#F97316',
                 backgroundColor: 'rgba(249, 115, 22, 0.1)',
+                borderWidth: 3,
                 tension: 0.4,
-                fill: true,
-                pointRadius: 3,
-                pointHoverRadius: 5
+                pointRadius: 4,
+                pointHoverRadius: 6,
+                pointBackgroundColor: '#FFFFFF',
+                pointBorderColor: '#F97316',
+                pointBorderWidth: 2,
+                order: 1,
+                yAxisID: 'y1'
             }]
         },
         options: {
@@ -266,10 +272,12 @@ function initChartsEnhanced() {
             },
             plugins: {
                 legend: {
-                    position: 'bottom',
+                    position: 'top',
+                    align: 'end',
                     labels: {
                         usePointStyle: true,
-                        padding: 15
+                        padding: 15,
+                        font: { size: 12 }
                     }
                 },
                 tooltip: {
@@ -278,17 +286,58 @@ function initChartsEnhanced() {
                     titleFont: { size: 14, weight: 'bold' },
                     bodyFont: { size: 13 },
                     cornerRadius: 8,
-                    displayColors: true
+                    displayColors: true,
+                    callbacks: {
+                        label: function (context) {
+                            let label = context.dataset.label || '';
+                            if (label) {
+                                label += ': ';
+                            }
+                            if (context.parsed.y !== null) {
+                                label += context.parsed.y;
+                            }
+                            return label;
+                        }
+                    }
                 }
             },
             scales: {
                 y: {
+                    type: 'linear',
+                    display: true,
+                    position: 'left',
                     beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Total Volume',
+                        font: { size: 11, weight: 'bold' },
+                        color: '#6B7280'
+                    },
                     grid: {
                         color: 'rgba(0, 0, 0, 0.05)'
                     },
                     ticks: {
-                        precision: 0
+                        precision: 0,
+                        color: '#6B7280'
+                    }
+                },
+                y1: {
+                    type: 'linear',
+                    display: true,
+                    position: 'right',
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Fraud Attempts',
+                        font: { size: 11, weight: 'bold' },
+                        color: '#F97316'
+                    },
+                    grid: {
+                        drawOnChartArea: false
+                    },
+                    ticks: {
+                        precision: 0,
+                        color: '#F97316'
                     }
                 },
                 x: {
@@ -296,8 +345,10 @@ function initChartsEnhanced() {
                         display: false
                     },
                     ticks: {
-                        maxRotation: 45,
-                        minRotation: 0
+                        maxRotation: 0,
+                        autoSkip: true,
+                        maxTicksLimit: 8,
+                        color: '#6B7280'
                     }
                 }
             },
@@ -307,7 +358,7 @@ function initChartsEnhanced() {
             }
         }
     });
-    
+
     // Remove loading overlay
     const chartContainer = ctx.closest('.chart-container');
     if (chartContainer) {
@@ -318,12 +369,12 @@ function initChartsEnhanced() {
 // Enhanced chart update
 function updateChartsEnhanced(trends) {
     if (!window.mainChart || !trends) return;
-    
+
     if (!Array.isArray(trends.labels) || trends.labels.length === 0) {
         console.warn('No valid labels in trends data');
         return;
     }
-    
+
     try {
         window.mainChart.data.labels = trends.labels;
         window.mainChart.data.datasets[0].data = trends.valid_transactions || [];
@@ -355,7 +406,8 @@ function buildTransactionRowsEnhanced(txn) {
         <td class="px-6 py-4 whitespace-nowrap text-gray-500 font-mono text-xs">${txn.time}</td>
         <td class="px-6 py-4 font-mono text-xs text-gray-600">${txn.id}</td>
         <td class="px-6 py-4 font-medium text-gray-900">${txn.merchant}</td>
-        <td class="px-6 py-4 text-gray-900 font-semibold">$${txn.amount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+        <td class="px-6 py-4 text-gray-500 text-xs">${txn.location || 'Unknown'}</td>
+        <td class="px-6 py-4 text-gray-900 font-semibold">$${txn.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
         <td class="px-6 py-4">
             <span class="px-2 py-1 rounded-full text-xs font-medium ${riskColor}">
                 ${txn.risk_score}/100
@@ -368,7 +420,7 @@ function buildTransactionRowsEnhanced(txn) {
         </td>
         <td class="px-6 py-4">
             <button class="text-orange-600 hover:text-orange-700 text-xs font-medium" onclick="viewTransactionDetails('${txn.id}')">
-                View
+                Details
             </button>
         </td>
     `;
@@ -385,13 +437,13 @@ function buildTransactionRowsEnhanced(txn) {
     detailsRow.setAttribute('data-row-type', 'details');
     detailsRow.setAttribute('data-parent-id', txn.id);
     const detailsCell = document.createElement('td');
-    detailsCell.colSpan = 7;
+    detailsCell.colSpan = 8;
     detailsCell.className = 'px-6 py-4 text-xs text-gray-600';
     detailsCell.innerHTML = renderTopFeatures(txn.top_features);
     detailsRow.appendChild(detailsCell);
 
     row.onclick = () => {
-        if (!txn.top_features || txn.top_features.length === 0) return;
+        // Toggle details
         detailsRow.classList.toggle('hidden');
     };
 
@@ -410,62 +462,62 @@ async function fetchDataEnhanced() {
     try {
         const basePath = window.FRAUDGUARD_BASE_PATH || '';
         const apiUrl = `${basePath}/api/data?refresh=1`;
-        
+
         const response = await fetch(apiUrl, {
             headers: {
                 'Cache-Control': 'no-cache',
                 'Pragma': 'no-cache'
             }
         });
-        
+
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
-        
+
         const data = await response.json();
-        
+
         // Update data freshness
         if (data.inference_stats && data.inference_stats.timestamp) {
             updateDataFreshness(data.inference_stats.timestamp);
         }
-        
+
         // Store previous metrics for trend calculation
         dashboardState.previousMetrics = { ...dashboardState.metrics };
-        
+
         // Update metrics with animations
         if (data.metrics) {
             const metrics = data.metrics;
-            
+
             // Total transactions
-            updateMetricEnhanced('total-txn', (metrics.total_transactions || 0).toLocaleString(), 
+            updateMetricEnhanced('total-txn', (metrics.total_transactions || 0).toLocaleString(),
                 dashboardState.previousMetrics.total_transactions);
             updateSparkline('total-txn', metrics.total_transactions || 0);
-            
+
             // Fraud rate
             const fraudRate = (metrics.fraud_rate || 0).toFixed(2) + '%';
-            updateMetricEnhanced('fraud-rate', fraudRate, 
+            updateMetricEnhanced('fraud-rate', fraudRate,
                 dashboardState.previousMetrics.fraud_rate);
             updateSparkline('fraud-rate', metrics.fraud_rate || 0);
-            
+
             // Approval rate
             const approvalRate = (metrics.approval_rate || 0).toFixed(2) + '%';
             updateMetricEnhanced('approval-rate', approvalRate,
                 dashboardState.previousMetrics.approval_rate);
             updateSparkline('approval-rate', metrics.approval_rate || 0);
-            
+
             // Active alerts
             updateMetricEnhanced('active-alerts', metrics.active_alerts || 0,
                 dashboardState.previousMetrics.active_alerts);
-            
+
             // Update trends - calculate from REAL previous values
             const totalTrend = calculateTrend(metrics.total_transactions, dashboardState.previousMetrics.total_transactions);
             const fraudTrend = calculateTrend(metrics.fraud_rate, dashboardState.previousMetrics.fraud_rate);
             const approvalTrend = calculateTrend(metrics.approval_rate, dashboardState.previousMetrics.approval_rate);
-            
+
             updateTrendDisplay('total-txn-trend', totalTrend, 'transaction');
             updateTrendDisplay('fraud-rate-trend', fraudTrend, 'fraud');
             updateTrendDisplay('approval-rate-trend', approvalTrend, 'approval');
-            
+
             // Update alerts status dynamically
             const alertsEl = document.getElementById('alerts-status');
             if (alertsEl) {
@@ -481,26 +533,26 @@ async function fetchDataEnhanced() {
                     alertsEl.innerHTML = '<span>Requires attention</span>';
                 }
             }
-            
+
             // Store current metrics
             dashboardState.metrics = { ...metrics };
         }
-        
+
         // Update model health
         if (data.model_health) {
             updateModelHealthEnhanced(data.model_health);
         }
-        
+
         // Update inference stats
         if (data.inference_stats) {
             updateInferenceStats(data.inference_stats);
         }
-        
+
         // Update table
         if (data.transactions && Array.isArray(data.transactions)) {
             populateTableEnhanced(data.transactions);
         }
-        
+
         // Update charts
         if (typeof initChartsEnhanced === 'function' && !window.chartsInitialized) {
             initChartsEnhanced();
@@ -509,9 +561,9 @@ async function fetchDataEnhanced() {
         if (typeof updateChartsEnhanced === 'function' && data.trends) {
             updateChartsEnhanced(data.trends);
         }
-        
+
         dashboardState.lastUpdate = new Date();
-        
+
     } catch (error) {
         console.error('Error fetching data:', error);
         showError('Failed to load dashboard data. Please refresh the page.');
@@ -521,7 +573,7 @@ async function fetchDataEnhanced() {
 function updateTrendDisplay(id, trend, type) {
     const el = document.getElementById(id);
     if (!el) return;
-    
+
     const formatted = formatTrend(trend, type);
     el.className = `flex items-center text-sm ${formatted.color}`;
     el.innerHTML = formatted.html;
@@ -530,30 +582,30 @@ function updateTrendDisplay(id, trend, type) {
 function updateModelHealthEnhanced(health) {
     // Model name
     updateMetricEnhanced('model-name', health.name || 'Unknown');
-    
+
     // Model version
     updateMetricEnhanced('model-version', 'v' + (health.version || 'N/A'));
-    
+
     // Accuracy
     const accuracy = health.accuracy || 0;
     const accuracyStr = accuracy > 0 ? accuracy.toFixed(2) + '%' : '0.00%';
     updateMetricEnhanced('model-accuracy', accuracyStr);
-    
+
     // Progress bar
     const progressBar = document.getElementById('accuracy-progress-bar');
     if (progressBar) {
         progressBar.style.width = Math.min(accuracy, 100) + '%';
     }
-    
+
     // Drift status
     updateDriftStatus(health.drift_status || 'Unknown');
-    
+
     // Model source badge
     const sourceBadge = document.getElementById('model-source-badge');
     if (sourceBadge && health.source) {
         sourceBadge.textContent = health.source.toUpperCase();
     }
-    
+
     // Last updated
     const lastUpdated = document.getElementById('model-last-updated');
     if (lastUpdated) {
@@ -581,7 +633,7 @@ function populateTableEnhanced(transactions) {
     if (!tbody) return;
 
     tbody.innerHTML = '';
-    
+
     if (!transactions || transactions.length === 0) {
         tbody.innerHTML = `
             <tr>
@@ -592,14 +644,14 @@ function populateTableEnhanced(transactions) {
         `;
         return;
     }
-    
+
     // Show only recent 5 for dashboard
     const recentTxns = transactions.slice(0, 5);
 
     recentTxns.forEach((txn, index) => {
         const fragment = buildTransactionRowsEnhanced(txn);
         tbody.appendChild(fragment);
-        
+
         // Add highlight animation for new transactions
         if (index === 0) {
             setTimeout(() => {
@@ -630,19 +682,19 @@ function showError(message) {
 document.addEventListener('DOMContentLoaded', () => {
     // Initialize sparklines
     initSparklines();
-    
+
     // Initial data fetch
     fetchDataEnhanced();
-    
+
     // Set up polling as fallback (faster for real-time)
     setInterval(fetchDataEnhanced, 2000); // Every 2 seconds for TRUE real-time updates
-    
+
     // Set up EventSource for real-time updates
     if (window.EventSource) {
         const basePath = window.FRAUDGUARD_BASE_PATH || '';
         const streamUrl = `${basePath}/api/stream?interval_ms=2000`;
         const stream = new EventSource(streamUrl);
-        
+
         stream.onmessage = (event) => {
             try {
                 const data = JSON.parse(event.data);
@@ -650,30 +702,30 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (data.metrics) {
                     dashboardState.previousMetrics = { ...dashboardState.metrics };
                     dashboardState.metrics = data.metrics;
-                    
+
                     updateMetricEnhanced('total-txn', (data.metrics.total_transactions || 0).toLocaleString());
                     updateMetricEnhanced('fraud-rate', (data.metrics.fraud_rate || 0).toFixed(2) + '%');
                     updateMetricEnhanced('approval-rate', (data.metrics.approval_rate || 0).toFixed(2) + '%');
                     updateMetricEnhanced('active-alerts', data.metrics.active_alerts || 0);
                 }
-                
+
                 if (data.transaction) {
                     // ALWAYS prepend new transaction to ensure live feed updates
                     prependTransactionRowEnhanced(data.transaction);
                 }
-                
+
                 // Also update trends from stream data
                 if (data.metrics && typeof calculateTrend === 'function') {
                     const totalTrend = calculateTrend(data.metrics.total_transactions, dashboardState.previousMetrics.total_transactions);
                     const fraudTrend = calculateTrend(data.metrics.fraud_rate, dashboardState.previousMetrics.fraud_rate);
                     const approvalTrend = calculateTrend(data.metrics.approval_rate, dashboardState.previousMetrics.approval_rate);
-                    
+
                     if (typeof updateTrendDisplay === 'function') {
                         updateTrendDisplay('total-txn-trend', totalTrend, 'transaction');
                         updateTrendDisplay('fraud-rate-trend', fraudTrend, 'fraud');
                         updateTrendDisplay('approval-rate-trend', approvalTrend, 'approval');
                     }
-                    
+
                     // Update alerts status
                     const alertsEl = document.getElementById('alerts-status');
                     if (alertsEl) {
@@ -689,7 +741,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             alertsEl.innerHTML = '<span>Requires attention</span>';
                         }
                     }
-                    
+
                     // Store as previous for next comparison
                     dashboardState.previousMetrics = { ...data.metrics };
                 }
@@ -697,7 +749,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.error('Stream parse error:', err);
             }
         };
-        
+
         stream.onerror = () => {
             console.log('EventSource error, using polling fallback');
             stream.close();
@@ -708,21 +760,21 @@ document.addEventListener('DOMContentLoaded', () => {
 function prependTransactionRowEnhanced(txn) {
     const tbody = document.getElementById('txn-table-body');
     if (!tbody) return;
-    
+
     // Check if this transaction already exists (avoid duplicates)
     const existingRow = tbody.querySelector(`tr[data-txn-id="${txn.id}"]`);
     if (existingRow) {
         // Transaction already shown, just update it
         return;
     }
-    
+
     // Remove loading message if present
     const loadingRow = tbody.querySelector('tr[colspan]');
     if (loadingRow) loadingRow.remove();
-    
+
     const fragment = buildTransactionRowsEnhanced(txn);
     tbody.insertBefore(fragment, tbody.firstChild);
-    
+
     // Highlight new row with animation
     const newRow = tbody.querySelector(`tr[data-txn-id="${txn.id}"]`);
     if (newRow) {
@@ -731,7 +783,7 @@ function prependTransactionRowEnhanced(txn) {
         newRow.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         setTimeout(() => newRow.classList.remove('new'), 2000);
     }
-    
+
     // Keep only last 20 rows (not 5) for better visibility
     const mainRows = Array.from(tbody.querySelectorAll('tr[data-row-type="main"]'));
     if (mainRows.length > 20) {

@@ -84,6 +84,7 @@ class FraudDetectionInference:
         
         # Database connection
         self.db_conn = self._connect_db()
+        self._ensure_schema()
         
         logger.info("Fraud detection inference system initialized")
     
@@ -119,6 +120,67 @@ class FraudDetectionInference:
         except Exception as e:
             logger.error(f"Database connection failed: {e}")
             return None
+
+    def _ensure_schema(self):
+        """Ensure database schema is correct, adding missing columns if needed."""
+        if not self.db_conn:
+            return
+
+        try:
+            cur = self.db_conn.cursor()
+            
+            # Create table if not exists (base schema)
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS fraud_predictions (
+                    id SERIAL PRIMARY KEY,
+                    transaction_id VARCHAR(50) UNIQUE NOT NULL,
+                    user_id VARCHAR(50),
+                    amount DECIMAL(15, 2),
+                    fraud_probability FLOAT,
+                    fraud_prediction INTEGER,
+                    fraud_label VARCHAR(20),
+                    risk_level VARCHAR(20),
+                    actual_fraud INTEGER DEFAULT 0,
+                    prediction_timestamp TIMESTAMP DEFAULT NOW()
+                );
+            """)
+            
+            # Add indices if not exist
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_pred_txn ON fraud_predictions(transaction_id);")
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_pred_timestamp ON fraud_predictions(prediction_timestamp);")
+            
+            # Determine existing columns to add missing ones (migration logic)
+            cur.execute("""
+                SELECT column_name 
+                FROM information_schema.columns 
+                WHERE table_name = 'fraud_predictions';
+            """)
+            existing_columns = {row[0] for row in cur.fetchall()}
+            
+            # Add missing columns safely
+            alter_statements = []
+            if 'fraud_label' not in existing_columns:
+                alter_statements.append("ALTER TABLE fraud_predictions ADD COLUMN IF NOT EXISTS fraud_label VARCHAR(20);")
+            if 'risk_level' not in existing_columns:
+                alter_statements.append("ALTER TABLE fraud_predictions ADD COLUMN IF NOT EXISTS risk_level VARCHAR(20);")
+            if 'actual_fraud' not in existing_columns:
+                alter_statements.append("ALTER TABLE fraud_predictions ADD COLUMN IF NOT EXISTS actual_fraud INTEGER DEFAULT 0;")
+            
+            for stmt in alter_statements:
+                try:
+                    cur.execute(stmt)
+                    logger.info(f"Executed schema migration: {stmt}")
+                except Exception as e:
+                    logger.warning(f"Schema migration failed (might already exist): {e}")
+            
+            self.db_conn.commit()
+            cur.close()
+            logger.info("Database schema verified")
+            
+        except Exception as e:
+            logger.error(f"Schema verification failed: {e}")
+            if self.db_conn:
+                self.db_conn.rollback()
     
     def fetch_transaction(self, transaction_id: str) -> Optional[pd.DataFrame]:
         """
@@ -589,6 +651,7 @@ class FraudDetectionInference:
                     rating, is_fraud, fraud_type
                 FROM transactions
                 WHERE transaction_id NOT IN (SELECT transaction_id FROM fraud_predictions)
+                AND timestamp > NOW() - INTERVAL '1 hour'
                 ORDER BY timestamp DESC
                 LIMIT {max_records}
             """
@@ -645,27 +708,7 @@ class FraudDetectionInference:
             return False
         
         try:
-            # Create predictions table if not exists
-            create_table_sql = """
-            CREATE TABLE IF NOT EXISTS fraud_predictions (
-                id SERIAL PRIMARY KEY,
-                transaction_id VARCHAR(50) UNIQUE NOT NULL,
-                user_id VARCHAR(50),
-                amount DECIMAL(15, 2),
-                fraud_probability FLOAT,
-                fraud_prediction INTEGER,
-                fraud_label VARCHAR(20),
-                risk_level VARCHAR(20),
-                prediction_timestamp TIMESTAMP DEFAULT NOW(),
-                actual_fraud INTEGER
-            );
-            CREATE INDEX IF NOT EXISTS idx_pred_txn ON fraud_predictions(transaction_id);
-            CREATE INDEX IF NOT EXISTS idx_pred_timestamp ON fraud_predictions(prediction_timestamp);
-            """
-            
             cur = self.db_conn.cursor()
-            cur.execute(create_table_sql)
-            self.db_conn.commit()
             
             # Insert predictions
             insert_sql = """
@@ -701,6 +744,8 @@ class FraudDetectionInference:
             
         except Exception as e:
             logger.error(f"Failed to save predictions: {e}")
+            if self.db_conn:
+                self.db_conn.rollback()
             return False
     
     def monitor_continuous(self, interval: int = 5):

@@ -134,7 +134,7 @@ def initialize_inference():
     """Initialize the inference pipeline and start continuous inference worker"""
     global inference_pipeline, cumulative_total_records, cumulative_fraud_detections, continuous_worker
     try:
-        inference_pipeline = FraudDetectionInference(config_path='/app/config.yaml')
+        inference_pipeline = FraudDetectionInference()
         logger.info('Inference pipeline initialized successfully')
         
         # Reload cumulative stats from file (in case it was updated)
@@ -182,16 +182,20 @@ def root():
 @app.route('/health', methods=['GET'])
 @app.route('/inference/health', methods=['GET'])
 def health_check():
-    """Health check endpoint"""
+    """Health check endpoint with model status"""
     try:
-        model_loaded = inference_pipeline.model is not None if inference_pipeline else False
+        model_loaded = inference_pipeline is not None and inference_pipeline.model is not None
+        inference_model_loaded.set(1 if model_loaded else 0)
+        
+        status = 'healthy' if model_loaded else 'degraded'
         return jsonify({
-            'status': 'healthy',
+            'status': status,
             'model_loaded': model_loaded,
             'model_version': getattr(inference_pipeline, 'model_version', None),
             'timestamp': datetime.now().isoformat()
         }), 200
     except Exception as e:
+        logger.error('Health check failed: %s', str(e), exc_info=True)
         return jsonify({
             'status': 'unhealthy',
             'error': str(e),
@@ -528,23 +532,7 @@ def get_metrics():
         return jsonify({'error': str(e)}), 500
 
 
-@app.route('/health', methods=['GET'])
-def health_check():
-    """Health check endpoint with model status"""
-    try:
-        model_loaded = inference_pipeline is not None and inference_pipeline.model is not None
-        inference_model_loaded.set(1 if model_loaded else 0)
-        
-        status = 'healthy' if model_loaded else 'degraded'
-        return jsonify({
-            'status': status,
-            'model_loaded': model_loaded,
-            'inference_service': 'operational',
-            'timestamp': datetime.now().isoformat()
-        }), 200
-    except Exception as e:
-        logger.error('Health check failed: %s', str(e), exc_info=True)
-        return jsonify({'status': 'unhealthy', 'error': str(e)}), 500
+
 
 
 if __name__ == '__main__':

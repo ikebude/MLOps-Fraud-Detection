@@ -1,0 +1,35 @@
+[2026-02-09T12:43:08.588+0000] {local_task_job_runner.py:123} INFO - ::group::Pre task execution logs
+[2026-02-09T12:43:08.679+0000] {taskinstance.py:2612} INFO - Dependencies all met for dep_context=non-requeueable deps ti=<TaskInstance: fraud_detection_training.execute_training scheduled__2026-02-08T12:00:00+00:00 [queued]>
+[2026-02-09T12:43:08.707+0000] {taskinstance.py:2612} INFO - Dependencies all met for dep_context=requeueable deps ti=<TaskInstance: fraud_detection_training.execute_training scheduled__2026-02-08T12:00:00+00:00 [queued]>
+[2026-02-09T12:43:08.708+0000] {taskinstance.py:2865} INFO - Starting attempt 1 of 1
+[2026-02-09T12:43:08.752+0000] {taskinstance.py:2888} INFO - Executing <Task(PythonOperator): execute_training> on 2026-02-08 12:00:00+00:00
+[2026-02-09T12:43:08.778+0000] {warnings.py:112} WARNING - /home/***/.local/lib/python3.12/site-packages/***/task/task_runner/standard_task_runner.py:70: DeprecationWarning: This process (pid=161) is multi-threaded, use of fork() may lead to deadlocks in the child.
+  pid = os.fork()
+
+[2026-02-09T12:43:08.788+0000] {standard_task_runner.py:72} INFO - Started process 174 to run task
+[2026-02-09T12:43:08.785+0000] {standard_task_runner.py:104} INFO - Running: ['***', 'tasks', 'run', 'fraud_detection_training', 'execute_training', 'scheduled__2026-02-08T12:00:00+00:00', '--job-id', '95', '--raw', '--subdir', 'DAGS_FOLDER/fraud_detection_training_dag.py', '--cfg-path', '/tmp/tmpsgxk5dmj']
+[2026-02-09T12:43:08.796+0000] {standard_task_runner.py:105} INFO - Job 95: Subtask execute_training
+[2026-02-09T12:43:08.996+0000] {task_command.py:467} INFO - Running <TaskInstance: fraud_detection_training.execute_training scheduled__2026-02-08T12:00:00+00:00 [running]> on host f2cf3f0842ef
+[2026-02-09T12:43:09.905+0000] {taskinstance.py:3131} INFO - Exporting env vars: AIRFLOW_CTX_DAG_OWNER='datamasterylab.com' AIRFLOW_CTX_DAG_ID='fraud_detection_training' AIRFLOW_CTX_TASK_ID='execute_training' AIRFLOW_CTX_EXECUTION_DATE='2026-02-08T12:00:00+00:00' AIRFLOW_CTX_TRY_NUMBER='1' AIRFLOW_CTX_DAG_RUN_ID='scheduled__2026-02-08T12:00:00+00:00'
+[2026-02-09T12:43:09.911+0000] {taskinstance.py:731} INFO - ::endgroup::
+[2026-02-09T12:43:10.868+0000] {fraud_detection_training_dag.py:121} INFO - Initializing fraud detection training (transactions_table=transactions)
+[2026-02-09T12:43:11.183+0000] {fraud_detection_training.py:144} INFO - Configuration loaded successfully
+[2026-02-09T12:43:11.185+0000] {fraud_detection_training.py:158} INFO - Database configured: postgres
+[2026-02-09T12:43:32.709+0000] {fraud_detection_training.py:195} INFO - Object storage verified. Buckets: ['mlflow']
+[2026-02-09T12:43:34.295+0000] {fraud_detection_training.py:241} INFO - MLflow configured successfully
+[2026-02-09T12:43:34.310+0000] {fraud_detection_training.py:137} INFO - Fraud detection training system initialized
+[2026-02-09T12:43:34.318+0000] {fraud_detection_training_dag.py:128} INFO - Starting model training...
+[2026-02-09T12:43:34.432+0000] {fraud_detection_training_dag.py:134} INFO - Requested training batch_size=100000, min_records=100000
+[2026-02-09T12:43:34.434+0000] {fraud_detection_training.py:257} INFO - Starting data ingestion from PostgreSQL (table=transactions, limit=100000)...
+[2026-02-09T12:43:34.437+0000] {fraud_detection_training.py:279} INFO - Connecting to transactions DB: postgres:5432/transactions_db (user=fraud_producer)
+[2026-02-09T12:43:34.462+0000] {fraud_detection_training.py:334} INFO - Executing query (limit=100000) against transactions
+[2026-02-09T12:44:01.091+0000] {fraud_detection_training.py:355} INFO - Ingested 100000 raw transactions from transactions (requested 100000)
+[2026-02-09T12:44:01.117+0000] {fraud_detection_training.py:357} INFO - Date range: 2026-02-08 08:12:08.926629 to 2026-02-09 12:43:00.612866
+[2026-02-09T12:44:01.122+0000] {fraud_detection_training.py:358} INFO - Fraud rate: 2.74%
+[2026-02-09T12:44:01.135+0000] {fraud_detection_training.py:697} INFO - Starting model training...
+[2026-02-09T12:44:05.149+0000] {font_manager.py:1639} INFO - generated new fontManager
+[2026-02-09T12:44:09.269+0000] {fraud_detection_training.py:377} INFO - Starting feature engineering for 74 features (54 engineered + 20 raw)...
+[2026-02-09T12:44:12.193+0000] {fraud_detection_training.py:390} INFO - Engineering amount-based features (strongest signal)...
+[2026-02-09T12:44:13.062+0000] {fraud_detection_training.py:444} INFO - Engineering identity features...
+[2026-02-09T12:44:13.767+0000] {fraud_detection_training.py:465} INFO - Engineering device features...
+[2026-02-09T12:44:17.546+0000] {fraud_detection_training.py:496} INFO - Engineering location features...

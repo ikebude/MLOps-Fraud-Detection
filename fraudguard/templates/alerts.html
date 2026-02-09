@@ -3,56 +3,92 @@
 {% block content %}
 <div class="space-y-6">
     <div class="flex justify-between items-center">
-        <h2 class="text-2xl font-bold text-gray-900">Active Alerts</h2>
-        <span class="px-3 py-1 bg-red-100 text-red-700 rounded-full text-sm font-medium">{{ alerts|length }} alerts</span>
+        <div>
+            <h2 class="text-2xl font-bold text-gray-900">Active Alerts</h2>
+            <p class="text-sm text-gray-500 mt-1">High-risk transactions requiring immediate attention</p>
+        </div>
+        <span class="px-4 py-2 bg-red-100 text-red-800 rounded-lg text-sm font-bold flex items-center gap-2">
+            <i class="ph ph-warning-circle text-lg"></i>
+            {{ alerts|length }} Critical Alerts
+        </span>
     </div>
-    
+
     {% if alerts %}
-    <div class="grid gap-6">
+    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
         {% for alert in alerts %}
-        {% set txn_id = alert.get('transaction_id') or alert.get('id') or alert.get('txn_id') or 'Unknown' %}
-        {% set amount = alert.get('amount') or alert.get('transaction_amount') or alert.get('value') or 0.0 %}
-        {% set fraud_prob = alert.get('fraud_probability') or alert.get('fraud_score') or alert.get('probability') or 0.0 %}
-        {% set risk_score = (fraud_prob * 100)|int if fraud_prob else 0 %}
-        {% set timestamp = alert.get('timestamp') or alert.get('time') or alert.get('created_at') or '' %}
-        
-        <div class="bg-white p-6 rounded-xl shadow-sm border border-l-4 border-l-red-500 border-gray-100">
-            <div class="flex justify-between items-start">
-                <div class="flex-1">
-                    <div class="flex items-center gap-3 mb-3">
-                        <h3 class="text-lg font-bold text-gray-900">Fraud Alert: {{ txn_id }}</h3>
-                        <span class="px-2 py-1 text-xs font-medium bg-red-100 text-red-700 rounded">Risk: {{ risk_score }}/100</span>
-                    </div>
-                    <div class="space-y-2 mb-4">
-                        <p class="text-gray-700">
-                            <span class="font-medium">Amount:</span> ${{ "%.2f"|format(amount) }}
-                        </p>
-                        <p class="text-gray-700">
-                            <span class="font-medium">Fraud Probability:</span> {{ "%.2f"|format(fraud_prob * 100) }}%
-                        </p>
-                        {% if timestamp %}
-                        <p class="text-gray-600 text-sm">
-                            <span class="font-medium">Detected:</span> {{ timestamp }}
-                        </p>
-                        {% endif %}
-                    </div>
-                    <div class="flex gap-3">
-                        <button class="px-4 py-2 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-800">Investigate</button>
-                        <button class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50">Dismiss</button>
+        {% set txn_id = alert.get('transaction_id') or alert.get('id') or 'Unknown' %}
+        {% set amount = alert.get('amount') or 0.0 %}
+        {% set fraud_prob = alert.get('fraud_probability') or 0.0 %}
+        {% set risk_score = (fraud_prob * 100)|int %}
+        {% set timestamp = alert.get('timestamp') or '' %}
+        {% set merchant = alert.get('merchant') or 'Unknown Merchant' %}
+        {% set location = alert.get('location') or 'Unknown Location' %}
+
+        <div
+            class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow group">
+            <div
+                class="p-4 border-b border-gray-50 flex justify-between items-start bg-gradient-to-r from-white to-red-50">
+                <div>
+                    <span class="text-xs font-mono text-gray-500 block mb-1">{{ txn_id }}</span>
+                    <h3 class="font-bold text-gray-900">{{ merchant }}</h3>
+                </div>
+                <div class="text-right">
+                    <span class="block font-bold text-lg text-gray-900">${{ "%.2f"|format(amount) }}</span>
+                    <span class="text-xs text-gray-500">{{ timestamp }}</span>
+                </div>
+            </div>
+
+            <div class="p-4 space-y-4">
+                <div class="flex items-center justify-between">
+                    <span class="text-sm text-gray-600">Risk Score</span>
+                    <div class="flex items-center gap-2">
+                        <div class="w-24 h-2 bg-gray-100 rounded-full overflow-hidden">
+                            <div class="h-full bg-red-500 rounded-full" style="width: {{ risk_score }}%"></div>
+                        </div>
+                        <span class="text-sm font-bold text-red-600">{{ risk_score }}/100</span>
                     </div>
                 </div>
-                <div class="ml-4">
-                    <i class="ph ph-warning-circle text-3xl text-red-500"></i>
+
+                <div class="p-3 bg-red-50 rounded-lg border border-red-100">
+                    <div class="flex items-start gap-2">
+                        <i class="ph ph-siren text-red-500 mt-0.5"></i>
+                        <div>
+                            <p class="text-xs font-bold text-red-800 uppercase tracking-wide mb-1">Detected Issue</p>
+                            <p class="text-sm text-red-700">High probability of fraud ({{ "%.1f"|format(fraud_prob *
+                                100) }}%) based on transaction patterns.</p>
+                        </div>
+                    </div>
                 </div>
+
+                <div class="flex items-center justify-between text-xs text-gray-500 pt-2 border-t border-gray-50">
+                    <span class="flex items-center gap-1">
+                        <i class="ph ph-map-pin"></i> {{ location }}
+                    </span>
+                    <button class="text-blue-600 hover:text-blue-800 font-medium">View Details &rarr;</button>
+                </div>
+            </div>
+
+            <div class="px-4 py-3 bg-gray-50 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button
+                    class="flex-1 py-1.5 bg-white border border-gray-200 text-gray-700 rounded text-sm font-medium hover:bg-gray-100 shadow-sm">
+                    Dismiss
+                </button>
+                <button
+                    class="flex-1 py-1.5 bg-gray-900 text-white rounded text-sm font-medium hover:bg-gray-800 shadow-sm">
+                    Block User
+                </button>
             </div>
         </div>
         {% endfor %}
     </div>
     {% else %}
-    <div class="bg-white p-12 rounded-xl shadow-sm border border-gray-100 text-center">
-        <i class="ph ph-check-circle text-5xl text-green-500 mb-4"></i>
-        <h3 class="text-xl font-semibold text-gray-900 mb-2">All Clear!</h3>
-        <p class="text-gray-500">No active fraud alerts at this time.</p>
+    <div
+        class="flex flex-col items-center justify-center py-20 bg-white rounded-xl border border-dashed border-gray-300">
+        <div class="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center mb-4">
+            <i class="ph ph-shield-check text-3xl text-green-500"></i>
+        </div>
+        <h3 class="text-xl font-bold text-gray-900 mb-2">System Secure</h3>
+        <p class="text-gray-500">No active threats detected at this moment.</p>
     </div>
     {% endif %}
 </div>
