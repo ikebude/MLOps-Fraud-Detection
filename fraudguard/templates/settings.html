@@ -1,93 +1,68 @@
 {% extends "base.html" %}
+
 {% block content %}
-<style>
-  .live-badge { display: inline-block; width: 8px; height: 8px; background: #22c55e; border-radius: 50%; animation: pulse 2s infinite; }
-  @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
-  .code-block { background: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 0.5rem; padding: 1rem; font-family: monospace; font-size: 0.875rem; overflow-x: auto; }
-</style>
-<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-  <div class="lg:col-span-2">
-    <div class="bg-white p-8 rounded-xl shadow-sm border border-gray-100 mb-6">
-      <h3 class="text-xl font-semibold text-gray-900 mb-2">Configuration</h3>
-      <p class="text-gray-500 mb-6">FraudGuard reads configuration from environment variables and Docker Compose.</p>
-      
-      <div class="space-y-6">
-        <div>
-          <h4 class="font-medium text-gray-800 mb-3">Database Configuration</h4>
-          <div class="code-block">
-DB_HOST=127.0.0.1<br/>
-DB_PORT=5432<br/>
-DB_NAME=transactions_db<br/>
-DB_USER=fraud_producer<br/>
-DB_PASSWORD=fraud_producer_pass
-          </div>
-          <p class="text-xs text-gray-500 mt-2">Set in <code>src/.env</code></p>
+<div class="space-y-6">
+    <h2 class="text-2xl font-bold text-gray-900">Settings</h2>
+    
+    <!-- Model Configuration -->
+    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+        <h3 class="text-lg font-semibold text-gray-900 mb-4">Model Configuration</h3>
+        <div class="space-y-4">
+            <div class="flex justify-between items-center py-2 border-b border-gray-100">
+                <span class="text-sm text-gray-600">Model Name</span>
+                <span class="text-sm font-semibold text-gray-900">{{ model_health.name }}</span>
+            </div>
+            <div class="flex justify-between items-center py-2 border-b border-gray-100">
+                <span class="text-sm text-gray-600">Model Version</span>
+                <span class="text-sm font-semibold text-blue-600">{{ model_health.version }}</span>
+            </div>
+            <div class="flex justify-between items-center py-2 border-b border-gray-100">
+                <span class="text-sm text-gray-600">Model Accuracy</span>
+                <span class="text-sm font-semibold text-gray-900">{{ "%.2f"|format(model_health.accuracy) }}%</span>
+            </div>
+            <div class="flex justify-between items-center py-2">
+                <span class="text-sm text-gray-600">Model Source</span>
+                <span class="text-xs font-medium px-2 py-1 bg-blue-100 text-blue-700 rounded">MLflow</span>
+            </div>
         </div>
-        
-        <div>
-          <h4 class="font-medium text-gray-800 mb-3">Service URLs</h4>
-          <div class="code-block">
-INFERENCE_SERVICE_URL=http://inference:8000<br/>
-MLFLOW_TRACKING_URI=http://mlflow-server:5500<br/>
-AIRFLOW_WEBSERVER_URL=http://airflow-webserver:8080<br/>
-MINIO_URL=http://minio:9000<br/>
-FLOWER_URL=http://flower:5555
-          </div>
-          <p class="text-xs text-gray-500 mt-2">Docker internal hostnames</p>
-        </div>
-      </div>
-    </div>
-  </div>
-  
-  <div>
-    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 mb-6">
-      <div class="flex items-center gap-2 mb-4">
-        <h3 class="text-lg font-semibold text-gray-900">System Status</h3>
-        <span class="live-badge" title="Live"></span>
-      </div>
-      <div class="space-y-3" id="quick-status"></div>
-      <button id="refresh-settings-btn" class="w-full mt-4 px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg text-sm font-medium transition">🔄 Refresh</button>
     </div>
     
+    <!-- System Configuration -->
     <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-      <h3 class="text-lg font-semibold text-gray-900 mb-4">Quick Links</h3>
-      <ul class="space-y-2 text-sm">
-        <li><a href="http://localhost:5000" target="_blank" rel="noopener" class="text-orange-600 hover:underline">🛡️ Dashboard (5000)</a></li>
-        <li><a href="http://localhost:8000" target="_blank" rel="noopener" class="text-orange-600 hover:underline">🔬 Inference (8000)</a></li>
-        <li><a href="http://localhost:8080" target="_blank" rel="noopener" class="text-orange-600 hover:underline">🔄 Airflow (8080)</a></li>
-        <li><a href="http://localhost:5500" target="_blank" rel="noopener" class="text-orange-600 hover:underline">📊 MLflow (5500)</a></li>
-        <li><a href="http://localhost:9001" target="_blank" rel="noopener" class="text-orange-600 hover:underline">🪣 MinIO (9001)</a></li>
-        <li><a href="http://localhost:5555" target="_blank" rel="noopener" class="text-orange-600 hover:underline">🌼 Flower (5555)</a></li>
-      </ul>
+        <h3 class="text-lg font-semibold text-gray-900 mb-4">System Configuration</h3>
+        <div class="space-y-4">
+            <div class="flex justify-between items-center py-2 border-b border-gray-100">
+                <span class="text-sm text-gray-600">Inference Service</span>
+                <span class="text-xs font-medium px-2 py-1 rounded {% if inference_health.status == 'healthy' %}bg-green-100 text-green-700{% else %}bg-red-100 text-red-700{% endif %}">
+                    {{ inference_health.status|upper }}
+                </span>
+            </div>
+            <div class="flex justify-between items-center py-2 border-b border-gray-100">
+                <span class="text-sm text-gray-600">MLflow Tracking URI</span>
+                <span class="text-xs font-mono text-gray-600">http://mlflow:5000</span>
+            </div>
+            <div class="flex justify-between items-center py-2">
+                <span class="text-sm text-gray-600">Inference Service URL</span>
+                <span class="text-xs font-mono text-gray-600">http://inference:8000</span>
+            </div>
+        </div>
     </div>
-  </div>
+    
+    <!-- Thresholds Configuration -->
+    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+        <h3 class="text-lg font-semibold text-gray-900 mb-4">Fraud Detection Thresholds</h3>
+        <div class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Risk Score Threshold</label>
+                <input type="number" value="70" min="0" max="100" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" disabled>
+                <p class="text-xs text-gray-500 mt-1">Transactions above this score are flagged as fraud</p>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Drift Warning Threshold</label>
+                <input type="number" value="2.0" min="0" max="10" step="0.1" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" disabled>
+                <p class="text-xs text-gray-500 mt-1">Multiplier of baseline fraud rate to trigger warning</p>
+            </div>
+        </div>
+    </div>
 </div>
-
-<script>
-(function () {
-  function loadStatus() {
-    fetch('/api/data').then(r => r.json()).then(d => {
-      const m = (d.metrics || {});
-      const statusMap = {
-        'inference_status': ['🔬 Inference', m.inference_status],
-        'mlflow_status': ['📊 MLflow', m.mlflow_status],
-        'airflow_status': ['🔄 Airflow', m.airflow_status],
-        'minio_status': ['🪣 MinIO', m.minio_status],
-        'flower_status': ['🌼 Flower', m.flower_status],
-      };
-      
-      const html = Object.entries(statusMap).map(([_, [name, status]]) => {
-        const ok = status === 'ok';
-        return `<div class="flex justify-between items-center text-sm"><span>${name}</span><span class="${ok ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold'}">${ok ? '✓' : '✗'}</span></div>`;
-      }).join('');
-      
-      document.getElementById('quick-status').innerHTML = html;
-    });
-  }
-  
-  loadStatus();
-  setInterval(loadStatus, 5000);
-  document.getElementById('refresh-settings-btn').addEventListener('click', loadStatus);
-})();
-</script>
 {% endblock %}

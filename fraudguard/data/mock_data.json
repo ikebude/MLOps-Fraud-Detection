@@ -1,0 +1,32 @@
+{
+  "metrics": {
+    "total_transactions": 12543,
+    "fraud_rate": 0.42,
+    "approval_rate": 98.5,
+    "active_alerts": 23
+  },
+  "transactions": [
+    {"id": "TXN-1001", "time": "10:42 AM", "merchant": "Amazon", "amount": 129.99, "risk_score": 12, "status": "Approved"},
+    {"id": "TXN-1002", "time": "10:45 AM", "merchant": "Unknown Crypto Exchange", "amount": 4500.00, "risk_score": 88, "status": "Flagged"},
+    {"id": "TXN-1003", "time": "10:48 AM", "merchant": "Starbucks", "amount": 5.50, "risk_score": 2, "status": "Approved"},
+    {"id": "TXN-1004", "time": "11:02 AM", "merchant": "Apple Store", "amount": 999.00, "risk_score": 15, "status": "Approved"},
+    {"id": "TXN-1005", "time": "11:15 AM", "merchant": "Overseas Transfer", "amount": 2000.00, "risk_score": 92, "status": "Declined"},
+    {"id": "TXN-1006", "time": "11:20 AM", "merchant": "Uber", "amount": 24.00, "risk_score": 5, "status": "Approved"},
+    {"id": "TXN-1007", "time": "11:25 AM", "merchant": "Walmart", "amount": 89.50, "risk_score": 8, "status": "Approved"},
+    {"id": "TXN-1008", "time": "11:30 AM", "merchant": "Gaming Site", "amount": 50.00, "risk_score": 45, "status": "Review"},
+    {"id": "TXN-1009", "time": "11:35 AM", "merchant": "Netflix", "amount": 15.99, "risk_score": 1, "status": "Approved"},
+    {"id": "TXN-1010", "time": "11:40 AM", "merchant": "Luxury Watch Store", "amount": 8500.00, "risk_score": 95, "status": "Declined"}
+  ],
+  "alerts": [
+    {"id": 1, "type": "High Value", "message": "Unusual high value transaction detected", "time": "10:45 AM", "severity": "high"},
+    {"id": 2, "type": "Location Mismatch", "message": "Transaction location differs from user history", "time": "11:15 AM", "severity": "critical"},
+    {"id": 3, "type": "Velocity", "message": "Multiple transactions in short duration", "time": "11:30 AM", "severity": "medium"}
+  ],
+  "model_health": {
+    "name": "FraudX-v2.1",
+    "version": "2.1.0",
+    "accuracy": 94.8,
+    "drift_status": "Normal",
+    "last_retrained": "2024-10-15"
+  }
+}

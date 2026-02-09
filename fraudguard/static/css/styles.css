@@ -1,3 +1,4 @@
+/* Custom styles if needed beyond Tailwind */
 .hover-elevate {
     transition: transform 0.2s, box-shadow 0.2s;
 }

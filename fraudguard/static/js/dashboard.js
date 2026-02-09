@@ -1,194 +1,334 @@
-(function () {
-    function el(id) { return document.getElementById(id); }
-    function updateMetric(id, val) { var e = el(id); if (e) e.textContent = val; }
+document.addEventListener('DOMContentLoaded', () => {
+    const basePath = window.FRAUDGUARD_BASE_PATH || '';
 
-    function runInference() {
-        var btn = el('btn-run-inference');
-        if (btn) btn.disabled = true;
-        fetch('/api/inference/run', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ max_records: 1000 })
-        })
-            .then(function () { window.location.reload(); })
-            .catch(function () { window.location.reload(); })
-            .finally(function () { if (btn) btn.disabled = false; });
-    }
-    function refresh() { window.location.reload(); }
-
-    var brun = el('btn-run-inference');
-    var bref = el('btn-refresh');
-    if (brun) brun.addEventListener('click', runInference);
-    if (bref) bref.addEventListener('click', refresh);
-
-    function renderTable(rows) {
-        var tbody = el('txn-table-body');
-        if (!tbody) return;
-        tbody.innerHTML = '';
-        var slice = (rows || []).slice(0, 10);
-        slice.forEach(function (r) {
-            var riskCl = 'text-green-600 bg-green-50';
-            if (r.risk_score > 80) riskCl = 'text-red-600 bg-red-50 font-bold';
-            else if (r.risk_score > 50) riskCl = 'text-orange-600 bg-orange-50';
-            var statusCl = 'bg-gray-100 text-gray-800';
-            if (r.status === 'Approved') statusCl = 'bg-green-100 text-green-800';
-            if (r.status === 'Declined') statusCl = 'bg-red-100 text-red-800';
-            if (r.status === 'Flagged') statusCl = 'bg-orange-100 text-orange-800';
-            var tr = document.createElement('tr');
-            tr.className = 'hover:bg-gray-50';
-            // format time if possible
-            var t = r.time || '—';
-            try { const dd = new Date(r.time); if (!isNaN(dd.getTime())) t = dd.toLocaleString(); } catch (e) { }
-            tr.innerHTML = '<td class="px-6 py-4 whitespace-nowrap text-gray-500">' + t + '</td>' +
-                '<td class="px-6 py-4 font-mono text-xs text-gray-600">' + r.id + '</td>' +
-                '<td class="px-6 py-4 font-medium text-gray-900">' + r.merchant + '</td>' +
-                '<td class="px-6 py-4 text-gray-900">' + (r.currency ? (r.currency + ' ') : '') + Number(r.amount).toFixed(2) + '</td>' +
-                '<td class="px-6 py-4"><span class="px-2 py-1 rounded-full text-xs font-medium ' + riskCl + '">' + r.risk_score + '</span></td>' +
-                '<td class="px-6 py-4"><span class="px-2 py-1 rounded-full text-xs font-medium ' + statusCl + '">' + r.status + '</span></td>';
-            tbody.appendChild(tr);
+    const refreshButton = document.getElementById('refresh-model-btn');
+    if (refreshButton) {
+        refreshButton.addEventListener('click', async () => {
+            try {
+                refreshButton.disabled = true;
+                refreshButton.classList.add('opacity-60');
+                await fetch(`${basePath}/api/inference/run`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ max_records: 1000 })
+                });
+            } catch (error) {
+                console.error('Error triggering inference:', error);
+            } finally {
+                refreshButton.disabled = false;
+                refreshButton.classList.remove('opacity-60');
+            }
         });
     }
 
-    function initChart(valid, fraud) {
-        var ctx = el('mainChart');
-        if (!ctx || !window.Chart) return;
-        var cfg = {
-            type: 'line',
-            data: {
-                labels: ['1', '2', '3', '4', '5', '6', '7'],
-                datasets: [
-                    { label: 'Valid', data: valid, borderColor: '#1F2937', tension: 0.4, fill: false },
-                    { label: 'Fraud', data: fraud, borderColor: '#F97316', tension: 0.4, fill: false }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { position: 'bottom' } },
-                scales: { y: { beginAtZero: true }, x: {} }
-            }
-        };
+    // Always start with fetchData immediately
+    fetchData();
+    
+    // Then try EventSource, but fallback to polling if it fails
+    if (window.EventSource) {
         try {
-            if (window._mainChart) window._mainChart.destroy();
-            window._mainChart = new Chart(ctx, cfg);
-        } catch (e) { /* ignore */ }
-    }
-
-    function fetchData() {
-        if (!el('total-txn')) return;
-        fetch('/api/data')
-            .then(function (r) { return r.json(); })
-            .then(function (d) {
-                var m = (d.metrics || {});
-                var h = (d.model_health || {});
-                updateMetric('total-txn', (m.total_transactions != null) ? m.total_transactions.toLocaleString() : '—');
-                updateMetric('fraud-rate', (m.fraud_rate != null) ? m.fraud_rate + '%' : '—');
-                updateMetric('approval-rate', (m.approval_rate != null) ? m.approval_rate + '%' : '—');
-                updateMetric('active-alerts', (m.active_alerts != null) ? m.active_alerts : '—');
-                updateMetric('model-name', h.name || '—');
-                updateMetric('model-version', h.version != null ? String(h.version) : '—');
-                updateMetric('drift-status', h.drift_status || '—');
-                updateMetric('model-precision', h.precision != null ? (typeof h.precision === 'string' ? h.precision : h.precision.toFixed(4)) : '—');
-                updateMetric('model-precision-kpi', h.precision != null ? (typeof h.precision === 'string' ? h.precision : (h.precision * 100).toFixed(1) + '%') : '—');
-                updateMetric('model-recall', h.recall != null ? (typeof h.recall === 'string' ? h.recall : h.recall.toFixed(4)) : '—');
-                updateMetric('model-f1', h.f1 != null ? (typeof h.f1 === 'string' ? h.f1 : h.f1.toFixed(4)) : '—');
-                updateMetric('model-auc', h.auc != null ? (typeof h.auc === 'string' ? h.auc : h.auc.toFixed(4)) : '—');
-                renderTable(d.transactions || []);
-
-                // Use REAL data: Calculate fraud trend from actual transactions
-                var txnList = d.transactions || [];
-
-                // Group transactions by time bucket (e.g., last 7 minutes or 7 distinct time points)
-                // Since we get the last 200, we can bucket them by minute
-                var buckets = {};
-                var timestamps = [];
-
-                txnList.forEach(function (t) {
-                    try {
-                        var date = new Date(t.time);
-                        var key = date.getHours() + ':' + date.getMinutes(); // HH:MM
-                        if (!buckets[key]) {
-                            buckets[key] = { valid: 0, fraud: 0, time: date.getTime() };
-                            timestamps.push(key);
-                        }
-                        if (t.status === 'Approved') {
-                            buckets[key].valid++;
-                        } else {
-                            buckets[key].fraud++;
-                        }
-                    } catch (e) { }
-                });
-
-                // Sort buckets by time
-                timestamps.sort(function (a, b) { return buckets[a].time - buckets[b].time; });
-
-                // Take last 7 buckets or fill if fewer
-                var validTrend = [];
-                var fraudTrend = [];
-                var labels = [];
-
-                var showCount = 7;
-                var start = Math.max(0, timestamps.length - showCount);
-                for (var i = start; i < timestamps.length; i++) {
-                    var k = timestamps[i];
-                    labels.push(k);
-                    validTrend.push(buckets[k].valid);
-                    fraudTrend.push(buckets[k].fraud);
-                }
-
-                // If no data, show empty chart (better than fake data)
-                if (labels.length === 0) labels = ['No Data'];
-
-                // Update chart
-                var ctx = el('mainChart');
-                if (ctx && window.Chart) {
-                    var cfg = {
-                        type: 'line',
-                        data: {
-                            labels: labels,
-                            datasets: [
-                                { label: 'Valid', data: validTrend, borderColor: '#1F2937', tension: 0.4, fill: false },
-                                { label: 'Fraud', data: fraudTrend, borderColor: '#F97316', tension: 0.4, fill: false }
-                            ]
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            plugins: { legend: { position: 'bottom' } },
-                            scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } }, x: {} }
-                        }
-                    };
-                    if (window._mainChart) window._mainChart.destroy();
-                    window._mainChart = new Chart(ctx, cfg);
-                }
-            })
-            .catch(function () {
-                updateMetric('total-txn', '—');
-                updateMetric('fraud-rate', '—');
-                updateMetric('approval-rate', '—');
-                updateMetric('active-alerts', '—');
-            });
-    }
-
-    if (el('total-txn')) {
-        fetchData();
-        setInterval(fetchData, 5000);
-
-        // Listen for live inference results via SSE
-        if (typeof (EventSource) !== 'undefined') {
-            try {
-                var es = new EventSource('/stream/transactions');
-                es.addEventListener('transactions', function (ev) {
-                    try {
-                        var payload = JSON.parse(ev.data || '{}');
-                        if (payload.results && payload.results.length > 0) {
-                            // Got new inference results, refresh metrics
-                            fetchData();
-                        }
-                    } catch (e) { /* ignore parse errors */ }
-                });
-                es.onerror = function () { /* connection closed, will retry */ };
-            } catch (e) { /* SSE not supported, polling is sufficient */ }
+            startStream(basePath);
+        } catch (error) {
+            console.error('EventSource failed, using polling:', error);
+            setInterval(fetchData, 5000); // Every 5 seconds for real-time
         }
+    } else {
+        setInterval(fetchData, 5000); // Every 5 seconds for real-time
     }
-})();
+});
+
+async function fetchData() {
+    try {
+        const basePath = window.FRAUDGUARD_BASE_PATH || '';
+        const apiUrl = `${basePath}/api/data?refresh=1`;
+        console.log('Fetching data from:', apiUrl);
+        
+        const response = await fetch(apiUrl);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        console.log('Data received:', data);
+        
+        // Update Metrics
+        if (data.metrics) {
+            updateMetric('total-txn', (data.metrics.total_transactions || 0).toLocaleString());
+            updateMetric('fraud-rate', (data.metrics.fraud_rate || 0) + '%');
+            updateMetric('approval-rate', (data.metrics.approval_rate || 0) + '%');
+            updateMetric('active-alerts', data.metrics.active_alerts || 0);
+        }
+        
+        // Update Model Health
+        if (data.model_health) {
+            updateMetric('model-name', data.model_health.name || 'Unknown');
+            updateMetric('model-version', 'v' + (data.model_health.version || 'N/A'));
+            // Show accuracy with more precision (up to 2 decimal places)
+            const accuracy = data.model_health.accuracy || 0;
+            const accuracyStr = accuracy > 0 ? accuracy.toFixed(2) : '0.00';
+            updateMetric('model-accuracy', accuracyStr + '%');
+            // Update progress bar
+            const progressBar = document.getElementById('accuracy-progress-bar');
+            if (progressBar) {
+                progressBar.style.width = Math.min(accuracy, 100) + '%';
+            }
+            updateMetric('drift-status', data.model_health.drift_status || 'Unknown');
+        }
+        
+        // Update inference stats if available (for presentation)
+        if (data.inference_stats) {
+            console.log('Inference Stats:', data.inference_stats);
+            if (data.inference_stats.avg_fraud_probability !== undefined) {
+                updateMetric('avg-fraud-prob', (data.inference_stats.avg_fraud_probability * 100).toFixed(2) + '%');
+            }
+            if (data.inference_stats.avg_confidence !== undefined) {
+                updateMetric('avg-confidence', (data.inference_stats.avg_confidence * 100).toFixed(2) + '%');
+            }
+            if (data.inference_stats.model_source) {
+                updateMetric('model-source', data.inference_stats.model_source);
+            }
+        }
+
+        // Update Table
+        if (data.transactions && Array.isArray(data.transactions)) {
+            populateTable(data.transactions);
+        }
+
+        // Initialize Charts (only once)
+        if (typeof initCharts === 'function' && !window.chartsInitialized) {
+            initCharts();
+            window.chartsInitialized = true;
+        }
+        if (typeof updateCharts === 'function' && data.trends) {
+            updateCharts(data.trends);
+        }
+
+    } catch (error) {
+        console.error('Error fetching data:', error);
+        console.error('Error details:', error.message, error.stack);
+        // Show error to user
+        const errorMsg = document.createElement('div');
+        errorMsg.className = 'fixed top-4 right-4 bg-red-500 text-white p-4 rounded-lg shadow-lg z-50';
+        errorMsg.textContent = 'Error loading data: ' + error.message;
+        document.body.appendChild(errorMsg);
+        setTimeout(() => errorMsg.remove(), 5000);
+    }
+}
+
+function startStream(basePath) {
+    const streamUrl = `${basePath}/api/stream?interval_ms=2000`;
+    console.log('Starting EventSource stream:', streamUrl);
+    const stream = new EventSource(streamUrl);
+
+    stream.onopen = () => {
+        console.log('EventSource stream opened');
+    };
+
+    stream.onmessage = (event) => {
+        try {
+            const data = JSON.parse(event.data);
+            if (data.metrics) {
+                // Store previous for trend calculation
+                if (!window.previousMetrics) window.previousMetrics = {};
+                
+                updateMetric('total-txn', (data.metrics.total_transactions || 0).toLocaleString());
+                updateMetric('fraud-rate', (data.metrics.fraud_rate || 0) + '%');
+                updateMetric('approval-rate', (data.metrics.approval_rate || 0) + '%');
+                updateMetric('active-alerts', data.metrics.active_alerts || 0);
+                
+                // Update trends dynamically
+                if (typeof calculateTrend === 'function' && typeof updateTrendDisplay === 'function') {
+                    const totalTrend = calculateTrend(data.metrics.total_transactions, window.previousMetrics.total_transactions);
+                    const fraudTrend = calculateTrend(data.metrics.fraud_rate, window.previousMetrics.fraud_rate);
+                    const approvalTrend = calculateTrend(data.metrics.approval_rate, window.previousMetrics.approval_rate);
+                    
+                    updateTrendDisplay('total-txn-trend', totalTrend, 'transaction');
+                    updateTrendDisplay('fraud-rate-trend', fraudTrend, 'fraud');
+                    updateTrendDisplay('approval-rate-trend', approvalTrend, 'approval');
+                }
+                
+                // Update alerts status
+                const alertsEl = document.getElementById('alerts-status');
+                if (alertsEl) {
+                    const alertCount = data.metrics.active_alerts || 0;
+                    if (alertCount === 0) {
+                        alertsEl.className = 'flex items-center text-sm text-green-600 font-medium';
+                        alertsEl.innerHTML = '<span>All clear</span>';
+                    } else if (alertCount < 5) {
+                        alertsEl.className = 'flex items-center text-sm text-yellow-600 font-medium';
+                        alertsEl.innerHTML = '<span>Low priority</span>';
+                    } else {
+                        alertsEl.className = 'flex items-center text-sm text-orange-600 font-medium';
+                        alertsEl.innerHTML = '<span>Requires attention</span>';
+                    }
+                }
+                
+                // Store current as previous for next update
+                window.previousMetrics = { ...data.metrics };
+            }
+
+            if (data.model_health) {
+                updateMetric('model-name', data.model_health.name || 'Unknown');
+                updateMetric('model-version', 'v' + (data.model_health.version || 'N/A'));
+                // Show accuracy with more precision
+                const accuracy = data.model_health.accuracy || 0;
+                const accuracyStr = accuracy > 0 ? accuracy.toFixed(2) : '0.00';
+                updateMetric('model-accuracy', accuracyStr + '%');
+                // Update progress bar
+                const progressBar = document.getElementById('accuracy-progress-bar');
+                if (progressBar) {
+                    progressBar.style.width = Math.min(accuracy, 100) + '%';
+                }
+                updateMetric('drift-status', data.model_health.drift_status || 'Unknown');
+            }
+
+            if (data.transaction) {
+                prependTransactionRow(data.transaction);
+                if (typeof appendChartPoint === 'function') {
+                    const isFraud = data.transaction.status === 'Flagged';
+                    appendChartPoint(data.transaction.time, isFraud);
+                }
+            }
+
+            if (typeof initCharts === 'function' && !window.chartsInitialized) {
+                initCharts();
+                window.chartsInitialized = true;
+            }
+        } catch (err) {
+            console.error('Stream parse error:', err);
+        }
+    };
+
+    stream.onerror = (error) => {
+        console.error('EventSource error:', error);
+        stream.close();
+        // Fallback to polling
+        console.log('Falling back to polling');
+        fetchData();
+        if (!window.pollingInterval) {
+            window.pollingInterval = setInterval(fetchData, 30000);
+        }
+    };
+}
+
+function updateMetric(id, value) {
+    const el = document.getElementById(id);
+    if (el) el.innerText = value;
+}
+
+function populateTable(transactions) {
+    // Use enhanced populate if available
+    if (typeof populateTableEnhanced === 'function') {
+        populateTableEnhanced(transactions);
+        return;
+    }
+    
+    const tbody = document.getElementById('txn-table-body');
+    if (!tbody) return;
+
+    tbody.innerHTML = '';
+    
+    // Show only recent 5 for dashboard
+    const recentTxns = transactions.slice(0, 5);
+
+    recentTxns.forEach(txn => {
+        const fragment = buildTransactionRows(txn);
+        tbody.appendChild(fragment);
+    });
+}
+
+function buildTransactionRows(txn) {
+    const fragment = document.createDocumentFragment();
+    const row = document.createElement('tr');
+    row.className = 'hover:bg-gray-50 cursor-pointer transition-colors';
+    row.setAttribute('data-row-type', 'main');
+
+    let riskColor = 'text-green-600 bg-green-50';
+    if (txn.risk_score > 80) riskColor = 'text-red-600 bg-red-50 font-bold';
+    else if (txn.risk_score > 50) riskColor = 'text-orange-600 bg-orange-50';
+
+    let statusColor = 'bg-gray-100 text-gray-800';
+    if (txn.status === 'Approved') statusColor = 'bg-green-100 text-green-800';
+    if (txn.status === 'Declined') statusColor = 'bg-red-100 text-red-800';
+    if (txn.status === 'Flagged') statusColor = 'bg-orange-100 text-orange-800';
+    if (txn.status === 'Review') statusColor = 'bg-yellow-100 text-yellow-800';
+
+    row.innerHTML = `
+        <td class="px-6 py-4 whitespace-nowrap text-gray-500">${txn.time}</td>
+        <td class="px-6 py-4 font-mono text-xs text-gray-600">${txn.id}</td>
+        <td class="px-6 py-4 font-medium text-gray-900">${txn.merchant}</td>
+        <td class="px-6 py-4 text-gray-900">$${txn.amount.toFixed(2)}</td>
+        <td class="px-6 py-4">
+            <span class="px-2 py-1 rounded-full text-xs font-medium ${riskColor}" title="Fraud Probability">
+                ${txn.risk_score}/100
+            </span>
+        </td>
+        <td class="px-6 py-4">
+            <span class="px-2 py-1 rounded-full text-xs font-medium ${statusColor}">
+                ${txn.status}
+            </span>
+        </td>
+    `;
+    if (txn.top_features && txn.top_features.length > 0) {
+        row.title = txn.top_features
+            .map(item => `${item.feature}: ${item.contribution.toFixed(3)}`)
+            .join(' | ');
+    }
+
+    const detailsRow = document.createElement('tr');
+    detailsRow.className = 'hidden bg-gray-50';
+    detailsRow.setAttribute('data-row-type', 'details');
+    const detailsCell = document.createElement('td');
+    detailsCell.colSpan = 6;
+    detailsCell.className = 'px-6 py-3 text-xs text-gray-600';
+    detailsCell.innerHTML = renderTopFeatures(txn.top_features);
+    detailsRow.appendChild(detailsCell);
+
+    row.onclick = () => {
+        if (!txn.top_features || txn.top_features.length === 0) return;
+        detailsRow.classList.toggle('hidden');
+    };
+
+    fragment.appendChild(row);
+    fragment.appendChild(detailsRow);
+    return fragment;
+}
+
+function prependTransactionRow(txn) {
+    // Use enhanced prepend if available
+    if (typeof prependTransactionRowEnhanced === 'function') {
+        prependTransactionRowEnhanced(txn);
+        return;
+    }
+    
+    const tbody = document.getElementById('txn-table-body');
+    if (!tbody) return;
+    const fragment = buildTransactionRows(txn);
+    tbody.prepend(fragment);
+
+    const mainRows = Array.from(tbody.querySelectorAll('tr[data-row-type="main"]'));
+    if (mainRows.length > 5) {
+        const lastMain = mainRows[mainRows.length - 1];
+        const lastDetails = lastMain.nextElementSibling;
+        if (lastDetails && lastDetails.getAttribute('data-row-type') === 'details') {
+            lastDetails.remove();
+        }
+        lastMain.remove();
+    }
+}
+
+function renderTopFeatures(topFeatures) {
+    if (!Array.isArray(topFeatures) || topFeatures.length === 0) {
+        return '<span class="text-gray-400">No explanation available</span>';
+    }
+    const items = topFeatures.map(item => {
+        const val = item.value === null || item.value === undefined ? 'n/a' : item.value;
+        return `<span class="inline-flex items-center px-2 py-1 mr-2 mb-2 bg-white border border-gray-200 rounded">
+            <strong class="mr-1">${item.feature}</strong>
+            <span class="text-gray-500">(${item.contribution.toFixed(3)})</span>
+            <span class="ml-2 text-gray-400">val: ${val}</span>
+        </span>`;
+    });
+    return `<div class="flex flex-wrap">${items.join('')}</div>`;
+}
