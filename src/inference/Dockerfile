@@ -30,6 +30,7 @@ RUN pip install --upgrade pip setuptools wheel && \
 COPY src/inference/main.py .
 COPY src/inference/api_server.py .
 COPY src/inference/continuous_inference.py .
+COPY src/utils ./utils
 
 # Create non-root user for security
 RUN useradd -m -u 1000 appuser && \

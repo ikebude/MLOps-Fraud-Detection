@@ -12,6 +12,7 @@ tqdm
 tqdm-joblib
 flower
 python-snappy
-redis>=5.0.0
-kombu>=5.3.0
+redis==4.6.0
+kombu==5.3.7
+celery==5.4.0
 requests>=2.28.0

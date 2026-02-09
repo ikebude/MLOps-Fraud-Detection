@@ -43,12 +43,16 @@ from dotenv import load_dotenv
 # Load environment
 load_dotenv()
 
-# Setup logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger('fraud_detection_inference')
+# Structured logging
+try:
+    from utils.logging_config import setup_structured_logging
+    logger = setup_structured_logging('fraud-detection-inference', logging.INFO)
+except Exception:
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(levelname)s - %(message)s'
+    )
+    logger = logging.getLogger('fraud_detection_inference')
 
 
 class FraudDetectionInference:
@@ -195,9 +199,9 @@ class FraudDetectionInference:
     
     def engineer_features(self, df: pd.DataFrame) -> pd.DataFrame:
         """
-        Engineer the same 62 features used during training.
-        
-        This MUST match the feature engineering in fraud_detection_training.py
+        Perform complete feature engineering to create 74 fraud detection features.
+        (54 engineered + 20 raw producers = 74 total)
+        Matches fraud_detection_training.py logic exactly.
         
         Args:
             df: Raw transaction DataFrame
@@ -205,143 +209,174 @@ class FraudDetectionInference:
         Returns:
             DataFrame with engineered features
         """
-        logger.info("Engineering features for inference...")
+        logger.info("Starting feature engineering for features...")
         
         df = df.copy()
         
-        # Convert timestamps
+        # Convert timestamp to datetime
         df['timestamp'] = pd.to_datetime(df['timestamp'])
         df['registration_date'] = pd.to_datetime(df['registration_date'])
+        
+        # Sort by timestamp for velocity calculations
         df = df.sort_values('timestamp').reset_index(drop=True)
         
-        # ========== TEMPORAL FEATURES ==========
+        # ========== AMOUNT-BASED FEATURES (STRONGEST SIGNAL) ==========
+        # Data analysis shows fraud amount avg=113,805 vs legitimate avg=42,506 (2.7x)
+        
+        # 1. Account age in days (still useful)
         df['account_age_days'] = (df['timestamp'] - df['registration_date']).dt.total_seconds() / 86400
         df['account_age_days'] = df['account_age_days'].clip(lower=0)
         
-        df['transaction_velocity_1h'] = df.groupby('user_id')['timestamp'].transform(
-            lambda x: x.rolling('1H').count()
-        )
-        df['transaction_velocity_24h'] = df.groupby('user_id')['timestamp'].transform(
-            lambda x: x.rolling('24H').count()
-        )
+        # 2. Amount z-score (how many std devs from mean)
+        amount_mean = df['amount'].mean()
+        amount_std = df['amount'].std()
+        df['amount_zscore'] = (df['amount'] - amount_mean) / (amount_std + 1e-6)
         
-        df['payment_velocity_1h'] = df.groupby('user_id')['amount'].transform(
-            lambda x: x.rolling(window=10, min_periods=1).sum()
-        )
-        df['payment_velocity_24h'] = df.groupby('user_id')['amount'].transform(
-            lambda x: x.rolling(window=50, min_periods=1).sum()
-        )
+        # 3. Amount percentile rank (0-1 scale)
+        df['amount_percentile'] = df['amount'].rank(pct=True)
         
-        df['has_discount'] = (df['discount'] > 0).astype(int)
-        df['discount_velocity_24h'] = df.groupby('user_id')['has_discount'].transform(
-            lambda x: x.rolling(window=20, min_periods=1).sum()
-        )
+        # 4. High value transaction flag (top 10%)
+        amount_90th = df['amount'].quantile(0.90)
+        df['is_high_value'] = (df['amount'] > amount_90th).astype(int)
         
-        login_counts = df[df['action'] == 'login'].groupby('user_id').size()
-        df['login_frequency'] = df['user_id'].map(login_counts).fillna(0)
+        # 5. Amount to user's average ratio
+        user_avg_amount = df.groupby('user_id')['amount'].transform('mean')
+        df['amount_to_user_avg_ratio'] = df['amount'] / (user_avg_amount + 1)
         
+        # 6. Amount to category average ratio (category anomaly detection)
+        category_avg_amount = df.groupby('category')['amount'].transform('mean')
+        df['amount_to_category_avg_ratio'] = df['amount'] / (category_avg_amount + 1)
+        
+        # 7. Session-to-amount ratio (fraud = short session + high value)
+        df['session_amount_ratio'] = df['session_duration'] / (df['amount'] / 1000 + 1)
+        
+        # 8. Short session flag (fraudsters spend less time)
+        session_25th = df['session_duration'].quantile(0.25)
+        df['is_short_session'] = (df['session_duration'] < session_25th).astype(int)
+        
+        # 9-10. Combined fraud risk indicators  
+        df['high_value_short_session'] = (df['is_high_value'] & df['is_short_session']).astype(int)
+        df['fraud_risk_composite'] = (
+            df['amount_zscore'].clip(-3, 3) / 6 * 0.4 +  # Normalized amount deviation
+            df['is_high_value'] * 0.3 +                   # High value flag
+            df['is_short_session'] * 0.2 +                # Short session flag
+            (df['payment_status'] == 'failed').astype(float) * 0.1  # Failed payment
+        ).clip(0, 1)
+        
+        # 11. Velocity features (transaction count based, not time-based)
+        df['user_transaction_count'] = df.groupby('user_id')['transaction_id'].transform('count')
+        df['user_total_amount'] = df.groupby('user_id')['amount'].transform('sum')
+        df['user_avg_transaction'] = df['user_total_amount'] / (df['user_transaction_count'] + 1)
+        
+        # 12. Bulk purchase flag (high quantity = potential triangulation fraud)
+        df['is_bulk_purchase'] = (df['quantity'] >= 3).astype(int)
+        
+        # 13. Hour of day (keep for variance in future data)
         df['hour_of_day'] = df['timestamp'].dt.hour
-        df['is_night_transaction'] = ((df['hour_of_day'] >= 22) | (df['hour_of_day'] <= 5)).astype(int)
         
-        # ========== IDENTITY FEATURES ==========
-        df['identity_mismatch_score'] = np.random.uniform(0, 0.3, len(df))
+        # ========== IDENTITY FEATURES (4) ==========
+        
+        # 9. Identity mismatch score
+        df['identity_mismatch_score'] = 0.0
         df.loc[df['account_age_days'] < 7, 'identity_mismatch_score'] += 0.3
         df.loc[df['account_status'] == 'new', 'identity_mismatch_score'] += 0.2
         df['identity_mismatch_score'] = df['identity_mismatch_score'].clip(0, 1)
         
+        # 10. Identity verification score
         df['identity_verification_score'] = 0.7
         df.loc[df['account_status'] == 'verified', 'identity_verification_score'] = 0.95
         df.loc[df['account_status'] == 'new', 'identity_verification_score'] = 0.3
         df.loc[df['account_status'] == 'suspended', 'identity_verification_score'] = 0.1
         
-        df['sim_swap_probability'] = np.random.uniform(0, 0.1, len(df))
-        df.loc[df['account_age_days'] < 3, 'sim_swap_probability'] += 0.4
-        df['sim_swap_probability'] = df['sim_swap_probability'].clip(0, 1)
-        
-        df['phone_verified'] = (np.random.random(len(df)) > 0.3).astype(int)
-        df.loc[df['account_status'] == 'verified', 'phone_verified'] = 1
-        
-        disposable_domains = ['tempmail', 'guerrillamail', '10minutemail', 'throwaway']
-        df['email_disposable_flag'] = df['email'].str.contains('|'.join(disposable_domains), 
-                                                               case=False, na=False).astype(int)
-        
+        # 11. Identity confidence score
         df['identity_confidence_score'] = (
             df['identity_verification_score'] * 0.6 + 
             (1 - df['identity_mismatch_score']) * 0.4
         )
         
-        # ========== DEVICE FEATURES ==========
-        device_counts = df.groupby('device_id')['user_id'].nunique()
-        df['device_user_count'] = df['device_id'].map(device_counts)
-        df['device_fingerprint_score'] = 1 - (df['device_user_count'] - 1).clip(0, 10) / 10
+        # ========== DEVICE FEATURES (4) ==========
         
+        # 13. Device fingerprint score
+        device_counts = df.groupby('device_id')['user_id'].nunique()
+        device_user_count = df['device_id'].map(device_counts)
+        df['device_fingerprint_score'] = 1 - (device_user_count - 1).clip(0, 10) / 10
+        
+        # 14. Android emulator detection
         df['android_emulator_detection'] = (
             (df['device_type'] == 'Mobile') & 
-            (np.random.random(len(df)) < 0.05)
+            (df['device_id'].fillna('').str.contains('emu|emulator|android', case=False, na=False) |
+             df['browser'].str.contains('Android', case=False, na=False))
         ).astype(int)
         
+        # 15. Browser integrity score
         trusted_browsers = ['Chrome', 'Firefox', 'Safari', 'Edge']
-        df['browser_integrity_score'] = df['browser'].isin(trusted_browsers).astype(float)
-        df['browser_integrity_score'] += np.random.uniform(-0.1, 0.1, len(df))
-        df['browser_integrity_score'] = df['browser_integrity_score'].clip(0, 1)
+        df['browser_integrity_score'] = df['browser'].isin(trusted_browsers).astype(float).clip(0, 1)
         
+        # 16. Device trust score
         df['device_trust_score'] = (
             df['device_fingerprint_score'] * 0.5 +
             (1 - df['android_emulator_detection']) * 0.3 +
             df['browser_integrity_score'] * 0.2
         )
         
+        # 17. Device change rate
         df['device_change_rate'] = df.groupby('user_id')['device_id'].transform(
             lambda x: x.nunique() / len(x) if len(x) > 0 else 0
         )
         
-        # ========== LOCATION FEATURES ==========
-        df['ip_risk_score'] = np.random.uniform(0, 0.2, len(df))
+        # ========== LOCATION FEATURES (3) ==========
+        
+        # 18. IP risk score
+        df['ip_risk_score'] = 0.0
         df.loc[df['ip_address'].str.startswith('100.'), 'ip_risk_score'] += 0.5
         df.loc[df['ip_address'].str.startswith('200.'), 'ip_risk_score'] += 0.5
         df['ip_risk_score'] = df['ip_risk_score'].clip(0, 1)
         
-        df['ip_location_mismatch_flag'] = (np.random.random(len(df)) < 0.1).astype(int)
-        df['location_distance_score'] = np.random.uniform(0, 0.3, len(df))
+        # 19. Proxy detection flag
         df['proxy_detection_flag'] = (df['ip_risk_score'] > 0.6).astype(int)
-        df['vpn_usage_flag'] = (np.random.random(len(df)) < 0.15).astype(int)
         
-        # ========== PAYMENT FEATURES ==========
+        # 20. VPN usage flag
+        df['vpn_usage_flag'] = (df['ip_risk_score'] > 0.4).astype(int)
+        
+        # ========== PAYMENT FEATURES (5) ==========
+        
+        # 21. Failed payment ratio
         user_payment_stats = df.groupby('user_id').agg({
             'payment_status': lambda x: (x == 'failed').sum() / len(x) if len(x) > 0 else 0
         }).rename(columns={'payment_status': 'failed_payment_ratio'})
         df = df.merge(user_payment_stats, left_on='user_id', right_index=True, how='left')
         df['failed_payment_ratio'] = df['failed_payment_ratio'].fillna(0)
         
+        # 22. Current order value ratio
         user_avg_amount = df.groupby('user_id')['amount'].transform('mean')
         df['current_order_value_ratio'] = df['amount'] / (user_avg_amount + 1)
         
+        # 23. Payment method anomaly
         user_payment_methods = df.groupby('user_id')['payment_method'].transform('nunique')
         df['payment_method_anomaly'] = (user_payment_methods > 3).astype(int)
         
-        df['is_linked_card'] = df['payment_method'].str.contains('Card', case=False).astype(int)
-        
-        df['bank_transfer_verification'] = (
-            df['payment_method'].str.contains('Transfer', case=False) & 
-            (df['payment_status'] == 'success')
-        ).astype(int)
-        
-        df['partial_payment_requirement'] = (df['payment_status'] == 'pending').astype(int)
-        
+        # 24. Payment anomaly score
         df['payment_anomaly_score'] = (
             df['failed_payment_ratio'] * 0.4 +
             (df['current_order_value_ratio'] > 3).astype(float) * 0.3 +
             df['payment_method_anomaly'] * 0.3
         )
         
-        # ========== NETWORK FEATURES ==========
-        ip_user_count = df.groupby('ip_address')['user_id'].transform('nunique')
-        device_user_count = df.groupby('device_id')['user_id'].transform('nunique')
-        df['fraud_ring_score'] = ((ip_user_count > 5) | (device_user_count > 3)).astype(float) * 0.7
+        # 25. Payment status risk (indicator of payment problems)
+        df['payment_status_risk'] = (df['payment_status'].isin(['failed', 'pending'])).astype(int)
         
+        # ========== NETWORK FEATURES (5) ==========
+        
+        # 26. Fraud ring score
+        ip_user_count = df.groupby('ip_address')['user_id'].transform('nunique')
+        device_user_count_net = df.groupby('device_id')['user_id'].transform('nunique')
+        df['fraud_ring_score'] = ((ip_user_count > 5) | (device_user_count_net > 3)).astype(float) * 0.7
+        
+        # 27. Vendor risk score
         vendor_fraud_rate = df.groupby('vendor_id')['is_fraud'].transform('mean')
         df['vendor_risk_score'] = vendor_fraud_rate.fillna(0.5)
         
+        # 28. User reputation score
         df['user_reputation_score'] = 0.7
         df.loc[df['account_status'] == 'verified', 'user_reputation_score'] = 0.9
         df.loc[df['account_status'] == 'new', 'user_reputation_score'] = 0.4
@@ -349,106 +384,83 @@ class FraudDetectionInference:
         df['user_reputation_score'] -= df['failed_payment_ratio'] * 0.3
         df['user_reputation_score'] = df['user_reputation_score'].clip(0, 1)
         
+        # 29. Shared IP count
         df['shared_ip_count'] = df.groupby('ip_address')['user_id'].transform('nunique')
+        
+        # 30. Shared phone number count
         df['shared_phone_number_count'] = df.groupby('phone_number')['user_id'].transform('nunique')
         
-        df['account_link_density'] = (
-            (df['shared_ip_count'] - 1) + 
-            (df['shared_phone_number_count'] - 1)
-        ).clip(0, 20) / 20
+        # ========== BEHAVIORAL FEATURES (4) ==========
         
-        df['linked_accounts'] = (
-            (df['shared_ip_count'] > 2) | 
-            (df['shared_phone_number_count'] > 1)
-        ).astype(int)
+        # 31. Activity timing score
+        # Replaced is_night_transaction with inline calculation
+        is_night = ((df['hour_of_day'] >= 22) | (df['hour_of_day'] <= 5)).astype(int)
+        median_hour = df.groupby('user_id')['hour_of_day'].transform('median').fillna(df['hour_of_day'].median())
+        hour_dev = (df['hour_of_day'] - median_hour).abs()
+        hour_dev_norm = (hour_dev / 12).clip(0, 1)
+        df['activity_timing_score'] = (is_night * 0.6 + hour_dev_norm * 0.4).clip(0, 1)
         
-        # ========== BEHAVIORAL FEATURES ==========
-        df['activity_timing_score'] = df['is_night_transaction'] * 0.6 + np.random.uniform(0, 0.4, len(df))
-        df['activity_timing_score'] = df['activity_timing_score'].clip(0, 1)
-        
+        # 32. Anomaly frequency score
+        # Replaced velocity features with available ones
         df['anomaly_frequency_score'] = (
-            (df['transaction_velocity_1h'] > 5).astype(float) * 0.4 +
-            (df['payment_velocity_1h'] > 100000).astype(float) * 0.3 +
-            (df['session_duration'] < 60).astype(float) * 0.3
+            (df['user_transaction_count'] > 10).astype(float) * 0.4 +
+            (df['amount'] > 100000).astype(float) * 0.3 +
+            (df['is_short_session']).astype(float) * 0.3
         )
         
+        # 33. Behavioral consistency score
         df['behavioral_consistency_score'] = 1 - df['anomaly_frequency_score']
         
-        review_pattern = (
-            (df['rating'].notna()) & 
-            ((df['rating'] == 5) | (df['rating'] == 1)) &
-            (df['account_age_days'] < 30)
-        )
-        df['fake_review_score'] = review_pattern.astype(float) * 0.6
-        
+        # 34. Session behavior score
         df['session_behavior_score'] = 1 - (
-            (df['session_duration'] < 120).astype(float) * 0.5 +
+            (df['is_short_session']).astype(float) * 0.5 +
             (df['action'] == 'purchase').astype(float) * 0.3
         )
         
-        df['multi_device_login_flag'] = (df['device_change_rate'] > 0.5).astype(int)
+        # ========== PRODUCT/PRICE FEATURES (1) ==========
         
-        # ========== PRODUCT FEATURES ==========
+        # 35. Product price anomaly score
         category_avg_price = df.groupby('category')['price'].transform('mean')
         df['product_price_anomaly_score'] = (
             (df['price'] / (category_avg_price + 1)) - 1
         ).abs().clip(0, 2) / 2
         
-        df['high_value_product'] = (df['amount'] > df['amount'].quantile(0.9)).astype(int)
-        df['bulk_purchase'] = (df['quantity'] > 3).astype(int)
+        # ========== ADDRESS FEATURES (2) ==========
         
-        # ========== ADDRESS FEATURES ==========
-        address_user_count = df.groupby('delivery_address')['user_id'].transform('nunique')
-        df['address_risk_score'] = ((address_user_count > 3).astype(float) * 0.7).clip(0, 1)
-        
+        # 36. Address reuse rate
         df['address_reuse_rate'] = df.groupby('user_id')['delivery_address'].transform(
             lambda x: 1 - (x.nunique() / len(x)) if len(x) > 0 else 0
         )
         
-        df['shared_address_count'] = address_user_count
+        # 37. Shared address count
+        df['shared_address_count'] = df.groupby('delivery_address')['user_id'].transform('nunique')
         
-        df['rider_collusion_risk'] = (
-            (df['shared_address_count'] > 5) & 
-            (df['transaction_velocity_24h'] > 10)
-        ).astype(float) * 0.8
+        # ========== DELIVERY/REFUND FEATURES (5) ==========
         
-        df['location_hopping_flag'] = (
-            df.groupby('user_id')['location'].transform('nunique') > 3
-        ).astype(int)
-        
-        # ========== DELIVERY/REFUND FEATURES ==========
+        # 38. Refund abuse score
         user_refund_rate = df.groupby('user_id')['return_request'].transform('mean')
         df['refund_abuse_score'] = user_refund_rate.fillna(0)
         
-        df['delivery_delay_ratio'] = np.random.uniform(0, 0.3, len(df))
-        
+        # 39. Failed delivery pattern
         df['failed_delivery_pattern'] = (
             (df['payment_status'] == 'failed') & 
             (df['action'] == 'purchase')
         ).astype(int)
         
+        # 40. Refund to purchase ratio
         user_purchase_count = df[df['action'] == 'purchase'].groupby('user_id').size()
         user_refund_count = df[df['return_request']].groupby('user_id').size()
         refund_ratio = (user_refund_count / user_purchase_count).fillna(0)
         df['refund_to_purchase_ratio'] = df['user_id'].map(refund_ratio).fillna(0)
         
-        df['return_inspection_score'] = np.where(
-            df['return_request'],
-            np.random.uniform(0.3, 0.9, len(df)),
-            0
-        )
-        
-        df['product_swap_probability'] = (
-            df['return_request'].astype(float) * 
-            np.random.uniform(0, 0.5, len(df))
-        )
-        
+        # 41. Delivery dispute rate
         df['delivery_dispute_rate'] = (
             (df['return_request']) & 
             (df['refund_status'].isin(['requested', 'approved']))
         ).astype(float)
         df['delivery_dispute_rate'] = df.groupby('user_id')['delivery_dispute_rate'].transform('mean').fillna(0)
         
+        # 42. Refund severity score
         refund_severity_map = {
             'none': 0,
             'requested': 0.3,
@@ -458,9 +470,41 @@ class FraudDetectionInference:
         }
         df['refund_severity_score'] = df['refund_status'].map(refund_severity_map).fillna(0)
         
-        df['serial_returner_flag'] = (df['refund_to_purchase_ratio'] > 0.3).astype(int)
+        # ========== AGGREGATE FEATURES ==========
+        # NOTE: Removed hour_sin, hour_cos, day_of_week (zero variance in current data)
+        logger.info("Adding aggregate features...")
         
-        logger.info(f"Feature engineering complete: {len(df.columns)} columns")
+        # Month (keep - may have some variance)
+        df['month'] = df['timestamp'].dt.month
+        
+        # 47. Price-discount ratio
+        df['price_discount_ratio'] = df['discount'] / (df['price'].abs() + 1)
+        
+        # ========== AGGREGATION FEATURES (7) ==========
+        
+        # 48. Amount per quantity
+        df['amount_per_quantity'] = df['amount'] / (df['quantity'] + 1)
+        
+        # 49. Vendor average quantity
+        df['vendor_avg_quantity'] = df.groupby('vendor_id')['quantity'].transform('mean').fillna(0)
+        
+        # 50. User average session duration
+        df['user_avg_session_duration'] = df.groupby('user_id')['session_duration'].transform('mean').fillna(0)
+        
+        # 51. Product popularity
+        df['product_popularity'] = df.groupby('product_id')['transaction_id'].transform('count') / max(1, len(df))
+        
+        # 52. Vendor unique products
+        df['vendor_unique_products'] = df.groupby('vendor_id')['product_id'].transform('nunique').fillna(0)
+        
+        # 53. Country average amount
+        df['country_avg_amount'] = df.groupby('country')['amount'].transform('mean').fillna(0)
+        
+        # 54. Time since previous transaction
+        df['time_since_prev_txn_sec'] = df.groupby('user_id')['timestamp'].diff().dt.total_seconds().fillna(0)
+        
+        logger.info(f"Feature engineering complete with enhanced amount-based features")
+        logger.info(f"Total columns: {len(df.columns)} (engineered + raw)")
         
         return df
     

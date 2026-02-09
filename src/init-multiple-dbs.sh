@@ -7,44 +7,56 @@ set -e
 # 2. mlflow - MLflow experiment tracking
 # 3. airflow - Airflow DAG and task metadata
 
-psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-EOSQL
-    
-    -- ============================================
-    -- DATABASE 1: MLflow (for MLflow tracking)
-    -- ============================================
-    CREATE DATABASE mlflow;
-    CREATE USER mlflow WITH PASSWORD 'mlflow';
-    GRANT ALL PRIVILEGES ON DATABASE mlflow TO mlflow;
-    
-    -- ============================================
-    -- DATABASE 2: Transactions (Producer owns it)
-    -- ============================================
-    -- This database is used by:
-    -- - Producer: WRITES transaction data
-    -- - Inference: READS for predictions
-    -- - Training: READS raw data for feature engineering
-    
-    CREATE DATABASE transactions_db;
-    
-    -- Producer user: Full write/read access
-    CREATE USER fraud_producer WITH PASSWORD 'producer_password';
-    GRANT ALL PRIVILEGES ON DATABASE transactions_db TO fraud_producer;
-    
-    -- Inference user: Read-only access
-    CREATE USER fraud_inference WITH PASSWORD 'inference_password';
-    GRANT CONNECT ON DATABASE transactions_db TO fraud_inference;
-    
-    -- Training user: Read-only access
-    CREATE USER fraud_training WITH PASSWORD 'training_password';
-    GRANT CONNECT ON DATABASE transactions_db TO fraud_training;
-    
-    -- MLflow user: Full access to mlflow DB
-    GRANT ALL PRIVILEGES ON DATABASE mlflow TO mlflow;
+# Idempotent DB and role creation (safe to re-run)
+# This avoids failures when the Postgres data directory already exists.
 
-EOSQL
+echo "Initializing databases and roles (idempotent)..."
+
+# Helper: create database if it does not exist
+create_db_if_not_exists() {
+  DB_NAME="$1"
+  if psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -tAc "SELECT 1 FROM pg_database WHERE datname='${DB_NAME}'" | grep -q 1; then
+    echo "Database '${DB_NAME}' already exists — skipping"
+  else
+    echo "Creating database '${DB_NAME}'"
+    psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" -c "CREATE DATABASE ${DB_NAME};"
+  fi
+}
+
+# Helper: create role/user if it does not exist
+create_role_if_not_exists() {
+  ROLE="$1"
+  PWD="$2"
+  if psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -tAc "SELECT 1 FROM pg_roles WHERE rolname='${ROLE}'" | grep -q 1; then
+    echo "Role '${ROLE}' already exists — skipping"
+  else
+    echo "Creating role '${ROLE}'"
+    psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" -c "CREATE ROLE ${ROLE} WITH LOGIN PASSWORD '${PWD}';"
+  fi
+}
+
+# Create MLflow DB & user
+create_db_if_not_exists "mlflow"
+create_role_if_not_exists "mlflow" "mlflow"
+psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" -c "GRANT ALL PRIVILEGES ON DATABASE mlflow TO mlflow;"
+
+# Create transactions DB and users
+create_db_if_not_exists "transactions_db"
+create_role_if_not_exists "fraud_producer" "producer_password"
+create_role_if_not_exists "fraud_inference" "inference_password"
+create_role_if_not_exists "fraud_training" "training_password"
+
+# Ensure privileges
+psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" -c "GRANT ALL PRIVILEGES ON DATABASE transactions_db TO fraud_producer;"
+psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" -c "GRANT CONNECT ON DATABASE transactions_db TO fraud_inference;"
+psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" -c "GRANT CONNECT ON DATABASE transactions_db TO fraud_training;"
+
+echo "Database/role initialization complete"
+
 
 # Now connect to transactions_db and set up schema + permissions
-psql -v ON_ERROR_STOP=1 --username "fraud_producer" --dbname "transactions_db" <<-EOSQL
+# Use the PostgreSQL superuser (POSTGRES_USER) to ensure idempotent schema creation
+psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "transactions_db" <<-EOSQL
     
     -- ============================================
     -- SCHEMA: Create transactions table
@@ -179,7 +191,7 @@ EOSQL
 psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "transactions_db" <<-EOSQL
     
     -- ============================================
-    -- PERMISSIONS: Grant read-only access
+    -- PERMISSIONS: Grant read-only access & producer ownership
     -- ============================================
     
     -- Grant schema usage to read-only users
@@ -192,13 +204,18 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "transactions_db" <
     
     -- Grant INSERT/UPDATE on fraud_predictions for inference user (needed for predictions)
     GRANT INSERT, UPDATE, SELECT ON fraud_predictions TO fraud_inference;
-    
-    -- Make sure future tables also have read-only permissions
-    ALTER DEFAULT PRIVILEGES FOR USER fraud_producer IN SCHEMA public GRANT SELECT ON TABLES TO fraud_inference;
-    ALTER DEFAULT PRIVILEGES FOR USER fraud_producer IN SCHEMA public GRANT SELECT ON TABLES TO fraud_training;
-    
-    -- Future fraud_predictions table permissions
-    ALTER DEFAULT PRIVILEGES FOR USER fraud_producer IN SCHEMA public GRANT INSERT, UPDATE, SELECT ON TABLES TO fraud_inference;
+
+    -- Ensure producer has ownership/privileges on existing tables so it can manage inserts/DDL if necessary
+    ALTER TABLE IF EXISTS transactions OWNER TO fraud_producer;
+    GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO fraud_producer;
+
+    -- Make sure future tables created by fraud_producer grant appropriate access to readers
+    ALTER DEFAULT PRIVILEGES FOR ROLE fraud_producer IN SCHEMA public GRANT SELECT ON TABLES TO fraud_inference;
+    ALTER DEFAULT PRIVILEGES FOR ROLE fraud_producer IN SCHEMA public GRANT SELECT ON TABLES TO fraud_training;
+    ALTER DEFAULT PRIVILEGES FOR ROLE fraud_producer IN SCHEMA public GRANT INSERT, UPDATE, SELECT ON TABLES TO fraud_inference;
+
+    -- Ensure future fraud_predictions table permissions
+    ALTER DEFAULT PRIVILEGES FOR ROLE fraud_producer IN SCHEMA public GRANT INSERT, UPDATE, SELECT ON TABLES TO fraud_inference;
 
 EOSQL
 

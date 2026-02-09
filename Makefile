@@ -10,6 +10,13 @@ setup: ## Run local setup script
 	@chmod +x scripts/setup-local.sh
 	@./scripts/setup-local.sh
 
+prepare: ## Prepare repository for build (normalize line endings, mark scripts)
+	@chmod +x scripts/prepare_repo.sh scripts/normalize-line-endings.sh
+	@./scripts/prepare_repo.sh
+
+backfill: ## Backfill transactions DB (usage: make backfill ROWS=150000)
+	@python scripts/backfill_transactions.py --rows ${ROWS:-150000}
+
 build: ## Build all Docker images
 	@cd src && docker compose build
 

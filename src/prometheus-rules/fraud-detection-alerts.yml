@@ -1,0 +1,161 @@
+# Alert Rules for MLOps Fraud Detection System
+
+groups:
+  - name: fraud_detection_alerts
+    interval: 30s
+    rules:
+      # CRITICAL: Model not loaded - inference service cannot operate
+      - alert: FraudDetectionModelNotLoaded
+        expr: fraud_detection_model_loaded == 0
+        for: 5m
+        labels:
+          severity: critical
+          service: inference
+        annotations:
+          summary: "Fraud detection model not loaded"
+          description: "The fraud detection model failed to load in the inference service. Predictions cannot be generated."
+          dashboard: "http://localhost:3000/d/fraud-detection"
+
+      # WARNING: High fraud detection rate (unusual activity)
+      - alert: HighFraudDetectionRate
+        expr: fraud_detection_fraud_rate > 0.15
+        for: 10m
+        labels:
+          severity: warning
+          service: inference
+        annotations:
+          summary: "Elevated fraud detection rate detected"
+          description: "Fraud rate is {{ $value | humanizePercentage }} over the last 10 minutes. This may indicate a fraud spike or model drift."
+          dashboard: "http://localhost:3000/d/fraud-detection"
+
+      # WARNING: Very high fraud rate - possible model drift or attack
+      - alert: CriticalFraudDetectionRate
+        expr: fraud_detection_fraud_rate > 0.30
+        for: 5m
+        labels:
+          severity: critical
+          service: inference
+        annotations:
+          summary: "CRITICAL: Fraud rate exceeds threshold"
+          description: "Fraud rate is {{ $value | humanizePercentage }}. Immediate investigation required."
+          runbook: "https://docs.example.com/fraud-detection/critical-fraud-rate"
+          dashboard: "http://localhost:3000/d/fraud-detection"
+
+      # WARNING: Inference latency degradation
+      - alert: HighInferenceLat ency
+        expr: histogram_quantile(0.95, rate(fraud_detection_prediction_latency_seconds_bucket[5m])) > 2.0
+        for: 10m
+        labels:
+          severity: warning
+          service: inference
+        annotations:
+          summary: "High inference latency detected"
+          description: "95th percentile prediction latency is {{ $value | humanizeDuration }}. This may impact user experience."
+          dashboard: "http://localhost:3000/d/fraud-detection"
+
+      # CRITICAL: Inference latency critical
+      - alert: CriticalInferenceLatency
+        expr: histogram_quantile(0.95, rate(fraud_detection_prediction_latency_seconds_bucket[5m])) > 5.0
+        for: 5m
+        labels:
+          severity: critical
+          service: inference
+        annotations:
+          summary: "CRITICAL: Inference latency critically high"
+          description: "95th percentile prediction latency is {{ $value | humanizeDuration }}. Inference service may be overloaded."
+          dashboard: "http://localhost:3000/d/fraud-detection"
+
+      # WARNING: High inference error rate
+      - alert: HighInferenceErrorRate
+        expr: rate(fraud_detection_inference_errors_total[5m]) > 0.01
+        for: 10m
+        labels:
+          severity: warning
+          service: inference
+        annotations:
+          summary: "Elevated inference error rate"
+          description: "Error rate is {{ $value | humanizePercentage }}. Check inference service logs for details."
+          dashboard: "http://localhost:3000/d/fraud-detection"
+
+      # CRITICAL: Inference errors
+      - alert: CriticalInferenceErrors
+        expr: rate(fraud_detection_inference_errors_total[5m]) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+          service: inference
+        annotations:
+          summary: "CRITICAL: High inference error rate"
+          description: "Error rate is {{ $value | humanizePercentage }}. Inference service is failing."
+          dashboard: "http://localhost:3000/d/fraud-detection"
+
+      # WARNING: Training failure
+      - alert: TrainingFailure
+        expr: increase(fraud_detection_training_runs_total{status="failure"}[1h]) > 0
+        for: 1m
+        labels:
+          severity: warning
+          service: training
+        annotations:
+          summary: "Model training failed"
+          description: "The fraud detection training pipeline encountered an error. Check Airflow DAG for details."
+          dashboard: "http://localhost:3000/d/fraud-detection"
+
+      # WARNING: Model accuracy degradation
+      - alert: LowModelAccuracy
+        expr: fraud_detection_training_accuracy < 0.85
+        for: 10m
+        labels:
+          severity: warning
+          service: training
+        annotations:
+          summary: "Model accuracy below threshold"
+          description: "Latest model accuracy is {{ $value | humanizePercentage }}. Consider retraining with updated data."
+          dashboard: "http://localhost:3000/d/fraud-detection"
+
+      # WARNING: Model precision degradation
+      - alert: LowModelPrecision
+        expr: fraud_detection_training_precision < 0.80
+        for: 10m
+        labels:
+          severity: warning
+          service: training
+        annotations:
+          summary: "Model precision below threshold"
+          description: "Latest model precision is {{ $value | humanizePercentage }}. Check for model drift."
+          dashboard: "http://localhost:3000/d/fraud-detection"
+
+      # WARNING: Model recall degradation
+      - alert: LowModelRecall
+        expr: fraud_detection_training_recall < 0.75
+        for: 10m
+        labels:
+          severity: warning
+          service: training
+        annotations:
+          summary: "Model recall below threshold"
+          description: "Latest model recall is {{ $value | humanizePercentage }}. The model may be missing fraud cases."
+          dashboard: "http://localhost:3000/d/fraud-detection"
+
+      # INFO: Long training duration (informational only)
+      - alert: LongTrainingDuration
+        expr: fraud_detection_training_duration_seconds > 3600
+        for: 5m
+        labels:
+          severity: info
+          service: training
+        annotations:
+          summary: "Model training took longer than expected"
+          description: "Training duration was {{ $value | humanizeDuration }}. This is informational only."
+
+      # WARNING: No predictions in last 10 minutes
+      - alert: NoPredictionsGenerated
+        expr: increase(fraud_detection_predictions_total[10m]) == 0
+        for: 10m
+        labels:
+          severity: warning
+          service: inference
+        annotations:
+          summary: "No predictions generated in last 10 minutes"
+          description: "The inference service has not generated any predictions. Check if data is flowing."
+          dashboard: "http://localhost:3000/d/fraud-detection"

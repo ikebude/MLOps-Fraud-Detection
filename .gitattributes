@@ -1,2 +1,10 @@
-# Auto detect text files and perform LF normalization
+# Enforce LF line endings for scripts and important files
+*.sh text eol=lf
+*.py text eol=lf
+*.sql text eol=lf
+Dockerfile text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.ps1 text eol=lf
+# Default: auto-detect other text files
 * text=auto

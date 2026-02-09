@@ -82,11 +82,39 @@ HEALTH_CHECK_PORT = int(os.getenv('HEALTH_CHECK_PORT', 8080))
 JSON_BACKUP_DIR = os.getenv('JSON_BACKUP_DIR', './backups')
 MAX_RETRY_ATTEMPTS = int(os.getenv('MAX_RETRY_ATTEMPTS', 5))
 
-logging.basicConfig(
-    level=getattr(logging, LOG_LEVEL, logging.INFO),
-    format='%(asctime)s - %(levelname)s - %(message)s'
-)
+# Structured JSON logging
+try:
+    from pythonjsonlogger import jsonlogger
+except Exception:
+    jsonlogger = None
+
+root_logger = logging.getLogger()
+root_logger.setLevel(getattr(logging, LOG_LEVEL, logging.INFO))
+for h in list(root_logger.handlers):
+    root_logger.removeHandler(h)
+
+console_handler = logging.StreamHandler(sys.stdout)
+if jsonlogger:
+    formatter = jsonlogger.JsonFormatter('%(asctime)s %(levelname)s %(name)s %(message)s')
+else:
+    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+console_handler.setFormatter(formatter)
+root_logger.addHandler(console_handler)
+
 logger = logging.getLogger('ecommerce_transaction_generator')
+
+# Prometheus metrics for producer (optional)
+if ENABLE_METRICS:
+    try:
+        from prometheus_client import Counter, start_http_server
+        PRODUCER_METRICS_PORT = int(os.getenv('PRODUCER_METRICS_PORT', '8001'))
+        producer_transactions_total = Counter('producer_transactions_total', 'Total transactions produced')
+        producer_errors_total = Counter('producer_errors_total', 'Total producer errors')
+        # Start metrics HTTP endpoint in background
+        start_http_server(PRODUCER_METRICS_PORT)
+        logger.info('Prometheus metrics server started on port %d', PRODUCER_METRICS_PORT)
+    except Exception as e:
+        logger.warning('Failed to start Prometheus client: %s', str(e))
 
 fake = Faker('en_NG')
 
@@ -442,7 +470,7 @@ class TransactionGenerator:
         refund_status = random.choice(['none', 'requested']) if return_request else 'none'
         rating = random.randint(1, 5) if action == 'purchase' and random.random() < 0.6 else None
         
-        # Apply fraud patterns
+        # Apply fraud patterns - ENHANCED for strong distinguishable signals
         fraud_type = None
         if is_fraud:
             fraud_patterns = [
@@ -451,17 +479,55 @@ class TransactionGenerator:
             ]
             fraud_type = random.choice(fraud_patterns)
             
-            # Modify transaction for fraud patterns
+            # ========== STRONG FRAUD PATTERN SIGNALS ==========
+            # Each pattern systematically modifies MULTIPLE features to create
+            # learnable patterns for the ML model
+            
             if fraud_type == 'card_fraud':
-                payment_status = random.choice(['success', 'failed'])
-                amount = random.uniform(50000, 500000)  # High value
+                # HIGH VALUE + SHORT SESSION + OFTEN FAILS
+                amount = random.uniform(80000, 500000)  # Very high value
+                session_duration = random.randint(10, 90)  # Very short session
+                payment_status = random.choices(['failed', 'success'], weights=[40, 60])[0]
+                quantity = random.randint(3, 10)  # Bulk purchase
+                discount = 0  # No discount hunting
+                
             elif fraud_type == 'refund_abuse':
+                # RETURN REQUEST + HIGH VALUE + SPECIFIC CATEGORIES
                 return_request = True
-                refund_status = 'requested'
+                refund_status = random.choice(['requested', 'approved'])
+                amount = random.uniform(30000, 150000)  # Medium-high value
+                category = random.choice(['Electronics', 'Fashion'])  # High-value categories
+                session_duration = random.randint(60, 300)  # Short session
+                
             elif fraud_type == 'account_takeover':
-                # Different device/location from user's normal pattern
-                device = random.choice(self.device_pool)
-                location = random.choice(self.NIGERIAN_LOCATIONS)
+                # DIFFERENT DEVICE + SHORT SESSION + HIGH VALUE + FAST PURCHASE
+                device = random.choice(self.device_pool)  # Random device
+                location = random.choice(self.NIGERIAN_LOCATIONS)  # Different location
+                session_duration = random.randint(15, 120)  # Very short session
+                amount = random.uniform(50000, 300000)  # High value
+                action = 'purchase'  # Direct to purchase (skips browsing)
+                
+            elif fraud_type == 'identity_theft':
+                # NEW ACCOUNT + HIGH VALUE + FAILED PAYMENTS
+                user = random.choice([u for u in self.user_pool if u['account_status'] == 'new'] or self.user_pool)
+                amount = random.uniform(40000, 200000)  # High value
+                payment_status = random.choices(['failed', 'pending', 'success'], weights=[30, 20, 50])[0]
+                session_duration = random.randint(30, 180)  # Short session
+                
+            elif fraud_type == 'triangulation':
+                # HIGH QUANTITY + DIFFERENT DELIVERY + BULK ORDERS
+                quantity = random.randint(5, 15)  # Very high quantity
+                amount = price * quantity * (1 - discount / 100)  # Recalculate with high qty
+                session_duration = random.randint(120, 600)  # Medium session
+                category = random.choice(['Electronics', 'Home & Kitchen'])  # Resellable items
+                
+            elif fraud_type == 'friendly_fraud':
+                # SUCCESSFUL PURCHASE + RETURN REQUEST + HIGH VALUE
+                payment_status = 'success'  # Always succeeds first
+                return_request = True  # Then requests refund
+                refund_status = 'requested'
+                amount = random.uniform(25000, 100000)  # Medium-high value
+                rating = None  # No rating (didn't intend to keep)
         
         # Build transaction
         transaction = {

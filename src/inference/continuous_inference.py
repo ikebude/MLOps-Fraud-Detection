@@ -16,7 +16,16 @@ import threading
 import time
 from datetime import datetime
 
-logger = logging.getLogger('fraud_detection_continuous')
+try:
+    from utils.logging_config import setup_structured_logging
+    from utils.prometheus_metrics import (
+        inference_data_points_total, inference_predictions_total
+    )
+    logger = setup_structured_logging('continuous-inference', logging.INFO)
+    PROM_AVAILABLE = True
+except Exception:
+    logger = logging.getLogger('fraud_detection_continuous')
+    PROM_AVAILABLE = False
 
 
 class ContinuousInferenceWorker:
@@ -86,6 +95,21 @@ class ContinuousInferenceWorker:
                         self._append_results_func(results)
                     except Exception as e:
                         logger.error(f"Error appending results: {e}")
+
+                # Update Prometheus metrics if available
+                try:
+                    if PROM_AVAILABLE and results is not None and hasattr(results, 'columns'):
+                        total = len(results)
+                        inference_data_points_total.inc(total)
+                        if 'fraud_prediction' in results.columns:
+                            fraud_count = int(results['fraud_prediction'].sum())
+                            legit = int(total - fraud_count)
+                            if fraud_count > 0:
+                                inference_predictions_total.labels(prediction_type='fraud').inc(fraud_count)
+                            if legit > 0:
+                                inference_predictions_total.labels(prediction_type='legitimate').inc(legit)
+                except Exception:
+                    logger.debug('Failed to update Prometheus metrics from continuous worker')
                 
                 # Log status periodically (every 60 seconds)
                 current_time = time.time()

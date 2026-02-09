@@ -16,7 +16,7 @@ Your producer script is **well-structured** but has **critical gaps** for standa
 python-dotenv
 faker
 jsonschema
-confluent_kafka
+psycopg2-binary
 ```
 
 **Missing:**

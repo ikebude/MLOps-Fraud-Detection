@@ -1,0 +1,42 @@
+[2026-02-04T12:01:07.033+0000] {local_task_job_runner.py:123} INFO - ::group::Pre task execution logs
+[2026-02-04T12:01:07.071+0000] {taskinstance.py:2612} INFO - Dependencies all met for dep_context=non-requeueable deps ti=<TaskInstance: fraud_detection_training.cleanup_resources scheduled__2026-02-03T12:00:00+00:00 [queued]>
+[2026-02-04T12:01:07.094+0000] {taskinstance.py:2612} INFO - Dependencies all met for dep_context=requeueable deps ti=<TaskInstance: fraud_detection_training.cleanup_resources scheduled__2026-02-03T12:00:00+00:00 [queued]>
+[2026-02-04T12:01:07.096+0000] {taskinstance.py:2865} INFO - Starting attempt 1 of 2
+[2026-02-04T12:01:07.146+0000] {taskinstance.py:2888} INFO - Executing <Task(PythonOperator): cleanup_resources> on 2026-02-03 12:00:00+00:00
+[2026-02-04T12:01:07.162+0000] {warnings.py:112} WARNING - /home/***/.local/lib/python3.12/site-packages/***/task/task_runner/standard_task_runner.py:70: DeprecationWarning: This process (pid=1663) is multi-threaded, use of fork() may lead to deadlocks in the child.
+  pid = os.fork()
+
+[2026-02-04T12:01:07.165+0000] {standard_task_runner.py:72} INFO - Started process 1665 to run task
+[2026-02-04T12:01:07.170+0000] {standard_task_runner.py:104} INFO - Running: ['***', 'tasks', 'run', 'fraud_detection_training', 'cleanup_resources', 'scheduled__2026-02-03T12:00:00+00:00', '--job-id', '12', '--raw', '--subdir', 'DAGS_FOLDER/fraud_detection_training_dag.py', '--cfg-path', '/tmp/tmp9xzxnjpi']
+[2026-02-04T12:01:07.175+0000] {standard_task_runner.py:105} INFO - Job 12: Subtask cleanup_resources
+[2026-02-04T12:01:07.283+0000] {task_command.py:467} INFO - Running <TaskInstance: fraud_detection_training.cleanup_resources scheduled__2026-02-03T12:00:00+00:00 [running]> on host 441a89cbaa82
+[2026-02-04T12:01:08.471+0000] {taskinstance.py:3131} INFO - Exporting env vars: AIRFLOW_CTX_DAG_OWNER='datamasterylab.com' AIRFLOW_CTX_DAG_ID='fraud_detection_training' AIRFLOW_CTX_TASK_ID='cleanup_resources' AIRFLOW_CTX_EXECUTION_DATE='2026-02-03T12:00:00+00:00' AIRFLOW_CTX_TRY_NUMBER='1' AIRFLOW_CTX_DAG_RUN_ID='scheduled__2026-02-03T12:00:00+00:00'
+[2026-02-04T12:01:08.473+0000] {taskinstance.py:731} INFO - ::endgroup::
+[2026-02-04T12:01:08.542+0000] {fraud_detection_training_dag.py:116} INFO - No tmp dir to clean: /app/tmp
+[2026-02-04T12:01:08.547+0000] {python.py:240} INFO - Done. Returned value was: None
+[2026-02-04T12:01:08.578+0000] {taskinstance.py:340} INFO - ::group::Post task execution logs
+[2026-02-04T12:01:08.579+0000] {taskinstance.py:352} INFO - Marking task as SUCCESS. dag_id=fraud_detection_training, task_id=cleanup_resources, run_id=scheduled__2026-02-03T12:00:00+00:00, execution_date=20260203T120000, start_date=20260204T120107, end_date=20260204T120108
+[2026-02-04T12:01:08.691+0000] {local_task_job_runner.py:266} INFO - Task exited with return code 0
+[2026-02-04T12:01:08.778+0000] {taskinstance.py:3900} INFO - 0 downstream tasks scheduled from follow-on schedule check
+[2026-02-04T12:01:08.819+0000] {local_task_job_runner.py:245} INFO - ::endgroup::
+[2026-02-04T14:05:10.087+0000] {local_task_job_runner.py:123} INFO - ::group::Pre task execution logs
+[2026-02-04T14:05:10.513+0000] {taskinstance.py:2612} INFO - Dependencies all met for dep_context=non-requeueable deps ti=<TaskInstance: fraud_detection_training.cleanup_resources scheduled__2026-02-03T12:00:00+00:00 [queued]>
+[2026-02-04T14:05:10.676+0000] {taskinstance.py:2612} INFO - Dependencies all met for dep_context=requeueable deps ti=<TaskInstance: fraud_detection_training.cleanup_resources scheduled__2026-02-03T12:00:00+00:00 [queued]>
+[2026-02-04T14:05:10.688+0000] {taskinstance.py:2865} INFO - Starting attempt 1 of 2
+[2026-02-04T14:05:11.347+0000] {taskinstance.py:2888} INFO - Executing <Task(PythonOperator): cleanup_resources> on 2026-02-03 12:00:00+00:00
+[2026-02-04T14:05:11.506+0000] {warnings.py:112} WARNING - /home/***/.local/lib/python3.12/site-packages/***/task/task_runner/standard_task_runner.py:70: DeprecationWarning: This process (pid=2854) is multi-threaded, use of fork() may lead to deadlocks in the child.
+  pid = os.fork()
+
+[2026-02-04T14:05:11.556+0000] {standard_task_runner.py:72} INFO - Started process 2863 to run task
+[2026-02-04T14:05:11.538+0000] {standard_task_runner.py:104} INFO - Running: ['***', 'tasks', 'run', 'fraud_detection_training', 'cleanup_resources', 'scheduled__2026-02-03T12:00:00+00:00', '--job-id', '21', '--raw', '--subdir', 'DAGS_FOLDER/fraud_detection_training_dag.py', '--cfg-path', '/tmp/tmp2o41v0nu']
+[2026-02-04T14:05:11.594+0000] {standard_task_runner.py:105} INFO - Job 21: Subtask cleanup_resources
+[2026-02-04T14:05:12.534+0000] {task_command.py:467} INFO - Running <TaskInstance: fraud_detection_training.cleanup_resources scheduled__2026-02-03T12:00:00+00:00 [running]> on host 5370587e7a9a
+[2026-02-04T14:05:18.259+0000] {taskinstance.py:3131} INFO - Exporting env vars: AIRFLOW_CTX_DAG_OWNER='datamasterylab.com' AIRFLOW_CTX_DAG_ID='fraud_detection_training' AIRFLOW_CTX_TASK_ID='cleanup_resources' AIRFLOW_CTX_EXECUTION_DATE='2026-02-03T12:00:00+00:00' AIRFLOW_CTX_TRY_NUMBER='1' AIRFLOW_CTX_DAG_RUN_ID='scheduled__2026-02-03T12:00:00+00:00'
+[2026-02-04T14:05:18.280+0000] {taskinstance.py:731} INFO - ::endgroup::
+[2026-02-04T14:05:18.899+0000] {fraud_detection_training_dag.py:116} INFO - No tmp dir to clean: /app/tmp
+[2026-02-04T14:05:18.947+0000] {python.py:240} INFO - Done. Returned value was: None
+[2026-02-04T14:05:19.265+0000] {taskinstance.py:340} INFO - ::group::Post task execution logs
+[2026-02-04T14:05:19.275+0000] {taskinstance.py:352} INFO - Marking task as SUCCESS. dag_id=fraud_detection_training, task_id=cleanup_resources, run_id=scheduled__2026-02-03T12:00:00+00:00, execution_date=20260203T120000, start_date=20260204T140510, end_date=20260204T140519
+[2026-02-04T14:05:20.057+0000] {local_task_job_runner.py:266} INFO - Task exited with return code 0
+[2026-02-04T14:05:20.505+0000] {taskinstance.py:3900} INFO - 0 downstream tasks scheduled from follow-on schedule check
+[2026-02-04T14:05:20.527+0000] {local_task_job_runner.py:245} INFO - ::endgroup::

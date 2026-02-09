@@ -1,0 +1,231 @@
+[2026-02-05T15:03:35.314+0000] {local_task_job_runner.py:123} INFO - ::group::Pre task execution logs
+[2026-02-05T15:03:35.352+0000] {taskinstance.py:2612} INFO - Dependencies all met for dep_context=non-requeueable deps ti=<TaskInstance: fraud_detection_training.execute_training scheduled__2026-02-04T12:00:00+00:00 [queued]>
+[2026-02-05T15:03:35.381+0000] {taskinstance.py:2612} INFO - Dependencies all met for dep_context=requeueable deps ti=<TaskInstance: fraud_detection_training.execute_training scheduled__2026-02-04T12:00:00+00:00 [queued]>
+[2026-02-05T15:03:35.382+0000] {taskinstance.py:2865} INFO - Starting attempt 1 of 1
+[2026-02-05T15:03:35.420+0000] {taskinstance.py:2888} INFO - Executing <Task(PythonOperator): execute_training> on 2026-02-04 12:00:00+00:00
+[2026-02-05T15:03:35.446+0000] {warnings.py:112} WARNING - /home/***/.local/lib/python3.12/site-packages/***/task/task_runner/standard_task_runner.py:70: DeprecationWarning: This process (pid=157) is multi-threaded, use of fork() may lead to deadlocks in the child.
+  pid = os.fork()
+
+[2026-02-05T15:03:35.451+0000] {standard_task_runner.py:72} INFO - Started process 160 to run task
+[2026-02-05T15:03:35.454+0000] {standard_task_runner.py:104} INFO - Running: ['***', 'tasks', 'run', 'fraud_detection_training', 'execute_training', 'scheduled__2026-02-04T12:00:00+00:00', '--job-id', '39', '--raw', '--subdir', 'DAGS_FOLDER/fraud_detection_training_dag.py', '--cfg-path', '/tmp/tmpb7ed8vhd']
+[2026-02-05T15:03:35.465+0000] {standard_task_runner.py:105} INFO - Job 39: Subtask execute_training
+[2026-02-05T15:03:35.602+0000] {task_command.py:467} INFO - Running <TaskInstance: fraud_detection_training.execute_training scheduled__2026-02-04T12:00:00+00:00 [running]> on host 76a62e6a2564
+[2026-02-05T15:03:35.871+0000] {taskinstance.py:3131} INFO - Exporting env vars: AIRFLOW_CTX_DAG_OWNER='datamasterylab.com' AIRFLOW_CTX_DAG_ID='fraud_detection_training' AIRFLOW_CTX_TASK_ID='execute_training' AIRFLOW_CTX_EXECUTION_DATE='2026-02-04T12:00:00+00:00' AIRFLOW_CTX_TRY_NUMBER='1' AIRFLOW_CTX_DAG_RUN_ID='scheduled__2026-02-04T12:00:00+00:00'
+[2026-02-05T15:03:35.874+0000] {taskinstance.py:731} INFO - ::endgroup::
+[2026-02-05T15:03:35.969+0000] {fraud_detection_training_dag.py:66} INFO - Initializing fraud detection training (transactions_table=transactions)
+[2026-02-05T15:03:36.014+0000] {fraud_detection_training.py:106} INFO - Configuration loaded successfully
+[2026-02-05T15:03:36.016+0000] {fraud_detection_training.py:120} INFO - Database configured: postgres
+[2026-02-05T15:03:37.655+0000] {fraud_detection_training.py:157} INFO - Object storage verified. Buckets: ['mlflow']
+[2026-02-05T15:03:38.599+0000] {fraud_detection_training.py:203} INFO - MLflow configured successfully
+[2026-02-05T15:03:38.600+0000] {fraud_detection_training.py:99} INFO - Fraud detection training system initialized
+[2026-02-05T15:03:38.601+0000] {fraud_detection_training_dag.py:75} INFO - Starting model training...
+[2026-02-05T15:03:38.624+0000] {fraud_detection_training_dag.py:81} INFO - Requested training batch_size=100000, min_records=100000
+[2026-02-05T15:03:38.625+0000] {fraud_detection_training.py:219} INFO - Starting data ingestion from PostgreSQL (table=transactions, limit=100000)...
+[2026-02-05T15:03:38.627+0000] {fraud_detection_training.py:241} INFO - Connecting to transactions DB: postgres:5432/transactions_db (user=fraud_training)
+[2026-02-05T15:03:38.656+0000] {fraud_detection_training.py:296} INFO - Executing query (limit=100000) against transactions
+[2026-02-05T15:03:46.904+0000] {fraud_detection_training.py:317} INFO - Ingested 100000 raw transactions from transactions (requested 100000)
+[2026-02-05T15:03:46.931+0000] {fraud_detection_training.py:319} INFO - Date range: 2026-02-04 10:29:22.659846 to 2026-02-04 13:30:01.162836
+[2026-02-05T15:03:46.932+0000] {fraud_detection_training.py:320} INFO - Fraud rate: 2.79%
+[2026-02-05T15:03:46.933+0000] {fraud_detection_training.py:698} INFO - Starting model training...
+[2026-02-05T15:03:58.895+0000] {fraud_detection_training.py:338} INFO - Starting feature engineering for 62 features...
+[2026-02-05T15:04:00.327+0000] {fraud_detection_training.py:350} INFO - Engineering temporal features...
+[2026-02-05T15:04:00.471+0000] {fraud_detection_training.py:719} WARNING - Feature engineering step failed or returned early: window must be an integer 0 or greater
+[2026-02-05T15:04:02.256+0000] {fraud_detection_training.py:739} INFO - Training with 20 features
+[2026-02-05T15:04:02.260+0000] {fraud_detection_training.py:740} INFO - Categorical: 12, Numeric: 7
+[2026-02-05T15:04:02.277+0000] {fraud_detection_training.py:741} INFO - Class distribution: {0: 97208, 1: 2792}
+[2026-02-05T15:04:02.279+0000] {fraud_detection_training.py:746} ERROR - Expected at least 62 engineered feature columns but found 20. Aborting training.
+[2026-02-05T15:04:02.281+0000] {fraud_detection_training.py:750} ERROR - Feature columns: ['gender', 'age', 'account_status', 'action', 'location', 'country', 'device_type', 'browser', 'session_duration', 'category', 'price', 'discount', 'quantity', 'payment_method', 'payment_status', 'amount', 'currency', 'return_request', 'refund_status', 'rating']
+[2026-02-05T15:04:02.285+0000] {fraud_detection_training.py:754} ERROR - Engineered feature count: 20
+[2026-02-05T15:04:02.287+0000] {fraud_detection_training.py:946} ERROR - Training failed: Insufficient engineered features: expected 62, found 20
+Traceback (most recent call last):
+  File "/opt/airflow/plugins/fraud_detection_training.py", line 757, in train_model
+    raise RuntimeError(f"Insufficient engineered features: expected {expected_count}, found {len(feature_cols)}")
+RuntimeError: Insufficient engineered features: expected 62, found 20
+[2026-02-05T15:04:02.315+0000] {fraud_detection_training_dag.py:104} ERROR - Training failed: Insufficient engineered features: expected 62, found 20
+Traceback (most recent call last):
+  File "/opt/airflow/dags/fraud_detection_training_dag.py", line 96, in _train_model
+    model, metrics = trainer.train_model(df)
+                     ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/airflow/plugins/fraud_detection_training.py", line 757, in train_model
+    raise RuntimeError(f"Insufficient engineered features: expected {expected_count}, found {len(feature_cols)}")
+RuntimeError: Insufficient engineered features: expected 62, found 20
+[2026-02-05T15:04:02.373+0000] {taskinstance.py:3310} ERROR - Task failed with exception
+Traceback (most recent call last):
+  File "/opt/airflow/dags/fraud_detection_training_dag.py", line 96, in _train_model
+    model, metrics = trainer.train_model(df)
+                     ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/airflow/plugins/fraud_detection_training.py", line 757, in train_model
+    raise RuntimeError(f"Insufficient engineered features: expected {expected_count}, found {len(feature_cols)}")
+RuntimeError: Insufficient engineered features: expected 62, found 20
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/models/taskinstance.py", line 767, in _execute_task
+    result = _execute_callable(context=context, **execute_callable_kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/models/taskinstance.py", line 733, in _execute_callable
+    return ExecutionCallableRunner(
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/utils/operator_helpers.py", line 252, in run
+    return self.func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/models/baseoperator.py", line 406, in wrapper
+    return func(self, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/operators/python.py", line 238, in execute
+    return_value = self.execute_callable()
+                   ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/operators/python.py", line 256, in execute_callable
+    return runner.run(*self.op_args, **self.op_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/utils/operator_helpers.py", line 252, in run
+    return self.func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/airflow/dags/fraud_detection_training_dag.py", line 105, in _train_model
+    raise AirflowException(f'Model training failed: {str(e)}')
+airflow.exceptions.AirflowException: Model training failed: Insufficient engineered features: expected 62, found 20
+[2026-02-05T15:04:02.416+0000] {taskinstance.py:1225} INFO - Marking task as FAILED. dag_id=fraud_detection_training, task_id=execute_training, run_id=scheduled__2026-02-04T12:00:00+00:00, execution_date=20260204T120000, start_date=20260205T150335, end_date=20260205T150402
+[2026-02-05T15:04:02.482+0000] {taskinstance.py:340} INFO - ::group::Post task execution logs
+[2026-02-05T15:04:02.484+0000] {standard_task_runner.py:124} ERROR - Failed to execute job 39 for task execute_training (Model training failed: Insufficient engineered features: expected 62, found 20; 160)
+Traceback (most recent call last):
+  File "/opt/airflow/dags/fraud_detection_training_dag.py", line 96, in _train_model
+    model, metrics = trainer.train_model(df)
+                     ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/airflow/plugins/fraud_detection_training.py", line 757, in train_model
+    raise RuntimeError(f"Insufficient engineered features: expected {expected_count}, found {len(feature_cols)}")
+RuntimeError: Insufficient engineered features: expected 62, found 20
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/task/task_runner/standard_task_runner.py", line 117, in _start_by_fork
+    ret = args.func(args, dag=self.dag)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/cli/cli_config.py", line 49, in command
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/utils/cli.py", line 115, in wrapper
+    return f(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/cli/commands/task_command.py", line 483, in task_run
+    task_return_code = _run_task_by_selected_method(args, _dag, ti)
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/cli/commands/task_command.py", line 256, in _run_task_by_selected_method
+    return _run_raw_task(args, ti)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/cli/commands/task_command.py", line 341, in _run_raw_task
+    return ti._run_raw_task(
+           ^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/utils/session.py", line 97, in wrapper
+    return func(*args, session=session, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/models/taskinstance.py", line 3004, in _run_raw_task
+    return _run_raw_task(
+           ^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/models/taskinstance.py", line 273, in _run_raw_task
+    TaskInstance._execute_task_with_callbacks(
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/models/taskinstance.py", line 3158, in _execute_task_with_callbacks
+    result = self._execute_task(context, task_orig)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/models/taskinstance.py", line 3182, in _execute_task
+    return _execute_task(self, context, task_orig)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/models/taskinstance.py", line 767, in _execute_task
+    result = _execute_callable(context=context, **execute_callable_kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/models/taskinstance.py", line 733, in _execute_callable
+    return ExecutionCallableRunner(
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/utils/operator_helpers.py", line 252, in run
+    return self.func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/models/baseoperator.py", line 406, in wrapper
+    return func(self, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/operators/python.py", line 238, in execute
+    return_value = self.execute_callable()
+                   ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/operators/python.py", line 256, in execute_callable
+    return runner.run(*self.op_args, **self.op_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/utils/operator_helpers.py", line 252, in run
+    return self.func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/airflow/dags/fraud_detection_training_dag.py", line 105, in _train_model
+    raise AirflowException(f'Model training failed: {str(e)}')
+airflow.exceptions.AirflowException: Model training failed: Insufficient engineered features: expected 62, found 20
+[2026-02-05T15:04:02.801+0000] {local_task_job_runner.py:266} INFO - Task exited with return code 1
+[2026-02-05T15:04:03.019+0000] {taskinstance.py:3900} INFO - 1 downstream tasks scheduled from follow-on schedule check
+[2026-02-05T15:04:03.096+0000] {local_task_job_runner.py:245} INFO - ::endgroup::
+[2026-02-06T10:08:15.957+0000] {local_task_job_runner.py:123} INFO - ::group::Pre task execution logs
+[2026-02-06T10:08:15.984+0000] {taskinstance.py:2612} INFO - Dependencies all met for dep_context=non-requeueable deps ti=<TaskInstance: fraud_detection_training.execute_training scheduled__2026-02-04T12:00:00+00:00 [queued]>
+[2026-02-06T10:08:15.997+0000] {taskinstance.py:2612} INFO - Dependencies all met for dep_context=requeueable deps ti=<TaskInstance: fraud_detection_training.execute_training scheduled__2026-02-04T12:00:00+00:00 [queued]>
+[2026-02-06T10:08:15.998+0000] {taskinstance.py:2865} INFO - Starting attempt 1 of 1
+[2026-02-06T10:08:16.019+0000] {taskinstance.py:2888} INFO - Executing <Task(PythonOperator): execute_training> on 2026-02-04 12:00:00+00:00
+[2026-02-06T10:08:16.037+0000] {warnings.py:112} WARNING - /home/***/.local/lib/python3.12/site-packages/***/task/task_runner/standard_task_runner.py:70: DeprecationWarning: This process (pid=3620) is multi-threaded, use of fork() may lead to deadlocks in the child.
+  pid = os.fork()
+
+[2026-02-06T10:08:16.042+0000] {standard_task_runner.py:72} INFO - Started process 3626 to run task
+[2026-02-06T10:08:16.040+0000] {standard_task_runner.py:104} INFO - Running: ['***', 'tasks', 'run', 'fraud_detection_training', 'execute_training', 'scheduled__2026-02-04T12:00:00+00:00', '--job-id', '49', '--raw', '--subdir', 'DAGS_FOLDER/fraud_detection_training_dag.py', '--cfg-path', '/tmp/tmpfcwoq8i4']
+[2026-02-06T10:08:16.044+0000] {standard_task_runner.py:105} INFO - Job 49: Subtask execute_training
+[2026-02-06T10:08:16.139+0000] {task_command.py:467} INFO - Running <TaskInstance: fraud_detection_training.execute_training scheduled__2026-02-04T12:00:00+00:00 [running]> on host 76a62e6a2564
+[2026-02-06T10:08:16.279+0000] {taskinstance.py:3131} INFO - Exporting env vars: AIRFLOW_CTX_DAG_OWNER='datamasterylab.com' AIRFLOW_CTX_DAG_ID='fraud_detection_training' AIRFLOW_CTX_TASK_ID='execute_training' AIRFLOW_CTX_EXECUTION_DATE='2026-02-04T12:00:00+00:00' AIRFLOW_CTX_TRY_NUMBER='1' AIRFLOW_CTX_DAG_RUN_ID='scheduled__2026-02-04T12:00:00+00:00'
+[2026-02-06T10:08:16.280+0000] {taskinstance.py:731} INFO - ::endgroup::
+[2026-02-06T10:08:16.416+0000] {fraud_detection_training_dag.py:66} INFO - Initializing fraud detection training (transactions_table=transactions)
+[2026-02-06T10:08:16.451+0000] {fraud_detection_training.py:106} INFO - Configuration loaded successfully
+[2026-02-06T10:08:16.452+0000] {fraud_detection_training.py:120} INFO - Database configured: postgres
+[2026-02-06T10:08:17.272+0000] {fraud_detection_training.py:157} INFO - Object storage verified. Buckets: ['mlflow']
+[2026-02-06T10:08:17.434+0000] {fraud_detection_training.py:203} INFO - MLflow configured successfully
+[2026-02-06T10:08:17.435+0000] {fraud_detection_training.py:99} INFO - Fraud detection training system initialized
+[2026-02-06T10:08:17.437+0000] {fraud_detection_training_dag.py:75} INFO - Starting model training...
+[2026-02-06T10:08:17.468+0000] {fraud_detection_training_dag.py:81} INFO - Requested training batch_size=100000, min_records=100000
+[2026-02-06T10:08:17.473+0000] {fraud_detection_training.py:219} INFO - Starting data ingestion from PostgreSQL (table=transactions, limit=100000)...
+[2026-02-06T10:08:17.476+0000] {fraud_detection_training.py:241} INFO - Connecting to transactions DB: postgres:5432/transactions_db (user=fraud_training)
+[2026-02-06T10:08:17.489+0000] {fraud_detection_training.py:296} INFO - Executing query (limit=100000) against transactions
+[2026-02-06T10:08:25.846+0000] {fraud_detection_training.py:317} INFO - Ingested 100000 raw transactions from transactions (requested 100000)
+[2026-02-06T10:08:25.856+0000] {fraud_detection_training.py:319} INFO - Date range: 2026-02-04 10:29:22.659846 to 2026-02-04 13:30:01.162836
+[2026-02-06T10:08:25.858+0000] {fraud_detection_training.py:320} INFO - Fraud rate: 2.79%
+[2026-02-06T10:08:25.859+0000] {fraud_detection_training.py:695} INFO - Starting model training...
+[2026-02-06T10:08:29.565+0000] {fraud_detection_training.py:338} INFO - Starting feature engineering for 62 features...
+[2026-02-06T10:08:30.857+0000] {fraud_detection_training.py:350} INFO - Engineering temporal features...
+[2026-02-06T10:08:37.537+0000] {fraud_detection_training.py:388} INFO - Engineering identity features...
+[2026-02-06T10:08:37.873+0000] {fraud_detection_training.py:425} INFO - Engineering device features...
+[2026-02-06T10:08:38.182+0000] {fraud_detection_training.py:457} INFO - Engineering location features...
+[2026-02-06T10:08:38.305+0000] {fraud_detection_training.py:479} INFO - Engineering payment features...
+[2026-02-06T10:08:39.518+0000] {fraud_detection_training.py:516} INFO - Engineering network features...
+[2026-02-06T10:08:41.220+0000] {fraud_detection_training.py:555} INFO - Engineering behavioral features...
+[2026-02-06T10:08:41.380+0000] {fraud_detection_training.py:589} INFO - Engineering product features...
+[2026-02-06T10:08:41.558+0000] {fraud_detection_training.py:604} INFO - Engineering address features...
+[2026-02-06T10:08:42.773+0000] {fraud_detection_training.py:630} INFO - Engineering delivery and refund features...
+[2026-02-06T10:08:43.225+0000] {fraud_detection_training.py:681} INFO - Feature engineering complete. Generated 100 features
+[2026-02-06T10:08:43.226+0000] {fraud_detection_training.py:714} INFO - Post-engineering columns: 103
+[2026-02-06T10:08:43.910+0000] {fraud_detection_training.py:736} INFO - Training with 84 features
+[2026-02-06T10:08:43.911+0000] {fraud_detection_training.py:737} INFO - Categorical: 12, Numeric: 71
+[2026-02-06T10:08:43.913+0000] {fraud_detection_training.py:738} INFO - Class distribution: {0: 97208, 1: 2792}
+[2026-02-06T10:08:44.484+0000] {fraud_detection_training.py:818} INFO - Constructing pipeline with SMOTE for class imbalance
+[2026-02-06T10:08:44.486+0000] {fraud_detection_training.py:851} INFO - Starting hyperparameter tuning...
+[2026-02-06T10:08:44.493+0000] {logging_mixin.py:190} INFO - Fitting 3 folds for each of 20 candidates, totalling 60 fits
+[2026-02-06T10:35:52.287+0000] {fraud_detection_training.py:855} INFO - Best hyperparameters: {'classifier__subsample': 0.6, 'classifier__reg_alpha': 0, 'classifier__max_depth': 5, 'classifier__learning_rate': 0.1, 'classifier__gamma': 0.3, 'classifier__colsample_bytree': 0.8}
+[2026-02-06T10:35:55.535+0000] {fraud_detection_training.py:863} INFO - Optimal threshold determined: 0.0851
+[2026-02-06T10:35:57.037+0000] {credentials.py:1147} INFO - Found credentials in environment variables.
+[2026-02-06T10:36:11.904+0000] {warnings.py:112} WARNING - /home/***/.local/lib/python3.12/site-packages/mlflow/types/utils.py:452: UserWarning: Hint: Inferred schema contains integer column(s). Integer columns in Python cannot represent missing values. If your input data contains missing values at inference time, it will be encoded as floats and will cause a schema enforcement error. The best way to avoid this problem is to infer the model schema based on a realistic data sample (training dataset) that includes missing values. Alternatively, you can declare integer columns as doubles (float64) whenever these columns may have missing values. See `Handling Integers With Missing Values <https://www.mlflow.org/docs/latest/models.html#handling-integers-with-missing-values>`_ for more details.
+  warnings.warn(
+
+[2026-02-06T10:36:11.906+0000] {logging_mixin.py:190} WARNING - 2026/02/06 10:36:11 WARNING mlflow.models.model: `artifact_path` is deprecated. Please use `name` instead.
+[2026-02-06T10:36:13.405+0000] {warnings.py:112} WARNING - /home/***/.local/lib/python3.12/site-packages/mlflow/models/model.py:1209: FutureWarning: Saving scikit-learn models in the pickle or cloudpickle format requires exercising caution because these formats rely on Python's object serialization mechanism, which can execute arbitrary code during deserialization.The recommended safe alternative is the 'skops' format.
+  flavor.save_model(path=local_path, mlflow_model=mlflow_model, **kwargs)
+
+[2026-02-06T10:36:28.345+0000] {logging_mixin.py:190} WARNING - Registered model 'fraud_detection_model' already exists. Creating a new version of this model...
+[2026-02-06T10:36:28.476+0000] {logging_mixin.py:190} WARNING - 2026/02/06 10:36:28 INFO mlflow.store.model_registry.abstract_store: Waiting up to 300 seconds for model version to finish creation. Model name: fraud_detection_model, version 3
+[2026-02-06T10:36:28.477+0000] {logging_mixin.py:190} WARNING - Created version '3' of model 'fraud_detection_model'.
+[2026-02-06T10:36:28.693+0000] {fraud_detection_training.py:928} INFO - Training complete with metrics: {'auc_pr': 0.22973259766652482, 'precision': 0.25040916530278234, 'recall': 0.27419354838709675, 'f1': 0.2617621899059025, 'threshold': 0.08505818247795105}
+[2026-02-06T10:36:28.958+0000] {logging_mixin.py:190} INFO - 🏃 View run stately-fawn-847 at: http://mlflow-server:5500/#/experiments/1/runs/bf67c30a900544519deb8736ade1ada0
+[2026-02-06T10:36:28.959+0000] {logging_mixin.py:190} INFO - 🧪 View experiment at: http://mlflow-server:5500/#/experiments/1
+[2026-02-06T10:36:29.589+0000] {fraud_detection_training_dag.py:101} INFO - Training completed with metrics={'auc_pr': 0.22973259766652482, 'precision': 0.25040916530278234, 'recall': 0.27419354838709675, 'f1': 0.2617621899059025, 'threshold': 0.08505818247795105}
+[2026-02-06T10:36:29.805+0000] {python.py:240} INFO - Done. Returned value was: {'status': 'success', 'metrics': {'auc_pr': 0.22973259766652482, 'precision': 0.25040916530278234, 'recall': 0.27419354838709675, 'f1': 0.2617621899059025, 'threshold': 0.08505818247795105}}
+[2026-02-06T10:36:29.898+0000] {taskinstance.py:340} INFO - ::group::Post task execution logs
+[2026-02-06T10:36:29.900+0000] {taskinstance.py:352} INFO - Marking task as SUCCESS. dag_id=fraud_detection_training, task_id=execute_training, run_id=scheduled__2026-02-04T12:00:00+00:00, execution_date=20260204T120000, start_date=20260206T100815, end_date=20260206T103629
+[2026-02-06T10:36:30.238+0000] {local_task_job_runner.py:266} INFO - Task exited with return code 0
+[2026-02-06T10:36:30.307+0000] {taskinstance.py:3900} INFO - 1 downstream tasks scheduled from follow-on schedule check
+[2026-02-06T10:36:30.465+0000] {local_task_job_runner.py:245} INFO - ::endgroup::

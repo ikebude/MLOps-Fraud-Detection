@@ -98,6 +98,15 @@ cd producer
 python main.py
 ```
 
+**Host health access (Docker Compose)**: The producer runs an internal health server on port **8080**. If you want to access it from your host, add this mapping to the `producer` service in `src/docker-compose.yml`:
+
+```yaml
+ports:
+  - "18080:8080"  # host 18080 -> container 8080
+```
+
+Then you can query `http://localhost:18080/health` or `/stats` from your host machine.
+
 ---
 
 ## Step 5: Monitor Production

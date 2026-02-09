@@ -5,6 +5,7 @@ Exposes HTTP endpoints for:
 - Health checks
 - Running inference
 - Retrieving inference results
+- Prometheus metrics endpoint
 
 Cumulative totals are persisted to file to survive restarts and provide real-time tracking.
 """
@@ -17,13 +18,20 @@ from datetime import datetime
 from main import FraudDetectionInference
 from continuous_inference import ContinuousInferenceWorker
 import threading
+import sys
+sys.path.insert(0, '/app')
 
-# Configure logging
-logging.basicConfig(
-    format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
-    level=logging.INFO
+from utils.prometheus_metrics import (
+    inference_predictions_total, inference_prediction_latency,
+    inference_errors_total, inference_data_points_total,
+    inference_fraud_rate, inference_model_loaded,
+    inference_cumulative_frauds, inference_cumulative_total,
+    get_metrics_exposition, track_prediction_latency
 )
-logger = logging.getLogger(__name__)
+from utils.logging_config import setup_structured_logging
+
+# Configure structured JSON logging
+logger = setup_structured_logging('inference-api', logging.INFO)
 
 app = Flask(__name__)
 
@@ -467,6 +475,12 @@ def get_stats():
         cumulative_total_records = total_count
         cumulative_fraud_detections = fraud_count
         
+        # Update Prometheus metrics
+        inference_cumulative_total.set(total_count)
+        inference_cumulative_frauds.set(fraud_count)
+        fraud_rate = float(fraud_count) / float(total_count) if total_count > 0 else 0.0
+        inference_fraud_rate.set(fraud_rate)
+        
         # Calculate averages from latest_results if available (for recent performance metrics)
         avg_probability = 0.0
         avg_confidence = 0.0
@@ -478,17 +492,17 @@ def get_stats():
                 pass
         
         # Calculate fraud rate from cumulative totals
-        fraud_rate = round(100 * fraud_count / total_count if total_count > 0 else 0, 2)
+        fraud_rate_pct = round(100 * fraud_count / total_count if total_count > 0 else 0, 2)
         
         logger.info('Stats requested: cumulative_total=%d, cumulative_fraud=%d, rate=%.2f%%', 
-                    total_count, fraud_count, fraud_rate)
+                    total_count, fraud_count, fraud_rate_pct)
         
         return jsonify({
             'status': 'success',
             'timestamp': latest_results_timestamp.isoformat() if latest_results_timestamp else datetime.now().isoformat(),
             'total_records': total_count,  # ALWAYS cumulative, never limited to 1000
             'fraud_detections': fraud_count,  # ALWAYS cumulative
-            'fraud_rate': fraud_rate,
+            'fraud_rate': fraud_rate_pct,
             'avg_fraud_probability': round(avg_probability, 4),
             'avg_confidence': round(avg_confidence, 4),
             'model_version': getattr(inference_pipeline, 'model_version', None),
@@ -496,11 +510,41 @@ def get_stats():
         }), 200
         
     except Exception as e:
-        logger.error('Error retrieving stats: %s', str(e))
+        inference_errors_total.labels(error_type='stats_retrieval').inc()
+        logger.error('Error retrieving stats: %s', str(e), exc_info=True)
         return jsonify({
             'error': str(e),
             'status': 'error'
         }), 500
+
+
+@app.route('/metrics', methods=['GET'])
+def get_metrics():
+    """Prometheus metrics endpoint - exposes all collected metrics"""
+    try:
+        return get_metrics_exposition(), 200, {'Content-Type': 'text/plain; version=0.0.4'}
+    except Exception as e:
+        logger.error('Error generating metrics: %s', str(e), exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/health', methods=['GET'])
+def health_check():
+    """Health check endpoint with model status"""
+    try:
+        model_loaded = inference_pipeline is not None and inference_pipeline.model is not None
+        inference_model_loaded.set(1 if model_loaded else 0)
+        
+        status = 'healthy' if model_loaded else 'degraded'
+        return jsonify({
+            'status': status,
+            'model_loaded': model_loaded,
+            'inference_service': 'operational',
+            'timestamp': datetime.now().isoformat()
+        }), 200
+    except Exception as e:
+        logger.error('Health check failed: %s', str(e), exc_info=True)
+        return jsonify({'status': 'unhealthy', 'error': str(e)}), 500
 
 
 if __name__ == '__main__':

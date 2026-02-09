@@ -23,8 +23,13 @@ MINIO_URL = os.getenv("MINIO_URL", "http://minio:9000").rstrip("/")
 FLOWER_URL = os.getenv("FLOWER_URL", "http://flower:5555").rstrip("/")
 REQUEST_TIMEOUT = int(os.getenv("FRAUDGUARD_REQUEST_TIMEOUT", "10"))
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+# Structured JSON logging
+try:
+    from utils.logging_config import setup_structured_logging
+    logger = setup_structured_logging('fraudguard', logging.INFO)
+except Exception:
+    logging.basicConfig(level=logging.INFO)
+    logger = logging.getLogger(__name__)
 
 
 def _get(url: str, default=None):

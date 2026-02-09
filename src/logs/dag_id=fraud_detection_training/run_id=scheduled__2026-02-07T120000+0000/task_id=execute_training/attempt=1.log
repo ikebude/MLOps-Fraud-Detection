@@ -1,0 +1,395 @@
+[2026-02-08T12:00:23.218+0000] {local_task_job_runner.py:123} INFO - ::group::Pre task execution logs
+[2026-02-08T12:00:23.240+0000] {taskinstance.py:2612} INFO - Dependencies all met for dep_context=non-requeueable deps ti=<TaskInstance: fraud_detection_training.execute_training scheduled__2026-02-07T12:00:00+00:00 [queued]>
+[2026-02-08T12:00:23.252+0000] {taskinstance.py:2612} INFO - Dependencies all met for dep_context=requeueable deps ti=<TaskInstance: fraud_detection_training.execute_training scheduled__2026-02-07T12:00:00+00:00 [queued]>
+[2026-02-08T12:00:23.255+0000] {taskinstance.py:2865} INFO - Starting attempt 1 of 1
+[2026-02-08T12:00:23.277+0000] {taskinstance.py:2888} INFO - Executing <Task(PythonOperator): execute_training> on 2026-02-07 12:00:00+00:00
+[2026-02-08T12:00:23.292+0000] {warnings.py:112} WARNING - /home/***/.local/lib/python3.12/site-packages/***/task/task_runner/standard_task_runner.py:70: DeprecationWarning: This process (pid=1796) is multi-threaded, use of fork() may lead to deadlocks in the child.
+  pid = os.fork()
+
+[2026-02-08T12:00:23.294+0000] {standard_task_runner.py:72} INFO - Started process 1802 to run task
+[2026-02-08T12:00:23.295+0000] {standard_task_runner.py:104} INFO - Running: ['***', 'tasks', 'run', 'fraud_detection_training', 'execute_training', 'scheduled__2026-02-07T12:00:00+00:00', '--job-id', '86', '--raw', '--subdir', 'DAGS_FOLDER/fraud_detection_training_dag.py', '--cfg-path', '/tmp/tmpucqd96_9']
+[2026-02-08T12:00:23.300+0000] {standard_task_runner.py:105} INFO - Job 86: Subtask execute_training
+[2026-02-08T12:00:23.381+0000] {task_command.py:467} INFO - Running <TaskInstance: fraud_detection_training.execute_training scheduled__2026-02-07T12:00:00+00:00 [running]> on host 86e3c5a88750
+[2026-02-08T12:00:23.551+0000] {taskinstance.py:3131} INFO - Exporting env vars: AIRFLOW_CTX_DAG_OWNER='datamasterylab.com' AIRFLOW_CTX_DAG_ID='fraud_detection_training' AIRFLOW_CTX_TASK_ID='execute_training' AIRFLOW_CTX_EXECUTION_DATE='2026-02-07T12:00:00+00:00' AIRFLOW_CTX_TRY_NUMBER='1' AIRFLOW_CTX_DAG_RUN_ID='scheduled__2026-02-07T12:00:00+00:00'
+[2026-02-08T12:00:23.555+0000] {taskinstance.py:731} INFO - ::endgroup::
+[2026-02-08T12:00:23.659+0000] {fraud_detection_training_dag.py:121} INFO - Initializing fraud detection training (transactions_table=transactions)
+[2026-02-08T12:00:23.704+0000] {fraud_detection_training.py:144} INFO - Configuration loaded successfully
+[2026-02-08T12:00:23.705+0000] {fraud_detection_training.py:158} INFO - Database configured: postgres
+[2026-02-08T12:00:25.178+0000] {fraud_detection_training.py:195} INFO - Object storage verified. Buckets: ['mlflow']
+[2026-02-08T12:00:25.313+0000] {fraud_detection_training.py:241} INFO - MLflow configured successfully
+[2026-02-08T12:00:25.314+0000] {fraud_detection_training.py:137} INFO - Fraud detection training system initialized
+[2026-02-08T12:00:25.314+0000] {fraud_detection_training_dag.py:128} INFO - Starting model training...
+[2026-02-08T12:00:25.334+0000] {fraud_detection_training_dag.py:134} INFO - Requested training batch_size=100000, min_records=100000
+[2026-02-08T12:00:25.337+0000] {fraud_detection_training.py:257} INFO - Starting data ingestion from PostgreSQL (table=transactions, limit=100000)...
+[2026-02-08T12:00:25.338+0000] {fraud_detection_training.py:279} INFO - Connecting to transactions DB: postgres:5432/transactions_db (user=fraud_producer)
+[2026-02-08T12:00:25.345+0000] {fraud_detection_training.py:334} INFO - Executing query (limit=100000) against transactions
+[2026-02-08T12:00:32.155+0000] {fraud_detection_training.py:355} INFO - Ingested 100000 raw transactions from transactions (requested 100000)
+[2026-02-08T12:00:32.158+0000] {fraud_detection_training.py:357} INFO - Date range: 2026-02-08 07:13:13.196572 to 2026-02-08 08:42:16.707357
+[2026-02-08T12:00:32.160+0000] {fraud_detection_training.py:358} INFO - Fraud rate: 2.77%
+[2026-02-08T12:00:32.162+0000] {fraud_detection_training.py:697} INFO - Starting model training...
+[2026-02-08T12:00:34.104+0000] {font_manager.py:1639} INFO - generated new fontManager
+[2026-02-08T12:00:35.942+0000] {fraud_detection_training.py:377} INFO - Starting feature engineering for 74 features (54 engineered + 20 raw)...
+[2026-02-08T12:00:37.040+0000] {fraud_detection_training.py:390} INFO - Engineering amount-based features (strongest signal)...
+[2026-02-08T12:00:37.628+0000] {fraud_detection_training.py:444} INFO - Engineering identity features...
+[2026-02-08T12:00:37.804+0000] {fraud_detection_training.py:465} INFO - Engineering device features...
+[2026-02-08T12:00:39.275+0000] {fraud_detection_training.py:496} INFO - Engineering location features...
+[2026-02-08T12:00:39.652+0000] {fraud_detection_training.py:511} INFO - Engineering payment features...
+[2026-02-08T12:00:40.672+0000] {fraud_detection_training.py:539} INFO - Engineering network features...
+[2026-02-08T12:00:42.162+0000] {fraud_detection_training.py:565} INFO - Engineering behavioral features...
+[2026-02-08T12:00:42.334+0000] {fraud_detection_training.py:593} INFO - Engineering product features...
+[2026-02-08T12:00:42.413+0000] {fraud_detection_training.py:602} INFO - Engineering address features...
+[2026-02-08T12:00:43.188+0000] {fraud_detection_training.py:613} INFO - Engineering delivery and refund features...
+[2026-02-08T12:00:43.614+0000] {fraud_detection_training.py:650} INFO - Adding aggregate features...
+[2026-02-08T12:00:44.456+0000] {fraud_detection_training.py:681} INFO - Feature engineering complete with enhanced amount-based features
+[2026-02-08T12:00:44.457+0000] {fraud_detection_training.py:682} INFO - Total columns: 96 (engineered + raw)
+[2026-02-08T12:00:44.458+0000] {fraud_detection_training.py:716} INFO - Post-engineering columns: 96
+[2026-02-08T12:00:45.578+0000] {fraud_detection_training.py:738} INFO - Training with 77 features
+[2026-02-08T12:00:45.579+0000] {fraud_detection_training.py:739} INFO - Categorical: 12, Numeric: 64
+[2026-02-08T12:00:45.581+0000] {fraud_detection_training.py:740} INFO - Class distribution: {0: 97226, 1: 2774}
+[2026-02-08T12:00:46.356+0000] {fraud_detection_training.py:808} INFO - Computed scale_pos_weight=52.5784 (base=35.0523, neg=77781, pos=2219)
+[2026-02-08T12:00:46.451+0000] {fraud_detection_training.py:822} INFO - Constructing pipeline with SMOTE for class imbalance
+[2026-02-08T12:00:46.452+0000] {fraud_detection_training.py:858} INFO - Starting hyperparameter tuning with RECALL MAXIMIZATION (beta=5, realistic fraud prevention)...
+[2026-02-08T12:00:46.459+0000] {logging_mixin.py:190} INFO - Fitting 3 folds for each of 50 candidates, totalling 150 fits
+[2026-02-08T14:54:04.134+0000] {job.py:229} INFO - Heartbeat recovered after 9769.37 seconds
+[2026-02-08T14:54:14.038+0000] {job.py:229} INFO - Heartbeat recovered after 14.74 seconds
+[2026-02-08T14:54:31.889+0000] {job.py:229} INFO - Heartbeat recovered after 11.85 seconds
+[2026-02-08T15:08:01.515+0000] {local_task_job_runner.py:346} WARNING - State of this instance has been externally set to None. Terminating instance.
+[2026-02-08T15:08:01.629+0000] {local_task_job_runner.py:245} INFO - ::endgroup::
+[2026-02-08T15:08:01.654+0000] {process_utils.py:132} INFO - Sending 15 to group 1802. PIDs of all processes in the group: [1802]
+[2026-02-08T15:08:01.656+0000] {process_utils.py:87} INFO - Sending the signal 15 to group 1802
+[2026-02-08T15:08:01.734+0000] {taskinstance.py:3092} ERROR - Received SIGTERM. Terminating subprocesses.
+[2026-02-08T15:08:04.470+0000] {logging_mixin.py:190} INFO - 🏃 View run indecisive-cub-730 at: http://mlflow-server:5500/#/experiments/1/runs/8ef6b173cda345f7a363b2a792893924
+[2026-02-08T15:08:04.480+0000] {logging_mixin.py:190} INFO - 🧪 View experiment at: http://mlflow-server:5500/#/experiments/1
+[2026-02-08T15:08:16.006+0000] {taskinstance.py:3310} ERROR - Task failed with exception
+Traceback (most recent call last):
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/models/taskinstance.py", line 767, in _execute_task
+    result = _execute_callable(context=context, **execute_callable_kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/models/taskinstance.py", line 733, in _execute_callable
+    return ExecutionCallableRunner(
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/utils/operator_helpers.py", line 252, in run
+    return self.func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/models/baseoperator.py", line 406, in wrapper
+    return func(self, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/operators/python.py", line 238, in execute
+    return_value = self.execute_callable()
+                   ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/operators/python.py", line 256, in execute_callable
+    return runner.run(*self.op_args, **self.op_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/utils/operator_helpers.py", line 252, in run
+    return self.func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/airflow/dags/fraud_detection_training_dag.py", line 151, in _train_model
+    model, metrics = trainer.train_model(df)
+                     ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/airflow/plugins/fraud_detection_training.py", line 859, in train_model
+    searcher.fit(X_train, y_train)
+  File "/home/airflow/.local/lib/python3.12/site-packages/sklearn/base.py", line 1365, in wrapper
+    return fit_method(estimator, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sklearn/model_selection/_search.py", line 1051, in fit
+    self._run_search(evaluate_candidates)
+  File "/home/airflow/.local/lib/python3.12/site-packages/sklearn/model_selection/_search.py", line 1992, in _run_search
+    evaluate_candidates(
+  File "/home/airflow/.local/lib/python3.12/site-packages/sklearn/model_selection/_search.py", line 997, in evaluate_candidates
+    out = parallel(
+          ^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sklearn/utils/parallel.py", line 82, in __call__
+    return super().__call__(iterable_with_config_and_warning_filters)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/joblib/parallel.py", line 1986, in __call__
+    return output if self.return_generator else list(output)
+                                                ^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/joblib/parallel.py", line 1914, in _get_sequential_output
+    res = func(*args, **kwargs)
+          ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sklearn/utils/parallel.py", line 147, in __call__
+    return self.function(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sklearn/model_selection/_validation.py", line 859, in _fit_and_score
+    estimator.fit(X_train, y_train, **fit_params)
+  File "/home/airflow/.local/lib/python3.12/site-packages/sklearn/base.py", line 1365, in wrapper
+    return fit_method(estimator, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/imblearn/pipeline.py", line 522, in fit
+    self._final_estimator.fit(Xt, yt, **last_step_params["fit"])
+  File "/home/airflow/.local/lib/python3.12/site-packages/xgboost/core.py", line 726, in inner_f
+    return func(**kwargs)
+           ^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/xgboost/sklearn.py", line 1531, in fit
+    self._Booster = train(
+                    ^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/xgboost/core.py", line 726, in inner_f
+    return func(**kwargs)
+           ^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/xgboost/training.py", line 181, in train
+    bst.update(dtrain, iteration=i, fobj=obj)
+  File "/home/airflow/.local/lib/python3.12/site-packages/xgboost/core.py", line 2101, in update
+    _LIB.XGBoosterUpdateOneIter(
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/models/taskinstance.py", line 3094, in signal_handler
+    raise AirflowTaskTerminated("Task received SIGTERM signal")
+airflow.exceptions.AirflowTaskTerminated: Task received SIGTERM signal
+[2026-02-08T15:08:16.145+0000] {taskinstance.py:1225} INFO - Marking task as FAILED. dag_id=fraud_detection_training, task_id=execute_training, run_id=scheduled__2026-02-07T12:00:00+00:00, execution_date=20260207T120000, start_date=, end_date=20260208T150816
+[2026-02-08T15:08:16.203+0000] {taskinstance.py:340} INFO - ::group::Post task execution logs
+[2026-02-08T15:08:16.210+0000] {standard_task_runner.py:124} ERROR - Failed to execute job 86 for task execute_training ((psycopg2.errors.UniqueViolation) duplicate key value violates unique constraint "dag_run_dag_id_execution_date_key"
+DETAIL:  Key (dag_id, execution_date)=(fraud_detection_training, 2026-02-07 12:00:00+00) already exists.
+
+[SQL: INSERT INTO dag_run (id, dag_id, queued_at, execution_date, start_date, end_date, state, run_id, creating_job_id, external_trigger, run_type, conf, data_interval_start, data_interval_end, last_scheduling_decision, dag_hash, log_template_id, updated_at, clear_number) VALUES (%(id)s, %(dag_id)s, %(queued_at)s, %(execution_date)s, %(start_date)s, %(end_date)s, %(state)s, %(run_id)s, %(creating_job_id)s, %(external_trigger)s, %(run_type)s, %(conf)s, %(data_interval_start)s, %(data_interval_end)s, %(last_scheduling_decision)s, %(dag_hash)s, %(log_template_id)s, %(updated_at)s, %(clear_number)s)]
+[parameters: {'id': 26, 'dag_id': 'fraud_detection_training', 'queued_at': datetime.datetime(2026, 2, 8, 12, 0, 0, 728324, tzinfo=Timezone('UTC')), 'execution_date': datetime.datetime(2026, 2, 7, 12, 0, tzinfo=Timezone('UTC')), 'start_date': datetime.datetime(2026, 2, 8, 12, 0, 0, 879561, tzinfo=Timezone('UTC')), 'end_date': None, 'state': 'running', 'run_id': 'scheduled__2026-02-07T12:00:00+00:00', 'creating_job_id': 77, 'external_trigger': False, 'run_type': 'scheduled', 'conf': <psycopg2.extensions.Binary object at 0x75ea6890d0b0>, 'data_interval_start': datetime.datetime(2026, 2, 7, 12, 0, tzinfo=Timezone('UTC')), 'data_interval_end': datetime.datetime(2026, 2, 8, 12, 0, tzinfo=Timezone('UTC')), 'last_scheduling_decision': datetime.datetime(2026, 2, 8, 12, 0, 21, 959894, tzinfo=Timezone('UTC')), 'dag_hash': '412ad6a76820e1f161e06e5a34aca4cc', 'log_template_id': 2, 'updated_at': datetime.datetime(2026, 2, 8, 12, 0, 21, 966892, tzinfo=Timezone('UTC')), 'clear_number': 0}]
+(Background on this error at: https://sqlalche.me/e/14/gkpj); 1802)
+Traceback (most recent call last):
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/models/taskinstance.py", line 273, in _run_raw_task
+    TaskInstance._execute_task_with_callbacks(
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/models/taskinstance.py", line 3158, in _execute_task_with_callbacks
+    result = self._execute_task(context, task_orig)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/models/taskinstance.py", line 3182, in _execute_task
+    return _execute_task(self, context, task_orig)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/models/taskinstance.py", line 767, in _execute_task
+    result = _execute_callable(context=context, **execute_callable_kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/models/taskinstance.py", line 733, in _execute_callable
+    return ExecutionCallableRunner(
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/utils/operator_helpers.py", line 252, in run
+    return self.func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/models/baseoperator.py", line 406, in wrapper
+    return func(self, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/operators/python.py", line 238, in execute
+    return_value = self.execute_callable()
+                   ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/operators/python.py", line 256, in execute_callable
+    return runner.run(*self.op_args, **self.op_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/utils/operator_helpers.py", line 252, in run
+    return self.func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/airflow/dags/fraud_detection_training_dag.py", line 151, in _train_model
+    model, metrics = trainer.train_model(df)
+                     ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/airflow/plugins/fraud_detection_training.py", line 859, in train_model
+    searcher.fit(X_train, y_train)
+  File "/home/airflow/.local/lib/python3.12/site-packages/sklearn/base.py", line 1365, in wrapper
+    return fit_method(estimator, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sklearn/model_selection/_search.py", line 1051, in fit
+    self._run_search(evaluate_candidates)
+  File "/home/airflow/.local/lib/python3.12/site-packages/sklearn/model_selection/_search.py", line 1992, in _run_search
+    evaluate_candidates(
+  File "/home/airflow/.local/lib/python3.12/site-packages/sklearn/model_selection/_search.py", line 997, in evaluate_candidates
+    out = parallel(
+          ^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sklearn/utils/parallel.py", line 82, in __call__
+    return super().__call__(iterable_with_config_and_warning_filters)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/joblib/parallel.py", line 1986, in __call__
+    return output if self.return_generator else list(output)
+                                                ^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/joblib/parallel.py", line 1914, in _get_sequential_output
+    res = func(*args, **kwargs)
+          ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sklearn/utils/parallel.py", line 147, in __call__
+    return self.function(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sklearn/model_selection/_validation.py", line 859, in _fit_and_score
+    estimator.fit(X_train, y_train, **fit_params)
+  File "/home/airflow/.local/lib/python3.12/site-packages/sklearn/base.py", line 1365, in wrapper
+    return fit_method(estimator, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/imblearn/pipeline.py", line 522, in fit
+    self._final_estimator.fit(Xt, yt, **last_step_params["fit"])
+  File "/home/airflow/.local/lib/python3.12/site-packages/xgboost/core.py", line 726, in inner_f
+    return func(**kwargs)
+           ^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/xgboost/sklearn.py", line 1531, in fit
+    self._Booster = train(
+                    ^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/xgboost/core.py", line 726, in inner_f
+    return func(**kwargs)
+           ^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/xgboost/training.py", line 181, in train
+    bst.update(dtrain, iteration=i, fobj=obj)
+  File "/home/airflow/.local/lib/python3.12/site-packages/xgboost/core.py", line 2101, in update
+    _LIB.XGBoosterUpdateOneIter(
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/models/taskinstance.py", line 3094, in signal_handler
+    raise AirflowTaskTerminated("Task received SIGTERM signal")
+airflow.exceptions.AirflowTaskTerminated: Task received SIGTERM signal
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1910, in _execute_context
+    self.dialect.do_execute(
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/engine/default.py", line 736, in do_execute
+    cursor.execute(statement, parameters)
+psycopg2.errors.UniqueViolation: duplicate key value violates unique constraint "dag_run_dag_id_execution_date_key"
+DETAIL:  Key (dag_id, execution_date)=(fraud_detection_training, 2026-02-07 12:00:00+00) already exists.
+
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/task/task_runner/standard_task_runner.py", line 117, in _start_by_fork
+    ret = args.func(args, dag=self.dag)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/cli/cli_config.py", line 49, in command
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/utils/cli.py", line 115, in wrapper
+    return f(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/cli/commands/task_command.py", line 483, in task_run
+    task_return_code = _run_task_by_selected_method(args, _dag, ti)
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/cli/commands/task_command.py", line 256, in _run_task_by_selected_method
+    return _run_raw_task(args, ti)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/cli/commands/task_command.py", line 341, in _run_raw_task
+    return ti._run_raw_task(
+           ^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/utils/session.py", line 97, in wrapper
+    return func(*args, session=session, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/models/taskinstance.py", line 3004, in _run_raw_task
+    return _run_raw_task(
+           ^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/models/taskinstance.py", line 327, in _run_raw_task
+    ti.handle_failure(e, test_mode, context, session=session)
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/utils/session.py", line 94, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/models/taskinstance.py", line 3427, in handle_failure
+    _handle_failure(
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/utils/session.py", line 94, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/api_internal/internal_api_call.py", line 139, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/models/taskinstance.py", line 1243, in _handle_failure
+    TaskInstance.save_to_db(failure_context["ti"], session)
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/api_internal/internal_api_call.py", line 139, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/utils/session.py", line 94, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/models/taskinstance.py", line 3399, in save_to_db
+    session.flush()
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 3449, in flush
+    self._flush(objects)
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 3588, in _flush
+    with util.safe_reraise():
+         ^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/util/langhelpers.py", line 70, in __exit__
+    compat.raise_(
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/util/compat.py", line 211, in raise_
+    raise exception
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 3549, in _flush
+    flush_context.execute()
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/orm/unitofwork.py", line 456, in execute
+    rec.execute(self)
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/orm/unitofwork.py", line 630, in execute
+    util.preloaded.orm_persistence.save_obj(
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/orm/persistence.py", line 245, in save_obj
+    _emit_insert_statements(
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/orm/persistence.py", line 1097, in _emit_insert_statements
+    c = connection._execute_20(
+        ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1710, in _execute_20
+    return meth(self, args_10style, kwargs_10style, execution_options)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/sql/elements.py", line 334, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1577, in _execute_clauseelement
+    ret = self._execute_context(
+          ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1953, in _execute_context
+    self._handle_dbapi_exception(
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 2134, in _handle_dbapi_exception
+    util.raise_(
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/util/compat.py", line 211, in raise_
+    raise exception
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1910, in _execute_context
+    self.dialect.do_execute(
+  File "/home/airflow/.local/lib/python3.12/site-packages/sqlalchemy/engine/default.py", line 736, in do_execute
+    cursor.execute(statement, parameters)
+sqlalchemy.exc.IntegrityError: (psycopg2.errors.UniqueViolation) duplicate key value violates unique constraint "dag_run_dag_id_execution_date_key"
+DETAIL:  Key (dag_id, execution_date)=(fraud_detection_training, 2026-02-07 12:00:00+00) already exists.
+
+[SQL: INSERT INTO dag_run (id, dag_id, queued_at, execution_date, start_date, end_date, state, run_id, creating_job_id, external_trigger, run_type, conf, data_interval_start, data_interval_end, last_scheduling_decision, dag_hash, log_template_id, updated_at, clear_number) VALUES (%(id)s, %(dag_id)s, %(queued_at)s, %(execution_date)s, %(start_date)s, %(end_date)s, %(state)s, %(run_id)s, %(creating_job_id)s, %(external_trigger)s, %(run_type)s, %(conf)s, %(data_interval_start)s, %(data_interval_end)s, %(last_scheduling_decision)s, %(dag_hash)s, %(log_template_id)s, %(updated_at)s, %(clear_number)s)]
+[parameters: {'id': 26, 'dag_id': 'fraud_detection_training', 'queued_at': datetime.datetime(2026, 2, 8, 12, 0, 0, 728324, tzinfo=Timezone('UTC')), 'execution_date': datetime.datetime(2026, 2, 7, 12, 0, tzinfo=Timezone('UTC')), 'start_date': datetime.datetime(2026, 2, 8, 12, 0, 0, 879561, tzinfo=Timezone('UTC')), 'end_date': None, 'state': 'running', 'run_id': 'scheduled__2026-02-07T12:00:00+00:00', 'creating_job_id': 77, 'external_trigger': False, 'run_type': 'scheduled', 'conf': <psycopg2.extensions.Binary object at 0x75ea6890d0b0>, 'data_interval_start': datetime.datetime(2026, 2, 7, 12, 0, tzinfo=Timezone('UTC')), 'data_interval_end': datetime.datetime(2026, 2, 8, 12, 0, tzinfo=Timezone('UTC')), 'last_scheduling_decision': datetime.datetime(2026, 2, 8, 12, 0, 21, 959894, tzinfo=Timezone('UTC')), 'dag_hash': '412ad6a76820e1f161e06e5a34aca4cc', 'log_template_id': 2, 'updated_at': datetime.datetime(2026, 2, 8, 12, 0, 21, 966892, tzinfo=Timezone('UTC')), 'clear_number': 0}]
+(Background on this error at: https://sqlalche.me/e/14/gkpj)
+[2026-02-08T15:08:17.218+0000] {process_utils.py:80} INFO - Process psutil.Process(pid=1802, status='terminated', exitcode=1, started='12:00:23') (1802) terminated with exit code 1
+[2026-02-08T15:09:11.044+0000] {local_task_job_runner.py:123} INFO - ::group::Pre task execution logs
+[2026-02-08T15:09:11.073+0000] {taskinstance.py:2612} INFO - Dependencies all met for dep_context=non-requeueable deps ti=<TaskInstance: fraud_detection_training.execute_training scheduled__2026-02-07T12:00:00+00:00 [queued]>
+[2026-02-08T15:09:11.087+0000] {taskinstance.py:2612} INFO - Dependencies all met for dep_context=requeueable deps ti=<TaskInstance: fraud_detection_training.execute_training scheduled__2026-02-07T12:00:00+00:00 [queued]>
+[2026-02-08T15:09:11.088+0000] {taskinstance.py:2865} INFO - Starting attempt 1 of 1
+[2026-02-08T15:09:11.114+0000] {taskinstance.py:2888} INFO - Executing <Task(PythonOperator): execute_training> on 2026-02-07 12:00:00+00:00
+[2026-02-08T15:09:11.130+0000] {warnings.py:112} WARNING - /home/***/.local/lib/python3.12/site-packages/***/task/task_runner/standard_task_runner.py:70: DeprecationWarning: This process (pid=2065) is multi-threaded, use of fork() may lead to deadlocks in the child.
+  pid = os.fork()
+
+[2026-02-08T15:09:11.134+0000] {standard_task_runner.py:72} INFO - Started process 2077 to run task
+[2026-02-08T15:09:11.134+0000] {standard_task_runner.py:104} INFO - Running: ['***', 'tasks', 'run', 'fraud_detection_training', 'execute_training', 'scheduled__2026-02-07T12:00:00+00:00', '--job-id', '88', '--raw', '--subdir', 'DAGS_FOLDER/fraud_detection_training_dag.py', '--cfg-path', '/tmp/tmp6l41j81a']
+[2026-02-08T15:09:11.140+0000] {standard_task_runner.py:105} INFO - Job 88: Subtask execute_training
+[2026-02-08T15:09:11.221+0000] {task_command.py:467} INFO - Running <TaskInstance: fraud_detection_training.execute_training scheduled__2026-02-07T12:00:00+00:00 [running]> on host 86e3c5a88750
+[2026-02-08T15:09:11.408+0000] {taskinstance.py:3131} INFO - Exporting env vars: AIRFLOW_CTX_DAG_OWNER='datamasterylab.com' AIRFLOW_CTX_DAG_ID='fraud_detection_training' AIRFLOW_CTX_TASK_ID='execute_training' AIRFLOW_CTX_EXECUTION_DATE='2026-02-07T12:00:00+00:00' AIRFLOW_CTX_TRY_NUMBER='1' AIRFLOW_CTX_DAG_RUN_ID='scheduled__2026-02-07T12:00:00+00:00'
+[2026-02-08T15:09:11.411+0000] {taskinstance.py:731} INFO - ::endgroup::
+[2026-02-08T15:09:11.499+0000] {fraud_detection_training_dag.py:121} INFO - Initializing fraud detection training (transactions_table=transactions)
+[2026-02-08T15:09:11.530+0000] {fraud_detection_training.py:144} INFO - Configuration loaded successfully
+[2026-02-08T15:09:11.531+0000] {fraud_detection_training.py:158} INFO - Database configured: postgres
+[2026-02-08T15:09:13.114+0000] {fraud_detection_training.py:195} INFO - Object storage verified. Buckets: ['mlflow']
+[2026-02-08T15:09:13.502+0000] {fraud_detection_training.py:241} INFO - MLflow configured successfully
+[2026-02-08T15:09:13.504+0000] {fraud_detection_training.py:137} INFO - Fraud detection training system initialized
+[2026-02-08T15:09:13.505+0000] {fraud_detection_training_dag.py:128} INFO - Starting model training...
+[2026-02-08T15:09:13.574+0000] {fraud_detection_training_dag.py:134} INFO - Requested training batch_size=100000, min_records=100000
+[2026-02-08T15:09:13.576+0000] {fraud_detection_training.py:257} INFO - Starting data ingestion from PostgreSQL (table=transactions, limit=100000)...
+[2026-02-08T15:09:13.578+0000] {fraud_detection_training.py:279} INFO - Connecting to transactions DB: postgres:5432/transactions_db (user=fraud_producer)
+[2026-02-08T15:09:13.606+0000] {fraud_detection_training.py:334} INFO - Executing query (limit=100000) against transactions
+[2026-02-08T15:09:20.697+0000] {fraud_detection_training.py:355} INFO - Ingested 100000 raw transactions from transactions (requested 100000)
+[2026-02-08T15:09:20.701+0000] {fraud_detection_training.py:357} INFO - Date range: 2026-02-08 07:13:13.196572 to 2026-02-08 08:42:16.707357
+[2026-02-08T15:09:20.703+0000] {fraud_detection_training.py:358} INFO - Fraud rate: 2.77%
+[2026-02-08T15:09:20.703+0000] {fraud_detection_training.py:697} INFO - Starting model training...
+[2026-02-08T15:09:22.324+0000] {fraud_detection_training.py:377} INFO - Starting feature engineering for 74 features (54 engineered + 20 raw)...
+[2026-02-08T15:09:23.298+0000] {fraud_detection_training.py:390} INFO - Engineering amount-based features (strongest signal)...
+[2026-02-08T15:09:23.749+0000] {fraud_detection_training.py:444} INFO - Engineering identity features...
+[2026-02-08T15:09:23.923+0000] {fraud_detection_training.py:465} INFO - Engineering device features...
+[2026-02-08T15:09:24.912+0000] {fraud_detection_training.py:496} INFO - Engineering location features...
+[2026-02-08T15:09:25.129+0000] {fraud_detection_training.py:511} INFO - Engineering payment features...
+[2026-02-08T15:09:25.750+0000] {fraud_detection_training.py:539} INFO - Engineering network features...
+[2026-02-08T15:09:26.728+0000] {fraud_detection_training.py:565} INFO - Engineering behavioral features...
+[2026-02-08T15:09:26.796+0000] {fraud_detection_training.py:593} INFO - Engineering product features...
+[2026-02-08T15:09:26.844+0000] {fraud_detection_training.py:602} INFO - Engineering address features...
+[2026-02-08T15:09:27.498+0000] {fraud_detection_training.py:613} INFO - Engineering delivery and refund features...
+[2026-02-08T15:09:27.932+0000] {fraud_detection_training.py:650} INFO - Adding aggregate features...
+[2026-02-08T15:09:28.509+0000] {fraud_detection_training.py:681} INFO - Feature engineering complete with enhanced amount-based features
+[2026-02-08T15:09:28.510+0000] {fraud_detection_training.py:682} INFO - Total columns: 96 (engineered + raw)
+[2026-02-08T15:09:28.511+0000] {fraud_detection_training.py:716} INFO - Post-engineering columns: 96
+[2026-02-08T15:09:29.535+0000] {fraud_detection_training.py:738} INFO - Training with 77 features
+[2026-02-08T15:09:29.535+0000] {fraud_detection_training.py:739} INFO - Categorical: 12, Numeric: 64
+[2026-02-08T15:09:29.537+0000] {fraud_detection_training.py:740} INFO - Class distribution: {0: 97226, 1: 2774}
+[2026-02-08T15:09:30.137+0000] {fraud_detection_training.py:808} INFO - Computed scale_pos_weight=52.5784 (base=35.0523, neg=77781, pos=2219)
+[2026-02-08T15:09:30.210+0000] {fraud_detection_training.py:822} INFO - Constructing pipeline with SMOTE for class imbalance
+[2026-02-08T15:09:30.212+0000] {fraud_detection_training.py:858} INFO - Starting hyperparameter tuning with RECALL MAXIMIZATION (beta=5, realistic fraud prevention)...
+[2026-02-08T15:09:30.221+0000] {logging_mixin.py:190} INFO - Fitting 3 folds for each of 50 candidates, totalling 150 fits
+[2026-02-08T15:15:50.641+0000] {job.py:229} INFO - Heartbeat recovered after 12.86 seconds
+[2026-02-08T15:16:25.322+0000] {job.py:229} INFO - Heartbeat recovered after 25.30 seconds
+[2026-02-08T15:20:17.667+0000] {job.py:229} INFO - Heartbeat recovered after 23.56 seconds
+[2026-02-08T15:31:53.920+0000] {job.py:229} INFO - Heartbeat recovered after 11.15 seconds
+[2026-02-08T15:32:00.546+0000] {job.py:229} INFO - Heartbeat recovered after 11.70 seconds
+[2026-02-08T15:41:36.828+0000] {job.py:229} INFO - Heartbeat recovered after 14.14 seconds
+[2026-02-08T15:41:44.071+0000] {job.py:229} INFO - Heartbeat recovered after 12.38 seconds
+[2026-02-08T15:59:10.944+0000] {job.py:229} INFO - Heartbeat recovered after 13.96 seconds
+[2026-02-08T16:04:17.284+0000] {job.py:229} INFO - Heartbeat recovered after 11.55 seconds
+[2026-02-08T16:05:43.468+0000] {job.py:229} INFO - Heartbeat recovered after 10.96 seconds
+[2026-02-08T16:08:30.277+0000] {job.py:229} INFO - Heartbeat recovered after 12.17 seconds
+[2026-02-08T16:27:11.578+0000] {job.py:229} INFO - Heartbeat recovered after 25.82 seconds
+[2026-02-08T16:27:23.232+0000] {job.py:229} INFO - Heartbeat recovered after 13.73 seconds
