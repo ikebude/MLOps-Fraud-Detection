@@ -364,8 +364,8 @@ services:
       - DB_HOST=${POSTGRES_HOST:-postgres}
       - DB_PORT=${POSTGRES_PORT:-5432}
       - DB_NAME=${POSTGRES_TRANSACTIONS_DB:-transactions_db}
-      - DB_USER=${POSTGRES_TRANSACTIONS_USER:-fraud_training}
-      - DB_PASSWORD=${POSTGRES_TRANSACTIONS_PASSWORD:-training_password}
+      - DB_USER=${POSTGRES_TRANSACTIONS_USER:-fraud_producer}
+      - DB_PASSWORD=${POSTGRES_TRANSACTIONS_PASSWORD:-producer_password}
     ports:
       - "5000:5000"
     volumes:
@@ -400,7 +400,7 @@ services:
       DB_USER: ${POSTGRES_TRANSACTIONS_USER:-fraud_producer}
       DB_PASSWORD: ${POSTGRES_TRANSACTIONS_PASSWORD:-producer_password}
       PRODUCER_INTERVAL: ${PRODUCER_INTERVAL:-2.0}
-      PRODUCER_BATCH_SIZE: ${PRODUCER_BATCH_SIZE:-100}
+      PRODUCER_BATCH_SIZE: ${PRODUCER_BATCH_SIZE:-1}
       PYTHONUNBUFFERED: "1"
     ports:
       - "18080:8080"

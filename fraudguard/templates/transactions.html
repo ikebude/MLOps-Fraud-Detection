@@ -5,7 +5,8 @@
     <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
         <h3 class="text-lg font-semibold text-gray-900">All Transactions</h3>
         <div class="flex gap-2">
-            <input type="text" placeholder="Search ID or Merchant..." class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500">
+            <input type="text" placeholder="Search ID or Merchant..."
+                class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500">
             <button class="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm hover:bg-gray-200">Filter</button>
         </div>
     </div>
@@ -18,6 +19,7 @@
                     <th class="px-6 py-3 font-medium">Merchant</th>
                     <th class="px-6 py-3 font-medium">Amount</th>
                     <th class="px-6 py-3 font-medium">Risk Score</th>
+                    <th class="px-6 py-3 font-medium">Risk Level</th>
                     <th class="px-6 py-3 font-medium">Status</th>
                     <th class="px-6 py-3 font-medium">Action</th>
                 </tr>
@@ -30,8 +32,10 @@
     <div class="px-6 py-4 border-t border-gray-200 flex justify-between items-center">
         <span class="text-sm text-gray-500" id="txn-count-display">Loading...</span>
         <div class="flex gap-2">
-            <button id="btn-prev" class="px-3 py-1 border border-gray-300 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed">Previous</button>
-            <button id="btn-next" class="px-3 py-1 border border-gray-300 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed">Next</button>
+            <button id="btn-prev"
+                class="px-3 py-1 border border-gray-300 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed">Previous</button>
+            <button id="btn-next"
+                class="px-3 py-1 border border-gray-300 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed">Next</button>
         </div>
     </div>
 </div>
@@ -43,7 +47,7 @@
         const countDisplay = document.getElementById('txn-count-display');
         const btnPrev = document.getElementById('btn-prev');
         const btnNext = document.getElementById('btn-next');
-        
+
         // State
         let currentPage = 0;
         const pageSize = 50;
@@ -54,26 +58,36 @@
             const fragment = document.createDocumentFragment();
             const row = document.createElement('tr');
             row.className = 'hover:bg-gray-50 cursor-pointer transition-colors';
-            row.setAttribute('data-id', txn.id); 
+            row.setAttribute('data-id', txn.id);
             row.setAttribute('data-row-type', 'main');
-            
+
             // Determine styles
             let riskColor = 'text-green-600 bg-green-50';
             let riskScore = txn.risk_score || Math.round((txn.fraud_probability || 0) * 100);
-            
+
+
             if (riskScore > 80) riskColor = 'text-red-600 bg-red-50 font-bold';
             else if (riskScore > 50) riskColor = 'text-orange-600 bg-orange-50';
+
+            // Risk Level styling
+            const riskLevel = txn.risk_level || 'UNKNOWN';
+            let riskLevelColor = 'bg-gray-100 text-gray-800';
+            if (riskLevel === 'CRITICAL') riskLevelColor = 'bg-red-100 text-red-800 font-bold';
+            else if (riskLevel === 'HIGH') riskLevelColor = 'bg-orange-100 text-orange-800';
+            else if (riskLevel === 'MEDIUM') riskLevelColor = 'bg-yellow-100 text-yellow-800';
+            else if (riskLevel === 'LOW') riskLevelColor = 'bg-blue-100 text-blue-800';
+            else if (riskLevel === 'MINIMAL') riskLevelColor = 'bg-green-100 text-green-800';
 
             let statusColor = 'bg-gray-100 text-gray-800';
             // Logic to determine status if not provided explicit string
             let status = txn.status || 'Processed';
             if (txn.fraud_prediction === 1) status = 'Blocked';
             else if (txn.fraud_prediction === 0) status = 'Approved';
-            
+
             if (status === 'Approved') statusColor = 'bg-green-100 text-green-800';
             if (status === 'Blocked' || status === 'Declined') statusColor = 'bg-red-100 text-red-800';
             if (status === 'Flagged') statusColor = 'bg-orange-100 text-orange-800';
-            
+
             // Ensure time format
             const timeStr = txn.time || txn.timestamp || new Date().toISOString();
             const displayTime = new Date(timeStr).toLocaleString();
@@ -84,8 +98,13 @@
                 <td class="px-6 py-4 font-medium text-gray-900">${txn.merchant || txn.user_id}</td>
                 <td class="px-6 py-4 text-gray-900">$${(txn.amount || 0).toFixed(2)}</td>
                 <td class="px-6 py-4">
-                    <span class="px-2 py-1 rounded-full text-xs font-medium ${riskColor}">
+                    <span class="px-2 py-1 rounded-full text-xs font-medium ${riskColor}" title="Fraud Probability: ${((txn.fraud_probability || 0) * 100).toFixed(2)}%">
                         ${riskScore}/100
+                    </span>
+                </td>
+                <td class="px-6 py-4">
+                    <span class="px-2 py-1 rounded-full text-xs font-medium ${riskLevelColor}">
+                        ${riskLevel}
                     </span>
                 </td>
                 <td class="px-6 py-4">
@@ -99,9 +118,9 @@
             `;
 
             // ... (keep creating detailsRow logic logic) ...
-            
+
             // Need to recreate detailsRow logic since I'm replacing the function
-             if (txn.top_features && txn.top_features.length > 0) {
+            if (txn.top_features && txn.top_features.length > 0) {
                 row.title = txn.top_features
                     .map(item => `${item.feature}: ${item.contribution.toFixed(3)}`)
                     .join(' | ');
@@ -111,14 +130,14 @@
             detailsRow.className = 'hidden bg-gray-50';
             detailsRow.setAttribute('data-row-type', 'details');
             const detailsCell = document.createElement('td');
-            detailsCell.colSpan = 7;
+            detailsCell.colSpan = 8;
             detailsCell.className = 'px-6 py-3 text-xs text-gray-600';
             detailsCell.innerHTML = renderTopFeatures(txn.top_features);
             detailsRow.appendChild(detailsCell);
 
             row.onclick = () => {
                 const hasFeatures = txn.top_features && txn.top_features.length > 0;
-                 // If no features, maybe fetch them? For now show naive msg
+                // If no features, maybe fetch them? For now show naive msg
                 if (!hasFeatures) {
                     // detail message
                 }
@@ -132,13 +151,13 @@
 
         function prependRow(txn) {
             if (!tbody || !isStreaming) return; // Don't prepend if browsing history
-            
+
             // Remove duplicates check
             const existing = tbody.querySelector(`tr[data-id="${txn.id || txn.transaction_id}"]`);
             if (existing) return;
 
             tbody.prepend(buildRows(txn));
-            
+
             // Limit rows if streaming
             const mainRows = Array.from(tbody.querySelectorAll('tr[data-row-type="main"]'));
             if (mainRows.length > pageSize) {
@@ -155,7 +174,7 @@
 
         function loadTransactions() {
             const offset = currentPage * pageSize;
-            
+
             // Disable buttons during load
             btnPrev.disabled = true;
             btnNext.disabled = true;
@@ -166,11 +185,11 @@
                 .then(data => {
                     tbody.innerHTML = '';
                     tbody.style.opacity = '1';
-                    
+
                     data.transactions.forEach(txn => {
                         tbody.appendChild(buildRows(txn));
                     });
-                    
+
                     // Update state
                     totalRecords = data.pagination.total;
                     updatePaginationUI();
@@ -180,15 +199,15 @@
                     tbody.style.opacity = '1';
                 });
         }
-        
+
         function updatePaginationUI() {
             const start = currentPage * pageSize + 1;
             const end = Math.min((currentPage + 1) * pageSize, totalRecords);
             countDisplay.textContent = `Showing ${start}-${end} of ${totalRecords}`;
-            
+
             btnPrev.disabled = currentPage === 0;
             btnNext.disabled = end >= totalRecords;
-            
+
             // Only stream on first page
             isStreaming = (currentPage === 0);
         }
@@ -200,7 +219,7 @@
                 loadTransactions();
             }
         };
-        
+
         btnNext.onclick = () => {
             if ((currentPage + 1) * pageSize < totalRecords) {
                 currentPage++;

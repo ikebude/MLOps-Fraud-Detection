@@ -437,6 +437,23 @@ def _build_transactions(results, sort_by: str = 'timestamp', sort_order: str = '
         
         # Get location info
         location = _pick_first(result, ['location', 'country', 'geo_location'], 'Unknown')
+        # Get risk level from database (populated by inference service)
+        risk_level = _pick_first(result, ['risk_level'], None)
+        # If not available from DB, derive from fraud_probability
+        if not risk_level:
+            if isinstance(fraud_prob, (int, float)):
+                if fraud_prob >= 0.9:
+                    risk_level = 'CRITICAL'
+                elif fraud_prob >= 0.7:
+                    risk_level = 'HIGH'
+                elif fraud_prob >= 0.4:
+                    risk_level = 'MEDIUM'
+                elif fraud_prob >= 0.2:
+                    risk_level = 'LOW'
+                else:
+                    risk_level = 'MINIMAL'
+            else:
+                risk_level = 'UNKNOWN'
         
         transactions.append({
             'id': txn_id,
@@ -451,6 +468,7 @@ def _build_transactions(results, sort_by: str = 'timestamp', sort_order: str = '
             '_sort_risk_score': risk_score,
             'fraud_probability': float(fraud_prob) if fraud_prob else 0.0,
             '_sort_fraud_probability': float(fraud_prob) if fraud_prob else 0.0,
+            'risk_level': risk_level,
             'status': 'Flagged' if (fraud_pred == 1 or str(fraud_pred).lower() == 'true') else 'Approved',
             'top_features': top_features[:5] if isinstance(top_features, list) else []
         })
@@ -693,8 +711,6 @@ def _get_model_health_impl():
         import traceback
         traceback.print_exc()
     
-        traceback.print_exc()
-    
     # Check for local model if MLflow failed or returned nothing
     if (model_version == "N/A" or model_version is None):
         local_model_path = '/app/models/fraud_detection_model.pkl'
@@ -755,12 +771,12 @@ def get_inference_health():
 @app.route('/')
 def index():
     """Dashboard home page"""
-    return render_template('dashboard.html')
+    return render_template('dashboard.html', page='overview')
 
 @app.route('/transactions')
 def transactions():
     """Transactions page"""
-    return render_template('transactions.html')
+    return render_template('transactions.html', page='transactions')
 
 @app.route('/system-health')
 def system_health():
@@ -780,12 +796,14 @@ def system_health():
             }
         
         return render_template('system_health.html', 
+                             page='system_health',
                              inference_health=inference_health,
                              model_health=model_health,
                              stats=stats)
     except Exception as e:
         logger.error(f"Error loading system health: {e}")
         return render_template('system_health.html', 
+                             page='system_health',
                              inference_health={'status': 'unknown'},
                              model_health={'name': 'Unknown', 'version': 'N/A', 'accuracy': 0.0},
                              stats={})
@@ -798,10 +816,10 @@ def alerts():
         # Reusing get_live_fraud_feed which returns fraud_prediction=1 OR actual_fraud=1
         results = get_live_fraud_feed(limit=100)
         
-        return render_template('alerts.html', alerts=results)
+        return render_template('alerts.html', page='alerts', alerts=results)
     except Exception as e:
         logger.error(f"Error loading alerts: {e}")
-        return render_template('alerts.html', alerts=[])
+        return render_template('alerts.html', page='alerts', alerts=[])
 
 @app.route('/settings')
 def settings():
@@ -812,11 +830,13 @@ def settings():
         inference_health = get_inference_health()
         
         return render_template('settings.html',
+                             page='settings',
                              model_health=model_health,
                              inference_health=inference_health)
     except Exception as e:
         logger.error(f"Error loading settings: {e}")
         return render_template('settings.html',
+                             page='settings',
                              model_health={'name': 'Unknown', 'version': 'N/A', 'accuracy': 0.0},
                              inference_health={'status': 'unknown'})
 

@@ -397,6 +397,15 @@ function buildTransactionRowsEnhanced(txn) {
     if (txn.risk_score > 80) riskColor = 'text-red-600 bg-red-50 font-bold';
     else if (txn.risk_score > 50) riskColor = 'text-orange-600 bg-orange-50';
 
+    // Risk Level styling
+    const riskLevel = txn.risk_level || 'UNKNOWN';
+    let riskLevelColor = 'bg-gray-100 text-gray-800';
+    if (riskLevel === 'CRITICAL') riskLevelColor = 'bg-red-100 text-red-800 font-bold';
+    else if (riskLevel === 'HIGH') riskLevelColor = 'bg-orange-100 text-orange-800';
+    else if (riskLevel === 'MEDIUM') riskLevelColor = 'bg-yellow-100 text-yellow-800';
+    else if (riskLevel === 'LOW') riskLevelColor = 'bg-blue-100 text-blue-800';
+    else if (riskLevel === 'MINIMAL') riskLevelColor = 'bg-green-100 text-green-800';
+
     let statusColor = 'bg-gray-100 text-gray-800';
     if (txn.status === 'Approved') statusColor = 'bg-green-100 text-green-800';
     if (txn.status === 'Declined') statusColor = 'bg-red-100 text-red-800';
@@ -409,8 +418,13 @@ function buildTransactionRowsEnhanced(txn) {
         <td class="px-6 py-4 text-gray-500 text-xs">${txn.location || 'Unknown'}</td>
         <td class="px-6 py-4 text-gray-900 font-semibold">$${txn.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
         <td class="px-6 py-4">
-            <span class="px-2 py-1 rounded-full text-xs font-medium ${riskColor}">
+            <span class="px-2 py-1 rounded-full text-xs font-medium ${riskColor}" title="Fraud Probability: ${((txn.fraud_probability || 0) * 100).toFixed(2)}%">
                 ${txn.risk_score}/100
+            </span>
+        </td>
+        <td class="px-6 py-4">
+            <span class="px-2 py-1 rounded-full text-xs font-medium ${riskLevelColor}">
+                ${riskLevel}
             </span>
         </td>
         <td class="px-6 py-4">
@@ -437,7 +451,7 @@ function buildTransactionRowsEnhanced(txn) {
     detailsRow.setAttribute('data-row-type', 'details');
     detailsRow.setAttribute('data-parent-id', txn.id);
     const detailsCell = document.createElement('td');
-    detailsCell.colSpan = 8;
+    detailsCell.colSpan = 9;
     detailsCell.className = 'px-6 py-4 text-xs text-gray-600';
     detailsCell.innerHTML = renderTopFeatures(txn.top_features);
     detailsRow.appendChild(detailsCell);
@@ -637,7 +651,7 @@ function populateTableEnhanced(transactions) {
     if (!transactions || transactions.length === 0) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="7" class="px-6 py-8 text-center text-gray-400">
+                <td colspan="9" class="px-6 py-8 text-center text-gray-400">
                     No transactions available
                 </td>
             </tr>
@@ -680,14 +694,17 @@ function showError(message) {
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', () => {
+    // Check if we are on the dashboard
+    if (!document.getElementById('mainChart')) return;
+
     // Initialize sparklines
     initSparklines();
 
     // Initial data fetch
     fetchDataEnhanced();
 
-    // Set up polling as fallback (faster for real-time)
-    setInterval(fetchDataEnhanced, 2000); // Every 2 seconds for TRUE real-time updates
+    // Set up polling as fallback (slower to reduce load since EventSource handles real-time)
+    setInterval(fetchDataEnhanced, 10000); // Every 10 seconds as fallback
 
     // Set up EventSource for real-time updates
     if (window.EventSource) {

@@ -2,16 +2,11 @@
 
 {% block content %}
 <!-- Data Freshness Indicator -->
-<div class="mb-4 flex justify-between items-center">
+<div class="mb-4">
     <div class="data-freshness">
         <span class="realtime-indicator" id="realtime-indicator"></span>
         <span id="data-timestamp">Loading...</span>
     </div>
-    <button id="refresh-model-btn"
-        class="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors text-sm font-medium flex items-center gap-2">
-        <i class="ph ph-arrow-clockwise"></i>
-        <span>Refresh Model</span>
-    </button>
 </div>
 
 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -276,13 +271,14 @@
                     <th class="px-6 py-3 font-medium">Location</th>
                     <th class="px-6 py-3 font-medium">Amount</th>
                     <th class="px-6 py-3 font-medium">Risk Score</th>
+                    <th class="px-6 py-3 font-medium">Risk Level</th>
                     <th class="px-6 py-3 font-medium">Status</th>
                     <th class="px-6 py-3 font-medium">Details</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-200 text-sm" id="txn-table-body">
                 <tr>
-                    <td colspan="8" class="px-6 py-8 text-center text-gray-400">
+                    <td colspan="9" class="px-6 py-8 text-center text-gray-400">
                         <div class="flex flex-col items-center gap-2">
                             <div class="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-orange-600">
                             </div>

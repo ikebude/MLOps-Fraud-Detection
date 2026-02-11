@@ -456,14 +456,17 @@ class TransactionGenerator:
         location = random.choice(self.NIGERIAN_LOCATIONS)
         city, state = location.split(', ')
         
-        # Timestamp
-        timestamp = datetime.now(timezone.utc) - timedelta(seconds=random.randint(0, 300))
+        # Timestamp - use current time for real-time streaming
+        timestamp = datetime.now(timezone.utc)
         
         # Action
         action = random.choices(
             ['purchase', 'browse', 'add_to_cart', 'view_product', 'login'],
             weights=[40, 25, 20, 10, 5]
         )[0]
+        
+        # Session duration (default for legitimate transactions)
+        session_duration = random.randint(30, 3600)
         
         # Post-transaction
         return_request = random.random() < 0.05
@@ -556,7 +559,7 @@ class TransactionGenerator:
             'device_type': device['device_type'],
             'browser': device['browser'],
             'geo_location': location,
-            'session_duration': random.randint(30, 3600),
+            'session_duration': session_duration,
             
             # Product
             'product_id': product_id,
@@ -1054,17 +1057,16 @@ def main():
                     time.sleep(300)  # Sleep 5 minutes before checking again
                     continue
             
-            # Generate batch
-            batch = []
-            for _ in range(PRODUCER_BATCH_SIZE):
-                txn = generator.generate_transaction()
-                if txn:
-                    batch.append(txn)
-                    metrics.record_generation(txn['is_fraud'] == 1)
-                else:
-                    metrics.record_validation_error()
+            # Generate single transaction for real-time streaming
+            txn = generator.generate_transaction()
+            if txn:
+                metrics.record_generation(txn['is_fraud'] == 1)
+                batch = [txn]
+            else:
+                metrics.record_validation_error()
+                batch = []
             
-            # Insert batch
+            # Insert transaction
             if batch:
                 inserted = db.insert_batch(batch)
                 
@@ -1105,7 +1107,7 @@ def main():
                 logger.info("="*80)
                 last_stats_time = now
             
-            # Sleep between batches
+            # Sleep between transactions
             if PRODUCER_INTERVAL > 0:
                 time.sleep(PRODUCER_INTERVAL)
     

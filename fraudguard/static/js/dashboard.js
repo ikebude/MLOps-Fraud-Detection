@@ -21,19 +21,24 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // Only run dashboard logic if we are on the dashboard page
+    if (!document.getElementById('mainChart')) return;
+
     // Always start with fetchData immediately
     fetchData();
-    
+
     // Then try EventSource, but fallback to polling if it fails
     if (window.EventSource) {
         try {
             startStream(basePath);
         } catch (error) {
             console.error('EventSource failed, using polling:', error);
-            setInterval(fetchData, 5000); // Every 5 seconds for real-time
+            // Polling handled by dashboard-enhanced.js
+            // setInterval(fetchData, 5000);
         }
     } else {
-        setInterval(fetchData, 5000); // Every 5 seconds for real-time
+        // Polling handled by dashboard-enhanced.js
+        // setInterval(fetchData, 5000);
     }
 });
 
@@ -42,16 +47,16 @@ async function fetchData() {
         const basePath = window.FRAUDGUARD_BASE_PATH || '';
         const apiUrl = `${basePath}/api/data?refresh=1`;
         console.log('Fetching data from:', apiUrl);
-        
+
         const response = await fetch(apiUrl);
-        
+
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
-        
+
         const data = await response.json();
         console.log('Data received:', data);
-        
+
         // Update Metrics
         if (data.metrics) {
             updateMetric('total-txn', (data.metrics.total_transactions || 0).toLocaleString());
@@ -59,7 +64,7 @@ async function fetchData() {
             updateMetric('approval-rate', (data.metrics.approval_rate || 0) + '%');
             updateMetric('active-alerts', data.metrics.active_alerts || 0);
         }
-        
+
         // Update Model Health
         if (data.model_health) {
             updateMetric('model-name', data.model_health.name || 'Unknown');
@@ -75,7 +80,7 @@ async function fetchData() {
             }
             updateMetric('drift-status', data.model_health.drift_status || 'Unknown');
         }
-        
+
         // Update inference stats if available (for presentation)
         if (data.inference_stats) {
             console.log('Inference Stats:', data.inference_stats);
@@ -107,12 +112,6 @@ async function fetchData() {
     } catch (error) {
         console.error('Error fetching data:', error);
         console.error('Error details:', error.message, error.stack);
-        // Show error to user
-        const errorMsg = document.createElement('div');
-        errorMsg.className = 'fixed top-4 right-4 bg-red-500 text-white p-4 rounded-lg shadow-lg z-50';
-        errorMsg.textContent = 'Error loading data: ' + error.message;
-        document.body.appendChild(errorMsg);
-        setTimeout(() => errorMsg.remove(), 5000);
     }
 }
 
@@ -131,23 +130,23 @@ function startStream(basePath) {
             if (data.metrics) {
                 // Store previous for trend calculation
                 if (!window.previousMetrics) window.previousMetrics = {};
-                
+
                 updateMetric('total-txn', (data.metrics.total_transactions || 0).toLocaleString());
                 updateMetric('fraud-rate', (data.metrics.fraud_rate || 0) + '%');
                 updateMetric('approval-rate', (data.metrics.approval_rate || 0) + '%');
                 updateMetric('active-alerts', data.metrics.active_alerts || 0);
-                
+
                 // Update trends dynamically
                 if (typeof calculateTrend === 'function' && typeof updateTrendDisplay === 'function') {
                     const totalTrend = calculateTrend(data.metrics.total_transactions, window.previousMetrics.total_transactions);
                     const fraudTrend = calculateTrend(data.metrics.fraud_rate, window.previousMetrics.fraud_rate);
                     const approvalTrend = calculateTrend(data.metrics.approval_rate, window.previousMetrics.approval_rate);
-                    
+
                     updateTrendDisplay('total-txn-trend', totalTrend, 'transaction');
                     updateTrendDisplay('fraud-rate-trend', fraudTrend, 'fraud');
                     updateTrendDisplay('approval-rate-trend', approvalTrend, 'approval');
                 }
-                
+
                 // Update alerts status
                 const alertsEl = document.getElementById('alerts-status');
                 if (alertsEl) {
@@ -163,7 +162,7 @@ function startStream(basePath) {
                         alertsEl.innerHTML = '<span>Requires attention</span>';
                     }
                 }
-                
+
                 // Store current as previous for next update
                 window.previousMetrics = { ...data.metrics };
             }
@@ -223,12 +222,12 @@ function populateTable(transactions) {
         populateTableEnhanced(transactions);
         return;
     }
-    
+
     const tbody = document.getElementById('txn-table-body');
     if (!tbody) return;
 
     tbody.innerHTML = '';
-    
+
     // Show only recent 5 for dashboard
     const recentTxns = transactions.slice(0, 5);
 
@@ -244,9 +243,21 @@ function buildTransactionRows(txn) {
     row.className = 'hover:bg-gray-50 cursor-pointer transition-colors';
     row.setAttribute('data-row-type', 'main');
 
+    // DEBUG: Log to verify data
+    console.log('Dashboard Transaction:', txn.id, 'fraud_probability:', txn.fraud_probability, 'risk_score:', txn.risk_score, 'risk_level:', txn.risk_level);
+
     let riskColor = 'text-green-600 bg-green-50';
     if (txn.risk_score > 80) riskColor = 'text-red-600 bg-red-50 font-bold';
     else if (txn.risk_score > 50) riskColor = 'text-orange-600 bg-orange-50';
+
+    // Risk Level styling
+    const riskLevel = txn.risk_level || 'UNKNOWN';
+    let riskLevelColor = 'bg-gray-100 text-gray-800';
+    if (riskLevel === 'CRITICAL') riskLevelColor = 'bg-red-100 text-red-800 font-bold';
+    else if (riskLevel === 'HIGH') riskLevelColor = 'bg-orange-100 text-orange-800';
+    else if (riskLevel === 'MEDIUM') riskLevelColor = 'bg-yellow-100 text-yellow-800';
+    else if (riskLevel === 'LOW') riskLevelColor = 'bg-blue-100 text-blue-800';
+    else if (riskLevel === 'MINIMAL') riskLevelColor = 'bg-green-100 text-green-800';
 
     let statusColor = 'bg-gray-100 text-gray-800';
     if (txn.status === 'Approved') statusColor = 'bg-green-100 text-green-800';
@@ -258,16 +269,25 @@ function buildTransactionRows(txn) {
         <td class="px-6 py-4 whitespace-nowrap text-gray-500">${txn.time}</td>
         <td class="px-6 py-4 font-mono text-xs text-gray-600">${txn.id}</td>
         <td class="px-6 py-4 font-medium text-gray-900">${txn.merchant}</td>
+        <td class="px-6 py-4 text-gray-600 text-xs">${txn.location || 'N/A'}</td>
         <td class="px-6 py-4 text-gray-900">$${txn.amount.toFixed(2)}</td>
         <td class="px-6 py-4">
-            <span class="px-2 py-1 rounded-full text-xs font-medium ${riskColor}" title="Fraud Probability">
+            <span class="px-2 py-1 rounded-full text-xs font-medium ${riskColor}" title="Fraud Probability: ${((txn.fraud_probability || 0) * 100).toFixed(2)}%">
                 ${txn.risk_score}/100
+            </span>
+        </td>
+        <td class="px-6 py-4">
+            <span class="px-2 py-1 rounded-full text-xs font-medium ${riskLevelColor}">
+                ${riskLevel}
             </span>
         </td>
         <td class="px-6 py-4">
             <span class="px-2 py-1 rounded-full text-xs font-medium ${statusColor}">
                 ${txn.status}
             </span>
+        </td>
+        <td class="px-6 py-4">
+            <button class="text-blue-600 hover:text-blue-800 text-xs font-medium">View</button>
         </td>
     `;
     if (txn.top_features && txn.top_features.length > 0) {
@@ -280,7 +300,7 @@ function buildTransactionRows(txn) {
     detailsRow.className = 'hidden bg-gray-50';
     detailsRow.setAttribute('data-row-type', 'details');
     const detailsCell = document.createElement('td');
-    detailsCell.colSpan = 6;
+    detailsCell.colSpan = 9;
     detailsCell.className = 'px-6 py-3 text-xs text-gray-600';
     detailsCell.innerHTML = renderTopFeatures(txn.top_features);
     detailsRow.appendChild(detailsCell);
@@ -301,7 +321,7 @@ function prependTransactionRow(txn) {
         prependTransactionRowEnhanced(txn);
         return;
     }
-    
+
     const tbody = document.getElementById('txn-table-body');
     if (!tbody) return;
     const fragment = buildTransactionRows(txn);
