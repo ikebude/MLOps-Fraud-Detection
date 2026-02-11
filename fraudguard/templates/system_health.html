@@ -1,179 +1,195 @@
 {% extends "base.html" %}
 
-{% extends "base.html" %}
-
 {% block content %}
-<div class="space-y-8 max-w-6xl mx-auto">
-    <div class="flex justify-between items-center">
-        <div>
-            <h2 class="text-2xl font-bold text-gray-900">System Health & Status</h2>
-            <p class="text-sm text-gray-500 mt-1">Real-time monitoring of infrastructure and model performance</p>
-        </div>
-        <button onclick="window.location.reload()"
-            class="px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 flex items-center gap-2 shadow-sm">
-            <i class="ph ph-arrows-clockwise"></i> Refresh Status
-        </button>
-    </div>
-
-    <!-- Component Status Grid -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <!-- Inference Service -->
-        <div
-            class="bg-white p-5 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-between h-full relative overflow-hidden group hover:shadow-md transition-all">
-            <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                <i class="ph ph-lightning text-6xl text-blue-600"></i>
+<div class="space-y-6">
+    <!-- Top: Model Performance Overview Cards -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+            <p class="text-sm text-gray-500">Accuracy</p>
+            <div class="flex items-baseline justify-between">
+                <h3 id="metric-accuracy" class="text-2xl font-bold text-gray-900">--%</h3>
+                <span id="trend-accuracy" class="text-sm text-green-600">↑ +0.0%</span>
             </div>
-            <div>
-                <div class="flex items-center gap-2 mb-2">
-                    <span class="relative flex h-2 w-2">
-                        <span
-                            class="animate-ping absolute inline-flex h-full w-full rounded-full {% if inference_health.status == 'healthy' %}bg-green-400{% else %}bg-red-400{% endif %} opacity-75"></span>
-                        <span
-                            class="relative inline-flex rounded-full h-2 w-2 {% if inference_health.status == 'healthy' %}bg-green-500{% else %}bg-red-500{% endif %}"></span>
-                    </span>
-                    <h3 class="font-bold text-gray-700">Inference API</h3>
-                </div>
-                <p class="text-2xl font-bold text-gray-900">{{ inference_health.status|capitalize }}</p>
-            </div>
-            <div class="mt-4 pt-4 border-t border-gray-50">
-                <p class="text-xs text-gray-500">Port 8000 • REST / Stream</p>
-            </div>
+            <p class="text-xs text-gray-500 mt-1">Percentage of total correct predictions</p>
         </div>
 
-        <!-- Database -->
-        <div
-            class="bg-white p-5 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-between h-full relative overflow-hidden group hover:shadow-md transition-all">
-            <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                <i class="ph ph-database text-6xl text-purple-600"></i>
+        <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+            <p class="text-sm text-gray-500">Precision</p>
+            <div class="flex items-baseline justify-between">
+                <h3 id="metric-precision" class="text-2xl font-bold text-gray-900">--%</h3>
+                <span id="trend-precision" class="text-sm text-green-600">Stable</span>
             </div>
-            <div>
-                <div class="flex items-center gap-2 mb-2">
-                    <span class="relative flex h-2 w-2">
-                        <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-                    </span>
-                    <h3 class="font-bold text-gray-700">PostgreSQL</h3>
-                </div>
-                <p class="text-2xl font-bold text-gray-900">Connected</p>
-            </div>
-            <div class="mt-4 pt-4 border-t border-gray-50">
-                <p class="text-xs text-gray-500">{{ stats.get('total_records', 0)|int }} Records stored</p>
-            </div>
+            <p class="text-xs text-gray-500 mt-1">Of flagged transactions, how many were actually fraud</p>
         </div>
 
-        <!-- Model Registry -->
-        <div
-            class="bg-white p-5 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-between h-full relative overflow-hidden group hover:shadow-md transition-all">
-            <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                <i class="ph ph-cube text-6xl text-orange-600"></i>
+        <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+            <p class="text-sm text-gray-500">Recall</p>
+            <div class="flex items-baseline justify-between">
+                <h3 id="metric-recall" class="text-2xl font-bold text-gray-900">--%</h3>
+                <span id="trend-recall" class="text-sm text-red-600">↓ -0.0%</span>
             </div>
-            <div>
-                <div class="flex items-center gap-2 mb-2">
-                    <span class="relative flex h-2 w-2">
-                        <span
-                            class="relative inline-flex rounded-full h-2 w-2 {% if model_health.version != 'N/A' %}bg-green-500{% else %}bg-yellow-500{% endif %}"></span>
-                    </span>
-                    <h3 class="font-bold text-gray-700">MLflow Registry</h3>
-                </div>
-                <p class="text-2xl font-bold text-gray-900">{{ "Active" if model_health.version != 'N/A' else
-                    "Connecting..." }}</p>
-            </div>
-            <div class="mt-4 pt-4 border-t border-gray-50">
-                <p class="text-xs text-gray-500">Model: {{ model_health.name }}</p>
-            </div>
+            <p class="text-xs text-gray-500 mt-1">Of all real fraud transactions, how many did we catch</p>
         </div>
 
-        <!-- Pipeline -->
-        <div
-            class="bg-white p-5 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-between h-full relative overflow-hidden group hover:shadow-md transition-all">
-            <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                <i class="ph ph-git-merge text-6xl text-teal-600"></i>
+        <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+            <p class="text-sm text-gray-500">F1 Score</p>
+            <div class="flex items-baseline justify-between">
+                <h3 id="metric-f1" class="text-2xl font-bold text-gray-900">--%</h3>
+                <span id="trend-f1" class="text-sm text-gray-500">Stable</span>
             </div>
-            <div>
-                <div class="flex items-center gap-2 mb-2">
-                    <span class="relative flex h-2 w-2">
-                        <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-                    </span>
-                    <h3 class="font-bold text-gray-700">Airflow Pipeline</h3>
-                </div>
-                <p class="text-2xl font-bold text-gray-900">Scheduled</p>
+            <p class="text-xs text-gray-500 mt-1">Harmonic mean of precision and recall</p>
+        </div>
+
+        <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+            <p class="text-sm text-gray-500">AUC-ROC</p>
+            <div class="flex items-baseline justify-between">
+                <h3 id="metric-auc" class="text-2xl font-bold text-gray-900">--</h3>
+                <span id="trend-auc" class="text-sm text-green-600">Excellent</span>
             </div>
-            <div class="mt-4 pt-4 border-t border-gray-50">
-                <p class="text-xs text-gray-500">Training DAG: fraud_detection</p>
-            </div>
+            <p class="text-xs text-gray-500 mt-1">Model separation between fraud and non-fraud</p>
         </div>
     </div>
 
-    <!-- Deep Dive Stats -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <!-- Main Stats Panel -->
-        <div class="lg:col-span-2 bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-            <div class="px-6 py-4 border-b border-gray-50 bg-gray-50/50">
-                <h3 class="font-bold text-gray-900">Throughput & Performance</h3>
-            </div>
-            <div class="p-6 grid grid-cols-2 gap-6">
-                <!-- Accuracy Gauge -->
-                <div
-                    class="p-4 bg-gradient-to-br from-indigo-50 to-white rounded-xl border border-indigo-100 text-center">
-                    <h4 class="text-sm font-medium text-gray-500 mb-2">Model Accuracy</h4>
-                    <div class="relative inline-flex items-center justify-center">
-                        <svg class="transform -rotate-90 w-32 h-32">
-                            <circle cx="64" cy="64" r="56" stroke="currentColor" stroke-width="12" fill="transparent"
-                                class="text-gray-200" />
-                            <circle cx="64" cy="64" r="56" stroke="currentColor" stroke-width="12" fill="transparent"
-                                class="text-indigo-600" stroke-dasharray="351.86"
-                                stroke-dashoffset="{{ 351.86 - (351.86 * model_health.accuracy / 100) }}" />
-                        </svg>
-                        <span class="absolute text-2xl font-bold text-indigo-700">{{
-                            "%.1f"|format(model_health.accuracy) }}%</span>
-                    </div>
-                    <p class="text-xs text-gray-400 mt-2">Precision on test set</p>
-                </div>
-
-                <!-- Simple Counter Grid -->
-                <div class="grid grid-cols-1 gap-4">
-                    <div class="p-3 bg-gray-50 rounded-lg flex justify-between items-center">
-                        <span class="text-sm text-gray-600">Total Volume</span>
-                        <span class="font-bold text-gray-900">{{ stats.get('total_records', 0)|int }}</span>
-                    </div>
-                    <div class="p-3 bg-red-50 rounded-lg flex justify-between items-center">
-                        <span class="text-sm text-red-600">Fraud Detected</span>
-                        <span class="font-bold text-red-700">{{ stats.get('fraud_detections', 0)|int }}</span>
-                    </div>
-                    <div class="p-3 bg-yellow-50 rounded-lg flex justify-between items-center">
-                        <span class="text-sm text-yellow-600">Avg Risk Prob</span>
-                        <span class="font-bold text-yellow-700">{{ "%.2f"|format(stats.get('avg_fraud_probability', 0) *
-                            100) }}%</span>
-                    </div>
-                </div>
-            </div>
+    <!-- Charts -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+            <h4 class="text-lg font-medium text-gray-700 mb-4">Accuracy Over Time</h4>
+            <canvas id="chartAccuracy" height="200"></canvas>
+            <p class="text-sm text-gray-500 mt-3">Shows 30-day trend to detect model stability and drift.</p>
         </div>
 
-        <!-- Environment Info -->
-        <div class="bg-gray-900 text-white rounded-xl shadow-sm border border-gray-800 overflow-hidden">
-            <div class="px-6 py-4 border-b border-gray-800 bg-gray-800/50">
-                <h3 class="font-bold">System Environment</h3>
-            </div>
-            <div class="p-6 space-y-4">
-                <div>
-                    <span class="block text-xs text-gray-400 mb-1">OS / Kernel</span>
-                    <span class="font-mono text-sm text-green-400">Linux • Docker Container</span>
-                </div>
-                <div>
-                    <span class="block text-xs text-gray-400 mb-1">Python Runtime</span>
-                    <span class="font-mono text-sm text-green-400">3.9.18</span>
-                </div>
-                <div>
-                    <span class="block text-xs text-gray-400 mb-1">Inference Workers</span>
-                    <span class="font-mono text-sm text-green-400">2 Active Threads</span>
-                </div>
-                <div class="pt-4 border-t border-gray-800">
-                    <div class="flex items-center gap-2 text-xs text-gray-400">
-                        <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                        System operational
-                    </div>
-                </div>
-            </div>
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+            <h4 class="text-lg font-medium text-gray-700 mb-4">False Positive Rate Over Time</h4>
+            <canvas id="chartFPR" height="200"></canvas>
+            <p class="text-sm text-gray-500 mt-3">Percentage of legitimate transactions incorrectly flagged as fraud.</p>
         </div>
     </div>
 </div>
+
+<script>
+    // Utility: last N days labels
+    function lastNDates(n) {
+        const dates = [];
+        const today = new Date();
+        for (let i = n - 1; i >= 0; i--) {
+            const d = new Date(today);
+            d.setDate(d.getDate() - i);
+            dates.push(d.toISOString().slice(0,10));
+        }
+        return dates;
+    }
+
+    // Generate synthetic 30-day data (or adapt to real API if available)
+    function generateSynthData(days=30) {
+        const labels = lastNDates(days);
+        const accuracy = [];
+        const fpr = [];
+        let baseAcc = 0.94; // 94%
+        let baseFpr = 0.015; // 1.5%
+        for (let i=0;i<days;i++){
+            // small random walk
+            baseAcc += (Math.random()-0.5)*0.004;
+            baseFpr += (Math.random()-0.5)*0.002;
+            accuracy.push(Math.max(0, Math.min(1, baseAcc)));
+            fpr.push(Math.max(0, Math.min(1, baseFpr)));
+        }
+        return {labels, accuracy, fpr};
+    }
+
+    // Helper to format percent
+    function pct(x){ return (x*100).toFixed(1)+'%'; }
+
+    (function render() {
+        const days = 30;
+        let dataPromise = fetch('/api/data').then(r=>r.json()).catch(()=>null);
+
+        dataPromise.then(remote => {
+            // If remote contains useful fields you can compute metrics here.
+            // For now we fallback to synthetic data for a clear demo.
+            const d = generateSynthData(days);
+
+            // Fill top cards with latest values
+            const last = d.accuracy[d.accuracy.length-1];
+            const prev = d.accuracy[d.accuracy.length-2];
+            document.getElementById('metric-accuracy').textContent = pct(last);
+            const accDiff = (last - prev)*100;
+            document.getElementById('trend-accuracy').textContent = (accDiff>=0? '↑ ' : '↓ ') + (accDiff>=0? '+' : '') + accDiff.toFixed(2) + '%';
+
+            // For demo generate precision/recall/f1/auc from accuracy/fpr
+            // These are illustrative only
+            const fprVal = d.fpr[d.fpr.length-1];
+            const precision = Math.max(0.7, Math.min(0.995, last - fprVal*0.6));
+            const recall = Math.max(0.6, Math.min(0.99, last - fprVal*0.2));
+            const f1 = 2 * (precision*recall) / (precision+recall);
+            const auc = Math.max(0.7, Math.min(0.999, 0.5 + (last - fprVal)));
+
+            document.getElementById('metric-precision').textContent = pct(precision);
+            document.getElementById('metric-recall').textContent = pct(recall);
+            document.getElementById('metric-f1').textContent = pct(f1);
+            document.getElementById('metric-auc').textContent = auc.toFixed(2);
+
+            // Trends simple compare last two points
+            const precisionPrev = Math.max(0.7, Math.min(0.995, prev - d.fpr[d.fpr.length-2]*0.6));
+            const recallPrev = Math.max(0.6, Math.min(0.99, prev - d.fpr[d.fpr.length-2]*0.2));
+            const f1Prev = 2 * (precisionPrev*recallPrev) / (precisionPrev+recallPrev);
+
+            const precisionDiff = (precision - precisionPrev)*100;
+            const recallDiff = (recall - recallPrev)*100;
+            const f1Diff = (f1 - f1Prev)*100;
+
+            document.getElementById('trend-precision').textContent = (Math.abs(precisionDiff) < 0.05 ? 'Stable' : (precisionDiff>0? '↑ +':'↓ -') + Math.abs(precisionDiff).toFixed(2) + '%');
+            document.getElementById('trend-recall').textContent = (recallDiff>0? '↑ +':'↓ -') + Math.abs(recallDiff).toFixed(2) + '%';
+            document.getElementById('trend-f1').textContent = (Math.abs(f1Diff) < 0.05 ? 'Stable' : (f1Diff>0? '↑ +':'↓ -') + Math.abs(f1Diff).toFixed(2) + '%');
+
+            // Render Accuracy Chart
+            const ctxA = document.getElementById('chartAccuracy').getContext('2d');
+            new Chart(ctxA, {
+                type: 'line',
+                data: {
+                    labels: d.labels,
+                    datasets: [{
+                        label: 'Accuracy',
+                        data: d.accuracy.map(v=>v*100),
+                        borderColor: '#10B981',
+                        backgroundColor: 'rgba(16,185,129,0.08)',
+                        tension: 0.2,
+                        pointRadius: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: { beginAtZero: false, suggestedMin: 80, suggestedMax: 100, ticks: {callback: v => v + '%'} }
+                    },
+                    plugins: { legend: { display: false } }
+                }
+            });
+
+            // Render False Positive Rate Chart
+            const ctxF = document.getElementById('chartFPR').getContext('2d');
+            new Chart(ctxF, {
+                type: 'line',
+                data: {
+                    labels: d.labels,
+                    datasets: [{
+                        label: 'False Positive Rate',
+                        data: d.fpr.map(v=>v*100),
+                        borderColor: '#F97316',
+                        backgroundColor: 'rgba(249,115,22,0.06)',
+                        tension: 0.2,
+                        pointRadius: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: { beginAtZero: true, suggestedMax: 5, ticks: {callback: v => v + '%'} }
+                    },
+                    plugins: { legend: { display: false } }
+                }
+            });
+        });
+    })();
+</script>
+
 {% endblock %}

@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+    <!-- Metric Card 1 -->
+    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+        <div class="flex justify-between items-start mb-4">
+            <div>
+                <p class="text-sm text-gray-500 mb-1">Alert Queue</p>
+                <h3 class="text-2xl font-bold text-gray-900" id="active-alerts">Loading...</h3>
+            </div>
+            <div class="p-2 bg-red-50 text-red-600 rounded-lg">
+                <i class="ph ph-bell text-xl"></i>
+            </div>
+        </div>
+        <div class="text-sm text-orange-600 font-medium">Requires Immediate Action</div>
+    </div>
+    <!-- Add more operational cards -->
+</div>
+
+<div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+    <div class="px-6 py-4 border-b border-gray-200">
+        <h3 class="text-lg font-semibold text-gray-900">Case List & Actions</h3>
+    </div>
+    <div class="overflow-x-auto">
+        <table class="w-full text-left">
+            <thead class="bg-gray-50 text-gray-500 text-xs uppercase">
+                <tr>
+                    <th class="px-6 py-3 font-medium">Customer</th>
+                    <th class="px-6 py-3 font-medium">Risk Score</th>
+                    <th class="px-6 py-3 font-medium">Amount</th>
+                    <th class="px-6 py-3 font-medium">Actions</th>
+                </tr>
+            </thead>
+            <tbody id="ops-table-body" class="divide-y divide-gray-200 text-sm">
+                <!-- Operational data -->
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    // Simplified JS for Ops
+    fetch('/api/data').then(res => res.json()).then(data => {
+        document.getElementById('active-alerts').innerText = data.metrics.active_alerts;
+        const tbody = document.getElementById('ops-table-body');
+        data.transactions.slice(0, 5).forEach(tx => {
+            const row = `<tr>
+                <td class="px-6 py-4">${tx.merchant}</td>
+                <td class="px-6 py-4 font-bold text-red-500">${tx.risk_score}</td>
+                <td class="px-6 py-4">${tx.amount}</td>
+                <td class="px-6 py-4">
+                    <button class="bg-red-500 text-white px-2 py-1 rounded text-xs" onclick="alert('Blocked')">Block</button>
+                    <button class="bg-orange-500 text-white px-2 py-1 rounded text-xs" onclick="alert('Escalated')">Escalate</button>
+                    <button class="bg-green-500 text-white px-2 py-1 rounded text-xs" onclick="alert('Safe')">Mark Safe</button>
+                </td>
+            </tr>`;
+            tbody.innerHTML += row;
+        });
+    });
+</script>
+{% endblock %}

@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,15 +7,14 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link rel="stylesheet" href="{{ base_path }}/static/css/styles.css">
-    <link rel="stylesheet" href="{{ base_path }}/static/css/dashboard-enhanced.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
     <script>
         tailwind.config = {
             theme: {
                 extend: {
                     colors: {
                         brand: {
-                            orange: '#F97316',
+                            orange: '#F36000',
                             dark: '#1F2937',
                         }
                     }
@@ -25,46 +23,47 @@
         }
     </script>
 </head>
-
 <body class="bg-gray-100 text-gray-800 font-sans">
     <div class="flex h-screen overflow-hidden">
         <!-- Sidebar -->
         <aside class="w-64 bg-gray-900 text-white flex flex-col">
             <div class="p-6">
-                <h1 class="text-2xl font-bold text-orange-500">
+                <h1 class="text-2xl font-bold text-brand-orange">
                     FraudGuard
                 </h1>
             </div>
             <nav class="flex-1 px-4 space-y-2">
-                <a href="{{ base_path }}/"
-                    class="flex items-center gap-3 px-4 py-3 rounded-lg transition-colors {% if page == 'overview' %}bg-orange-500 text-white{% else %}text-gray-400 hover:bg-gray-800 hover:text-white{% endif %}">
+                <a href="/dashboard" class="flex items-center gap-3 px-4 py-3 rounded-lg transition-colors {% if page == 'overview' %}bg-orange-500 text-white{% else %}text-gray-400 hover:bg-gray-800 hover:text-white{% endif %}">
                     <i class="ph ph-squares-four text-xl"></i> Overview
                 </a>
-                <a href="{{ base_path }}/transactions"
-                    class="flex items-center gap-3 px-4 py-3 rounded-lg transition-colors {% if page == 'transactions' %}bg-orange-500 text-white{% else %}text-gray-400 hover:bg-gray-800 hover:text-white{% endif %}">
+                {% if session.get('role') in ['analyst', 'operations'] %}
+                <a href="/transactions" class="flex items-center gap-3 px-4 py-3 rounded-lg transition-colors {% if page == 'transactions' %}bg-orange-500 text-white{% else %}text-gray-400 hover:bg-gray-800 hover:text-white{% endif %}">
                     <i class="ph ph-list-dashes text-xl"></i> Transactions
                 </a>
-                <a href="{{ base_path }}/alerts"
-                    class="flex items-center gap-3 px-4 py-3 rounded-lg transition-colors {% if page == 'alerts' %}bg-orange-500 text-white{% else %}text-gray-400 hover:bg-gray-800 hover:text-white{% endif %}">
+                <a href="/alerts" class="flex items-center gap-3 px-4 py-3 rounded-lg transition-colors {% if page == 'alerts' %}bg-orange-500 text-white{% else %}text-gray-400 hover:bg-gray-800 hover:text-white{% endif %}">
                     <i class="ph ph-warning text-xl"></i> Alerts
                 </a>
-                <a href="{{ base_path }}/system-health"
-                    class="flex items-center gap-3 px-4 py-3 rounded-lg transition-colors {% if page == 'system_health' %}bg-orange-500 text-white{% else %}text-gray-400 hover:bg-gray-800 hover:text-white{% endif %}">
+                {% endif %}
+                {% if session.get('role') == 'analyst' %}
+                <a href="/system_health" class="flex items-center gap-3 px-4 py-3 rounded-lg transition-colors {% if page == 'system_health' %}bg-orange-500 text-white{% else %}text-gray-400 hover:bg-gray-800 hover:text-white{% endif %}">
                     <i class="ph ph-heartbeat text-xl"></i> System Health
                 </a>
-                <a href="{{ base_path }}/settings"
-                    class="flex items-center gap-3 px-4 py-3 rounded-lg transition-colors {% if page == 'settings' %}bg-orange-500 text-white{% else %}text-gray-400 hover:bg-gray-800 hover:text-white{% endif %}">
+                {% endif %}
+                <a href="/settings" class="flex items-center gap-3 px-4 py-3 rounded-lg transition-colors {% if page == 'settings' %}bg-orange-500 text-white{% else %}text-gray-400 hover:bg-gray-800 hover:text-white{% endif %}">
                     <i class="ph ph-gear text-xl"></i> Settings
+                </a>
+                <a href="/logout" class="flex items-center gap-3 px-4 py-3 rounded-lg text-gray-400 hover:bg-gray-800 hover:text-white transition-colors">
+                    <i class="ph ph-sign-out text-xl"></i> Logout
                 </a>
             </nav>
             <div class="p-4 border-t border-gray-800">
                 <div class="flex items-center gap-3">
                     <div class="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center">
-                        <span class="text-sm font-bold">OD</span>
+                        <span class="text-sm font-bold">{{ session.get('username', 'U')[0] }}</span>
                     </div>
                     <div>
-                        <p class="text-sm font-medium">Omolola Dada</p>
-                        <p class="text-xs text-gray-500">Security Team</p>
+                        <p class="text-sm font-medium">{{ session.get('username', 'User') }}</p>
+                        <p class="text-xs text-gray-500 capitalize">{{ session.get('role') }}</p>
                     </div>
                 </div>
             </div>
@@ -79,35 +78,29 @@
                     {% elif page == 'transactions' %}Transaction History
                     {% elif page == 'alerts' %}Active Alerts
                     {% elif page == 'system_health' %}Model & System Health
-                    {% elif page == 'settings' %}Settings
+                    {% elif page == 'settings' %}Notification Settings
                     {% endif %}
                 </h2>
+                {% if session.get('role') == 'analyst' %}
                 <div class="flex items-center gap-4">
-                    <button onclick="alert('Exporting report...')"
-                        class="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+                    <button onclick="alert('Exporting report...')" class="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
                         Export Report
                     </button>
-                    <button id="refresh-model-btn"
-                        class="px-4 py-2 bg-orange-500 text-white rounded-lg text-sm font-medium hover:bg-orange-600 transition-colors flex items-center gap-2">
+                    <button onclick="alert('Refreshing model...')" class="px-4 py-2 bg-brand-orange text-white rounded-lg text-sm font-medium hover:bg-[#D95500] transition-colors flex items-center gap-2">
                         <i class="ph ph-arrows-clockwise"></i> Refresh Model
                     </button>
                 </div>
+                {% endif %}
             </header>
 
             <!-- Scrollable Content -->
-            <div class="flex-1 overflow-auto bg-gray-50 p-8">
+            <div class="flex-1 overflow-auto bg-gray-50 p-8 watermark">
                 {% block content %}{% endblock %}
             </div>
         </main>
     </div>
 
-    <script>
-        window.FRAUDGUARD_BASE_PATH = "{{ base_path }}";
-    </script>
-    <script src="{{ base_path }}/static/js/dashboard.js"></script>
-    <script src="{{ base_path }}/static/js/dashboard-enhanced.js"></script>
-    <script src="{{ base_path }}/static/js/enhanced-visualizations.js"></script>
-    <script src="{{ base_path }}/static/charts/charts.js"></script>
+    <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+    <script src="{{ url_for('static', filename='charts/charts.js') }}"></script>
 </body>
-
 </html>

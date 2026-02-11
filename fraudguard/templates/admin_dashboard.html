@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+    <h3 class="text-lg font-semibold text-gray-900 mb-4">Admin Management</h3>
+    <p class="text-gray-600 mb-4">User management and audit logs.</p>
+    <div class="space-y-4">
+        <div class="p-4 bg-gray-50 rounded-lg border border-gray-200">
+            <h4 class="font-medium">Active Users</h4>
+            <ul class="mt-2 text-sm space-y-1">
+                <li>Analyst User (Analyst)</li>
+                <li>Ops User (Operations)</li>
+                <li>Exec User (Executive)</li>
+                <li>Admin User (Admin)</li>
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}
