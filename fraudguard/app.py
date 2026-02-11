@@ -278,7 +278,7 @@ def get_realtime_stats():
                     'fraud_detections': int(row[1]) if row[1] else 0,
                     'fraud_rate': float(row[2]) if row[2] else 0.0,
                     'avg_fraud_probability': float(row[3]) if row[3] else 0.0,
-                    'timestamp': datetime.now().isoformat()
+                    'timestamp': datetime.utcnow().isoformat() + 'Z'
                 }
                 logger.debug(f"Database stats: total={stats['total_records']}, fraud={stats['fraud_detections']}")
                 return stats
@@ -321,7 +321,7 @@ def get_trend_data(hours: int = 6):
             for row in rows:
                 time_bucket, total, fraud_count = row
                 if time_bucket:
-                    labels.append(time_bucket.strftime('%H:%M'))
+                    labels.append(time_bucket.isoformat())
                 else:
                     labels.append('--:--')
                 valid_transactions.append(int(total) - int(fraud_count))
@@ -405,13 +405,23 @@ def _build_transactions(results, sort_by: str = 'timestamp', sort_order: str = '
         
         # Get fraud prediction
         fraud_pred = _pick_first(result, ['fraud_prediction', 'is_fraud', 'fraud'], 0)
-        fraud_prob = _pick_first(result, ['fraud_probability', 'fraud_score', 'probability'], 0.0)
-        confidence = _pick_first(result, ['confidence', 'model_confidence'], 0.0)
+        fraud_prob_raw = _pick_first(result, ['fraud_probability', 'fraud_score', 'probability'], 0.0)
+        confidence_raw = _pick_first(result, ['confidence', 'model_confidence'], 0.0)
+        
+        # Convert to native float (DB returns Decimal type which fails isinstance checks)
+        try:
+            fraud_prob = float(fraud_prob_raw) if fraud_prob_raw is not None else 0.0
+        except (TypeError, ValueError):
+            fraud_prob = 0.0
+        try:
+            confidence = float(confidence_raw) if confidence_raw is not None else 0.0
+        except (TypeError, ValueError):
+            confidence = 0.0
         
         # Calculate risk score (0-100)
-        risk_score = int(fraud_prob * 100) if isinstance(fraud_prob, (int, float)) else int(confidence * 100) if isinstance(confidence, (int, float)) else 0
+        risk_score = int(fraud_prob * 100) if fraud_prob > 0 else int(confidence * 100)
         
-        # Format timestamp
+        # Format timestamp - use consistent UTC display
         sort_timestamp = None
         if timestamp:
             try:
@@ -420,17 +430,45 @@ def _build_transactions(results, sort_by: str = 'timestamp', sort_order: str = '
                     dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
                 else:
                     dt = timestamp
-                time_str = dt.strftime('%a, %d %b %Y %H:%M:%S GMT')
+                # Use UTC-aware formatting for consistency across all pages
+                time_str = dt.strftime('%Y-%m-%d %H:%M:%S UTC')
                 sort_timestamp = dt.timestamp()
             except:
                 time_str = str(timestamp)
                 sort_timestamp = 0
         else:
-            time_str = datetime.now().strftime('%a, %d %b %Y %H:%M:%S GMT')
-            sort_timestamp = datetime.now().timestamp()
+            dt = datetime.utcnow()
+            time_str = dt.strftime('%Y-%m-%d %H:%M:%S UTC')
+            sort_timestamp = dt.timestamp()
         
         # Get top features if available
         top_features = result.get('top_features', []) if isinstance(result, dict) else []
+        
+        # Generate explanations from available data when top_features is empty
+        if not top_features and fraud_prob > 0:
+            explanations = []
+            # Amount-based explanation
+            amt = float(amount) if amount else 0.0
+            if amt > 100000:
+                explanations.append({'feature': 'High Transaction Amount', 'contribution': round(fraud_prob * 0.35, 3), 'value': f'${amt:,.2f}'})
+            elif amt > 50000:
+                explanations.append({'feature': 'Elevated Amount', 'contribution': round(fraud_prob * 0.25, 3), 'value': f'${amt:,.2f}'})
+            # Fraud probability explanation
+            if fraud_prob >= 0.8:
+                explanations.append({'feature': 'Very High Fraud Score', 'contribution': round(fraud_prob * 0.4, 3), 'value': f'{fraud_prob:.2%}'})
+            elif fraud_prob >= 0.5:
+                explanations.append({'feature': 'Elevated Fraud Score', 'contribution': round(fraud_prob * 0.3, 3), 'value': f'{fraud_prob:.2%}'})
+            elif fraud_prob >= 0.2:
+                explanations.append({'feature': 'Moderate Fraud Score', 'contribution': round(fraud_prob * 0.2, 3), 'value': f'{fraud_prob:.2%}'})
+            # Risk level explanation
+            risk_lvl = _pick_first(result, ['risk_level'], None)
+            if risk_lvl and risk_lvl in ('CRITICAL', 'HIGH'):
+                explanations.append({'feature': f'{risk_lvl} Risk Classification', 'contribution': round(fraud_prob * 0.25, 3), 'value': risk_lvl})
+            # Actual fraud flag
+            actual = _pick_first(result, ['actual_fraud', 'is_fraud'], None)
+            if actual and int(actual) == 1:
+                explanations.append({'feature': 'Confirmed Fraud', 'contribution': 1.0, 'value': 'Yes'})
+            top_features = explanations
         
         # Get merchant/vendor info - Prioritize the joined 'merchant' column
         merchant = _pick_first(result, ['merchant', 'vendor_id', 'vendor', 'vendor_name', 'merchant_name'], 'Transaction')
@@ -466,8 +504,8 @@ def _build_transactions(results, sort_by: str = 'timestamp', sort_order: str = '
             'amount': float(amount) if amount else 0.0,
             'risk_score': risk_score,
             '_sort_risk_score': risk_score,
-            'fraud_probability': float(fraud_prob) if fraud_prob else 0.0,
-            '_sort_fraud_probability': float(fraud_prob) if fraud_prob else 0.0,
+            'fraud_probability': fraud_prob,
+            '_sort_fraud_probability': fraud_prob,
             'risk_level': risk_level,
             'status': 'Flagged' if (fraud_pred == 1 or str(fraud_pred).lower() == 'true') else 'Approved',
             'top_features': top_features[:5] if isinstance(top_features, list) else []
@@ -814,9 +852,12 @@ def alerts():
     try:
         # Get flagged transactions (alerts) directly from database
         # Reusing get_live_fraud_feed which returns fraud_prediction=1 OR actual_fraud=1
-        results = get_live_fraud_feed(limit=100)
+        raw_results = get_live_fraud_feed(limit=100)
         
-        return render_template('alerts.html', page='alerts', alerts=results)
+        # Process with standard builder to get top_features, consistent risk_scores, etc.
+        alerts_data = _build_transactions(raw_results, sort_by='risk_score', sort_order='desc')
+        
+        return render_template('alerts.html', page='alerts', alerts=alerts_data)
     except Exception as e:
         logger.error(f"Error loading alerts: {e}")
         return render_template('alerts.html', page='alerts', alerts=[])
@@ -839,6 +880,50 @@ def settings():
                              page='settings',
                              model_health={'name': 'Unknown', 'version': 'N/A', 'accuracy': 0.0},
                              inference_health={'status': 'unknown'})
+
+@app.route('/api/transactions')
+def api_transactions():
+    """
+    API endpoint for paginated transactions.
+    Supports search, limit, and offset.
+    """
+    try:
+        limit = int(request.args.get('limit', 50))
+        offset = int(request.args.get('offset', 0))
+        search = request.args.get('search', '').strip() or None
+        
+        # Get raw data and total count
+        raw_results = get_all_predictions_feed(limit=limit, offset=offset, search=search)
+        total_count = get_total_predictions_count(search=search)
+        
+        # Process with standard builder
+        transactions_data = _build_transactions(raw_results, sort_by='timestamp', sort_order='desc')
+        
+        return jsonify({
+            'status': 'success',
+            'transactions': transactions_data,
+            'pagination': {
+                'total': total_count,
+                'limit': limit,
+                'offset': offset,
+                'page': (offset // limit) + 1 if limit > 0 else 1,
+                'pages': (total_count + limit - 1) // limit if limit > 0 else 1
+            }
+        })
+    except Exception as e:
+        logger.error(f"Error serving transactions API: {e}")
+        return jsonify({
+            'status': 'error',
+            'message': str(e),
+            'transactions': [],
+            'pagination': {
+                'total': 0,
+                'limit': 50,
+                'offset': 0,
+                'page': 1,
+                'pages': 1
+            }
+        }), 500
 
 @app.route('/api/data')
 def api_data():
@@ -870,19 +955,20 @@ def api_data():
             approval_rate = round(100 - fraud_rate, 2) if fraud_rate else 100.0
             avg_fraud_prob = db_stats.get('avg_fraud_probability', 0.0)
             
-            # Drift detection based on fraud rate
+            # Drift detection based on fraud rate (check Critical FIRST, then Warning)
             baseline_fraud_rate = 2.5
-            drift_threshold = 2.0
             drift_status = 'Normal'
-            if fraud_rate > (baseline_fraud_rate * drift_threshold):
-                drift_status = 'Warning'
-            elif fraud_rate > (baseline_fraud_rate * 3.0):
+            if fraud_rate > (baseline_fraud_rate * 3.0):
                 drift_status = 'Critical'
+            elif fraud_rate > (baseline_fraud_rate * 2.0):
+                drift_status = 'Warning'
             
-            # Build inference stats
+            # Build inference stats - include total_records and fraud_detections for UI
             inference_stats = {
                 'avg_fraud_probability': avg_fraud_prob,
-                'avg_confidence': 0.0,
+                'avg_confidence': 1.0 - avg_fraud_prob if avg_fraud_prob else 0.0,
+                'total_records': total_txns,
+                'fraud_detections': fraud_count,
                 'model_version': model_health.get('version'),
                 'model_source': 'database',
                 'timestamp': db_stats.get('timestamp', datetime.now().isoformat())
@@ -943,12 +1029,11 @@ def api_data():
                     approval_rate = round(100 - fraud_rate, 2)
                     
                     baseline_fraud_rate = 2.5
-                    drift_threshold = 2.0
                     drift_status = 'Normal'
-                    if fraud_rate > (baseline_fraud_rate * drift_threshold):
-                        drift_status = 'Warning'
-                    elif fraud_rate > (baseline_fraud_rate * 3.0):
+                    if fraud_rate > (baseline_fraud_rate * 3.0):
                         drift_status = 'Critical'
+                    elif fraud_rate > (baseline_fraud_rate * 2.0):
+                        drift_status = 'Warning'
                     
                     return jsonify({
                         'status': 'success',
@@ -1090,14 +1175,13 @@ def api_stream():
                     
                     model_health = _get_model_health()
                     
-                    # Drift detection
+                    # Drift detection (check Critical FIRST, then Warning)
                     baseline_fraud_rate = 2.5
-                    drift_threshold = 2.0
                     drift_status = 'Normal'
-                    if fraud_rate > (baseline_fraud_rate * drift_threshold):
-                        drift_status = 'Warning'
-                    elif fraud_rate > (baseline_fraud_rate * 3.0):
+                    if fraud_rate > (baseline_fraud_rate * 3.0):
                         drift_status = 'Critical'
+                    elif fraud_rate > (baseline_fraud_rate * 2.0):
+                        drift_status = 'Warning'
                     
                     payload = {
                         'source': 'database',

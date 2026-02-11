@@ -147,7 +147,11 @@ function updateMetricEnhanced(id, value, previousValue = null) {
     }
 
     // Animate number change
-    if (previousValue !== null && previousValue !== value) {
+    // Ensure previousValue is valid number for comparison, otherwise treat as first load
+    const prevValid = previousValue !== null && previousValue !== undefined;
+    const currValid = value !== null && value !== undefined;
+
+    if (prevValid && currValid && previousValue !== value) {
         el.classList.add('updating');
         setTimeout(() => el.classList.remove('updating'), 500);
 
@@ -376,13 +380,52 @@ function updateChartsEnhanced(trends) {
     }
 
     try {
-        window.mainChart.data.labels = trends.labels;
+        // Format labels from ISO to local time HH:MM if they look like dates
+        const formattedLabels = trends.labels.map(label => {
+            if (label.includes('T') || label.includes('-')) {
+                const date = new Date(label);
+                return isNaN(date.getTime()) ? label : date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            }
+            return label;
+        });
+
+        window.mainChart.data.labels = formattedLabels;
         window.mainChart.data.datasets[0].data = trends.valid_transactions || [];
         window.mainChart.data.datasets[1].data = trends.fraud_attempts || [];
         window.mainChart.update('active'); // Smooth animation
     } catch (error) {
         console.error('Error updating chart:', error);
     }
+}
+
+// Render top contributing features
+function renderTopFeatures(features) {
+    if (!features || features.length === 0) {
+        return '<div class="text-center py-2 text-gray-400">No specific risk factors identified</div>';
+    }
+
+    return `
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+                <h4 class="font-bold text-gray-700 mb-2">Top Risk Factors</h4>
+                <ul class="space-y-1">
+                    ${features.map(f => `
+                        <li class="flex justify-between text-xs">
+                            <span class="text-gray-600">${f.feature}</span>
+                            <span class="font-mono font-medium ${f.contribution > 0.3 ? 'text-red-600' : 'text-orange-600'}">
+                                +${(f.contribution * 100).toFixed(1)}%
+                            </span>
+                        </li>
+                    `).join('')}
+                </ul>
+            </div>
+            <div class="flex items-center justify-center bg-gray-100 rounded p-2">
+                <span class="text-xs text-gray-500 italic">
+                    AI-generated explanation based on ${features.length} model features
+                </span>
+            </div>
+        </div>
+    `;
 }
 
 // Enhanced transaction row with better animations
@@ -490,6 +533,12 @@ async function fetchDataEnhanced() {
 
         const data = await response.json();
 
+        // Don't treat 'no_data' or 'error' as failures — the API returned successfully
+        if (data.status === 'error') {
+            console.warn('Dashboard data error:', data.error);
+            // Don't show toast for transient errors, just log
+        }
+
         // Update data freshness
         if (data.inference_stats && data.inference_stats.timestamp) {
             updateDataFreshness(data.inference_stats.timestamp);
@@ -499,88 +548,99 @@ async function fetchDataEnhanced() {
         dashboardState.previousMetrics = { ...dashboardState.metrics };
 
         // Update metrics with animations
-        if (data.metrics) {
-            const metrics = data.metrics;
+        try {
+            if (data.metrics) {
+                const metrics = data.metrics;
+                // Total transactions
+                updateMetricEnhanced('total-txn', (metrics.total_transactions || 0).toLocaleString(),
+                    dashboardState.previousMetrics.total_transactions);
+                updateSparkline('total-txn', metrics.total_transactions || 0);
 
-            // Total transactions
-            updateMetricEnhanced('total-txn', (metrics.total_transactions || 0).toLocaleString(),
-                dashboardState.previousMetrics.total_transactions);
-            updateSparkline('total-txn', metrics.total_transactions || 0);
+                // Fraud rate
+                const fraudRate = (metrics.fraud_rate || 0).toFixed(2) + '%';
+                updateMetricEnhanced('fraud-rate', fraudRate,
+                    dashboardState.previousMetrics.fraud_rate);
+                updateSparkline('fraud-rate', metrics.fraud_rate || 0);
 
-            // Fraud rate
-            const fraudRate = (metrics.fraud_rate || 0).toFixed(2) + '%';
-            updateMetricEnhanced('fraud-rate', fraudRate,
-                dashboardState.previousMetrics.fraud_rate);
-            updateSparkline('fraud-rate', metrics.fraud_rate || 0);
+                // Approval rate
+                const approvalRate = (metrics.approval_rate || 0).toFixed(2) + '%';
+                updateMetricEnhanced('approval-rate', approvalRate,
+                    dashboardState.previousMetrics.approval_rate);
+                updateSparkline('approval-rate', metrics.approval_rate || 0);
 
-            // Approval rate
-            const approvalRate = (metrics.approval_rate || 0).toFixed(2) + '%';
-            updateMetricEnhanced('approval-rate', approvalRate,
-                dashboardState.previousMetrics.approval_rate);
-            updateSparkline('approval-rate', metrics.approval_rate || 0);
+                // Active alerts
+                updateMetricEnhanced('active-alerts', metrics.active_alerts || 0,
+                    dashboardState.previousMetrics.active_alerts);
 
-            // Active alerts
-            updateMetricEnhanced('active-alerts', metrics.active_alerts || 0,
-                dashboardState.previousMetrics.active_alerts);
+                // Update trends
+                const totalTrend = calculateTrend(metrics.total_transactions, dashboardState.previousMetrics.total_transactions);
+                const fraudTrend = calculateTrend(metrics.fraud_rate, dashboardState.previousMetrics.fraud_rate);
+                const approvalTrend = calculateTrend(metrics.approval_rate, dashboardState.previousMetrics.approval_rate);
 
-            // Update trends - calculate from REAL previous values
-            const totalTrend = calculateTrend(metrics.total_transactions, dashboardState.previousMetrics.total_transactions);
-            const fraudTrend = calculateTrend(metrics.fraud_rate, dashboardState.previousMetrics.fraud_rate);
-            const approvalTrend = calculateTrend(metrics.approval_rate, dashboardState.previousMetrics.approval_rate);
+                updateTrendDisplay('total-txn-trend', totalTrend, 'transaction');
+                updateTrendDisplay('fraud-rate-trend', fraudTrend, 'fraud');
+                updateTrendDisplay('approval-rate-trend', approvalTrend, 'approval');
 
-            updateTrendDisplay('total-txn-trend', totalTrend, 'transaction');
-            updateTrendDisplay('fraud-rate-trend', fraudTrend, 'fraud');
-            updateTrendDisplay('approval-rate-trend', approvalTrend, 'approval');
-
-            // Update alerts status dynamically
-            const alertsEl = document.getElementById('alerts-status');
-            if (alertsEl) {
-                const alertCount = metrics.active_alerts || 0;
-                if (alertCount === 0) {
-                    alertsEl.className = 'flex items-center text-sm text-green-600 font-medium';
-                    alertsEl.innerHTML = '<span>All clear</span>';
-                } else if (alertCount < 5) {
-                    alertsEl.className = 'flex items-center text-sm text-yellow-600 font-medium';
-                    alertsEl.innerHTML = '<span>Low priority</span>';
-                } else {
-                    alertsEl.className = 'flex items-center text-sm text-orange-600 font-medium';
-                    alertsEl.innerHTML = '<span>Requires attention</span>';
+                // Update alerts status
+                const alertsEl = document.getElementById('alerts-status');
+                if (alertsEl) {
+                    const alertCount = metrics.active_alerts || 0;
+                    if (alertCount === 0) {
+                        alertsEl.className = 'flex items-center text-sm text-green-600 font-medium';
+                        alertsEl.innerHTML = '<span>All clear</span>';
+                    } else if (alertCount < 5) {
+                        alertsEl.className = 'flex items-center text-sm text-yellow-600 font-medium';
+                        alertsEl.innerHTML = '<span>Low priority</span>';
+                    } else {
+                        alertsEl.className = 'flex items-center text-sm text-orange-600 font-medium';
+                        alertsEl.innerHTML = '<span>Requires attention</span>';
+                    }
                 }
-            }
 
-            // Store current metrics
-            dashboardState.metrics = { ...metrics };
-        }
+                dashboardState.metrics = { ...metrics };
+            }
+        } catch (e) { console.error('Metrics update failed:', e); }
 
         // Update model health
-        if (data.model_health) {
-            updateModelHealthEnhanced(data.model_health);
-        }
+        try {
+            if (data.model_health) {
+                updateModelHealthEnhanced(data.model_health);
+            }
+        } catch (e) { console.error('Model health update failed:', e); }
 
         // Update inference stats
-        if (data.inference_stats) {
-            updateInferenceStats(data.inference_stats);
+        try {
+            if (data.inference_stats) {
+                updateInferenceStats(data.inference_stats);
+            }
+        } catch (e) {
+            console.error('Inference stats update failed:', e);
+            showError('Debug: Inf Stats Error: ' + e.message);
         }
 
         // Update table
-        if (data.transactions && Array.isArray(data.transactions)) {
-            populateTableEnhanced(data.transactions);
-        }
+        try {
+            if (data.transactions && Array.isArray(data.transactions)) {
+                populateTableEnhanced(data.transactions);
+            }
+        } catch (e) { console.error('Table update failed:', e); }
 
         // Update charts
-        if (typeof initChartsEnhanced === 'function' && !window.chartsInitialized) {
-            initChartsEnhanced();
-            window.chartsInitialized = true;
-        }
-        if (typeof updateChartsEnhanced === 'function' && data.trends) {
-            updateChartsEnhanced(data.trends);
-        }
+        try {
+            if (typeof initChartsEnhanced === 'function' && !window.chartsInitialized) {
+                initChartsEnhanced();
+                window.chartsInitialized = true;
+            }
+            if (typeof updateChartsEnhanced === 'function' && data.trends) {
+                updateChartsEnhanced(data.trends);
+            }
+        } catch (e) { console.error('Chart update failed:', e); }
 
         dashboardState.lastUpdate = new Date();
 
     } catch (error) {
         console.error('Error fetching data:', error);
-        showError('Failed to load dashboard data. Please refresh the page.');
+        showError('Load Error: ' + error.message);
     }
 }
 
@@ -601,7 +661,7 @@ function updateModelHealthEnhanced(health) {
     updateMetricEnhanced('model-version', 'v' + (health.version || 'N/A'));
 
     // Accuracy
-    const accuracy = health.accuracy || 0;
+    const accuracy = parseFloat(health.accuracy) || 0;
     const accuracyStr = accuracy > 0 ? accuracy.toFixed(2) + '%' : '0.00%';
     updateMetricEnhanced('model-accuracy', accuracyStr);
 
@@ -629,16 +689,20 @@ function updateModelHealthEnhanced(health) {
 
 function updateInferenceStats(stats) {
     if (stats.avg_fraud_probability !== undefined) {
-        updateMetricEnhanced('avg-fraud-prob', (stats.avg_fraud_probability * 100).toFixed(2) + '%');
+        const prob = parseFloat(stats.avg_fraud_probability) || 0;
+        updateMetricEnhanced('avg-fraud-prob', (prob * 100).toFixed(2) + '%');
     }
     if (stats.avg_confidence !== undefined) {
-        updateMetricEnhanced('avg-confidence', (stats.avg_confidence * 100).toFixed(2) + '%');
+        const conf = parseFloat(stats.avg_confidence) || 0;
+        updateMetricEnhanced('avg-confidence', (conf * 100).toFixed(2) + '%');
     }
     if (stats.total_records !== undefined) {
-        updateMetricEnhanced('inference-total', (stats.total_records || 0).toLocaleString());
+        const total = parseInt(stats.total_records) || 0;
+        updateMetricEnhanced('inference-total', total.toLocaleString());
     }
     if (stats.fraud_detections !== undefined) {
-        updateMetricEnhanced('inference-fraud', (stats.fraud_detections || 0).toLocaleString());
+        const fraud = parseInt(stats.fraud_detections) || 0;
+        updateMetricEnhanced('inference-fraud', fraud.toLocaleString());
     }
 }
 
@@ -680,8 +744,12 @@ function populateTableEnhanced(transactions) {
 }
 
 function showError(message) {
+    // Remove existing error messages to prevent stacking
+    const existingErrors = document.querySelectorAll('.dashboard-error-toast');
+    existingErrors.forEach(el => el.remove());
+
     const errorMsg = document.createElement('div');
-    errorMsg.className = 'fixed top-4 right-4 bg-red-500 text-white p-4 rounded-lg shadow-lg z-50 max-w-md';
+    errorMsg.className = 'dashboard-error-toast fixed top-4 right-4 bg-red-500 text-white p-4 rounded-lg shadow-lg z-50 max-w-md';
     errorMsg.innerHTML = `
         <div class="flex items-center gap-2">
             <i class="ph ph-warning-circle text-xl"></i>

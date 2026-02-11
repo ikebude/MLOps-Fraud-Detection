@@ -24,21 +24,22 @@ document.addEventListener('DOMContentLoaded', () => {
     // Only run dashboard logic if we are on the dashboard page
     if (!document.getElementById('mainChart')) return;
 
-    // Always start with fetchData immediately
+    // If dashboard-enhanced.js is loaded, let it handle everything
+    // to avoid duplicate API calls and EventSource streams
+    if (typeof fetchDataEnhanced === 'function') {
+        console.log('dashboard-enhanced.js detected, skipping dashboard.js init');
+        return;
+    }
+
+    // Fallback: basic dashboard logic if enhanced is not loaded
     fetchData();
 
-    // Then try EventSource, but fallback to polling if it fails
     if (window.EventSource) {
         try {
             startStream(basePath);
         } catch (error) {
             console.error('EventSource failed, using polling:', error);
-            // Polling handled by dashboard-enhanced.js
-            // setInterval(fetchData, 5000);
         }
-    } else {
-        // Polling handled by dashboard-enhanced.js
-        // setInterval(fetchData, 5000);
     }
 });
 

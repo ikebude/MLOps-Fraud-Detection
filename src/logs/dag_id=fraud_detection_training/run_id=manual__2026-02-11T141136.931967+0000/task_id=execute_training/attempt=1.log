@@ -1,0 +1,166 @@
+[2026-02-11T14:12:02.661+0000] {local_task_job_runner.py:123} INFO - ::group::Pre task execution logs
+[2026-02-11T14:12:02.739+0000] {taskinstance.py:2612} INFO - Dependencies all met for dep_context=non-requeueable deps ti=<TaskInstance: fraud_detection_training.execute_training manual__2026-02-11T14:11:36.931967+00:00 [queued]>
+[2026-02-11T14:12:02.776+0000] {taskinstance.py:2612} INFO - Dependencies all met for dep_context=requeueable deps ti=<TaskInstance: fraud_detection_training.execute_training manual__2026-02-11T14:11:36.931967+00:00 [queued]>
+[2026-02-11T14:12:02.786+0000] {taskinstance.py:2865} INFO - Starting attempt 1 of 1
+[2026-02-11T14:12:02.907+0000] {taskinstance.py:2888} INFO - Executing <Task(PythonOperator): execute_training> on 2026-02-11 14:11:36.931967+00:00
+[2026-02-11T14:12:03.052+0000] {standard_task_runner.py:104} INFO - Running: ['***', 'tasks', 'run', 'fraud_detection_training', 'execute_training', 'manual__2026-02-11T14:11:36.931967+00:00', '--job-id', '151', '--raw', '--subdir', 'DAGS_FOLDER/fraud_detection_training_dag.py', '--cfg-path', '/tmp/tmp4ttvhyp2']
+[2026-02-11T14:12:03.094+0000] {standard_task_runner.py:105} INFO - Job 151: Subtask execute_training
+[2026-02-11T14:12:03.016+0000] {warnings.py:112} WARNING - /home/***/.local/lib/python3.12/site-packages/***/task/task_runner/standard_task_runner.py:70: DeprecationWarning: This process (pid=349) is multi-threaded, use of fork() may lead to deadlocks in the child.
+  pid = os.fork()
+
+[2026-02-11T14:12:03.099+0000] {standard_task_runner.py:72} INFO - Started process 355 to run task
+[2026-02-11T14:12:03.686+0000] {task_command.py:467} INFO - Running <TaskInstance: fraud_detection_training.execute_training manual__2026-02-11T14:11:36.931967+00:00 [running]> on host ca640d1777d4
+[2026-02-11T14:12:04.268+0000] {taskinstance.py:3131} INFO - Exporting env vars: AIRFLOW_CTX_DAG_OWNER='datamasterylab.com' AIRFLOW_CTX_DAG_ID='fraud_detection_training' AIRFLOW_CTX_TASK_ID='execute_training' AIRFLOW_CTX_EXECUTION_DATE='2026-02-11T14:11:36.931967+00:00' AIRFLOW_CTX_TRY_NUMBER='1' AIRFLOW_CTX_DAG_RUN_ID='manual__2026-02-11T14:11:36.931967+00:00'
+[2026-02-11T14:12:04.306+0000] {taskinstance.py:731} INFO - ::endgroup::
+[2026-02-11T14:12:04.485+0000] {fraud_detection_training_dag.py:121} INFO - Initializing fraud detection training (transactions_table=transactions)
+[2026-02-11T14:12:04.560+0000] {fraud_detection_training.py:144} INFO - Configuration loaded successfully
+[2026-02-11T14:12:04.575+0000] {fraud_detection_training.py:158} INFO - Database configured: postgres
+[2026-02-11T14:12:07.396+0000] {fraud_detection_training.py:195} INFO - Object storage verified. Buckets: ['mlflow']
+[2026-02-11T14:12:08.831+0000] {fraud_detection_training.py:241} INFO - MLflow configured successfully
+[2026-02-11T14:12:08.837+0000] {fraud_detection_training.py:137} INFO - Fraud detection training system initialized
+[2026-02-11T14:12:08.838+0000] {fraud_detection_training_dag.py:128} INFO - Starting model training...
+[2026-02-11T14:12:08.937+0000] {fraud_detection_training_dag.py:134} INFO - Requested training batch_size=100000, min_records=100000
+[2026-02-11T14:12:08.951+0000] {fraud_detection_training.py:257} INFO - Starting data ingestion from PostgreSQL (table=transactions, limit=100000)...
+[2026-02-11T14:12:08.954+0000] {fraud_detection_training.py:279} INFO - Connecting to transactions DB: postgres:5432/transactions_db (user=fraud_producer)
+[2026-02-11T14:12:08.994+0000] {fraud_detection_training.py:334} INFO - Executing query (limit=100000) against transactions
+[2026-02-11T14:12:24.463+0000] {fraud_detection_training.py:355} INFO - Ingested 100000 raw transactions from transactions (requested 100000)
+[2026-02-11T14:12:24.475+0000] {fraud_detection_training.py:357} INFO - Date range: 2026-02-09 08:24:08.069658 to 2026-02-11 14:12:08.457153
+[2026-02-11T14:12:24.485+0000] {fraud_detection_training.py:358} INFO - Fraud rate: 2.78%
+[2026-02-11T14:12:24.486+0000] {fraud_detection_training.py:697} INFO - Starting model training...
+[2026-02-11T14:12:25.688+0000] {font_manager.py:1639} INFO - generated new fontManager
+[2026-02-11T14:12:26.550+0000] {fraud_detection_training.py:377} INFO - Starting feature engineering for 74 features (54 engineered + 20 raw)...
+[2026-02-11T14:12:27.028+0000] {fraud_detection_training.py:390} INFO - Engineering amount-based features (strongest signal)...
+[2026-02-11T14:12:27.465+0000] {fraud_detection_training.py:444} INFO - Engineering identity features...
+[2026-02-11T14:12:27.552+0000] {fraud_detection_training.py:465} INFO - Engineering device features...
+[2026-02-11T14:12:28.311+0000] {fraud_detection_training.py:496} INFO - Engineering location features...
+[2026-02-11T14:12:28.465+0000] {fraud_detection_training.py:511} INFO - Engineering payment features...
+[2026-02-11T14:12:29.377+0000] {fraud_detection_training.py:539} INFO - Engineering network features...
+[2026-02-11T14:12:31.479+0000] {fraud_detection_training.py:565} INFO - Engineering behavioral features...
+[2026-02-11T14:12:31.561+0000] {fraud_detection_training.py:593} INFO - Engineering product features...
+[2026-02-11T14:12:31.604+0000] {fraud_detection_training.py:602} INFO - Engineering address features...
+[2026-02-11T14:12:32.564+0000] {fraud_detection_training.py:613} INFO - Engineering delivery and refund features...
+[2026-02-11T14:12:33.039+0000] {fraud_detection_training.py:650} INFO - Adding aggregate features...
+[2026-02-11T14:12:33.794+0000] {fraud_detection_training.py:681} INFO - Feature engineering complete with enhanced amount-based features
+[2026-02-11T14:12:33.795+0000] {fraud_detection_training.py:682} INFO - Total columns: 96 (engineered + raw)
+[2026-02-11T14:12:33.796+0000] {fraud_detection_training.py:716} INFO - Post-engineering columns: 96
+[2026-02-11T14:12:36.365+0000] {fraud_detection_training.py:738} INFO - Training with 77 features
+[2026-02-11T14:12:36.368+0000] {fraud_detection_training.py:739} INFO - Categorical: 12, Numeric: 64
+[2026-02-11T14:12:36.371+0000] {fraud_detection_training.py:740} INFO - Class distribution: {0: 97220, 1: 2780}
+[2026-02-11T14:12:36.915+0000] {fraud_detection_training.py:808} INFO - Computed scale_pos_weight=52.4568 (base=34.9712, neg=77776, pos=2224)
+[2026-02-11T14:12:36.999+0000] {fraud_detection_training.py:822} INFO - Constructing pipeline with SMOTE for class imbalance
+[2026-02-11T14:12:37.009+0000] {fraud_detection_training.py:858} INFO - Starting hyperparameter tuning with RECALL MAXIMIZATION (beta=5, realistic fraud prevention)...
+[2026-02-11T14:12:37.032+0000] {logging_mixin.py:190} INFO - Fitting 3 folds for each of 50 candidates, totalling 150 fits
+[2026-02-11T15:23:48.431+0000] {fraud_detection_training.py:862} INFO - Best hyperparameters: {'classifier__subsample': 1.0, 'classifier__reg_alpha': 0, 'classifier__max_depth': 3, 'classifier__learning_rate': 0.1, 'classifier__gamma': 0, 'classifier__colsample_bytree': 0.8}
+[2026-02-11T15:23:52.375+0000] {fraud_detection_training.py:876} INFO - Found threshold 0.9788 with recall >= 80%
+[2026-02-11T15:23:52.377+0000] {fraud_detection_training.py:891} INFO - Optimal threshold: 0.9788 (FRAUD PREVENTION: maximize recall, accept lower precision)
+[2026-02-11T15:23:53.709+0000] {fraud_detection_training.py:918} INFO - ✓✓ STRONG RECALL: 79.50% - Catching 79% of fraud
+[2026-02-11T15:23:53.711+0000] {fraud_detection_training.py:920} INFO - ✓ PRECISION: 98.88% - Acceptable false alarm rate
+[2026-02-11T15:23:54.297+0000] {fraud_detection_training.py:939} INFO - Confusion Matrix Analysis:
+[2026-02-11T15:23:54.298+0000] {fraud_detection_training.py:940} INFO -   ✓ True Negatives (legitimate correctly allowed): 19439
+[2026-02-11T15:23:54.300+0000] {fraud_detection_training.py:941} INFO -   ✗ False Positives (legitimate wrongly flagged): 5
+[2026-02-11T15:23:54.301+0000] {fraud_detection_training.py:942} INFO -   ✗ False Negatives (fraud MISSED): 114
+[2026-02-11T15:23:54.305+0000] {fraud_detection_training.py:943} INFO -   ✓ True Positives (fraud correctly caught): 442
+[2026-02-11T15:23:54.306+0000] {fraud_detection_training.py:944} INFO - Dual-metric performance:
+[2026-02-11T15:23:54.308+0000] {fraud_detection_training.py:945} INFO -   • Recall = TP/(TP+FN) = 442/556 = 79.50%
+[2026-02-11T15:23:54.310+0000] {fraud_detection_training.py:946} INFO -   • Precision = TP/(TP+FP) = 442/447 = 98.88%
+[2026-02-11T15:23:54.312+0000] {fraud_detection_training.py:947} INFO -   • Specificity = TN/(TN+FP) = 19439/19444 = 99.97%
+[2026-02-11T15:23:59.184+0000] {credentials.py:1147} INFO - Found credentials in environment variables.
+[2026-02-11T15:24:04.320+0000] {fraud_detection_training.py:997} INFO - Top 20 Feature Importances (keep these):
+[2026-02-11T15:24:04.331+0000] {fraud_detection_training.py:999} INFO -   remainder__amount_zscore: 0.212795
+[2026-02-11T15:24:04.334+0000] {fraud_detection_training.py:999} INFO -   remainder__amount: 0.139597
+[2026-02-11T15:24:04.342+0000] {fraud_detection_training.py:999} INFO -   remainder__amount_to_user_avg_ratio: 0.066168
+[2026-02-11T15:24:04.344+0000] {fraud_detection_training.py:999} INFO -   remainder__return_request: 0.063306
+[2026-02-11T15:24:04.346+0000] {fraud_detection_training.py:999} INFO -   remainder__identity_mismatch_score: 0.060967
+[2026-02-11T15:24:04.347+0000] {fraud_detection_training.py:999} INFO -   remainder__refund_severity_score: 0.054813
+[2026-02-11T15:24:04.349+0000] {fraud_detection_training.py:999} INFO -   remainder__identity_confidence_score: 0.039308
+[2026-02-11T15:24:04.351+0000] {fraud_detection_training.py:999} INFO -   remainder__quantity: 0.034975
+[2026-02-11T15:24:04.353+0000] {fraud_detection_training.py:999} INFO -   remainder__is_bulk_purchase: 0.029719
+[2026-02-11T15:24:04.354+0000] {fraud_detection_training.py:999} INFO -   remainder__fraud_risk_composite: 0.027950
+[2026-02-11T15:24:04.359+0000] {fraud_detection_training.py:999} INFO -   remainder__is_short_session: 0.024224
+[2026-02-11T15:24:04.362+0000] {fraud_detection_training.py:999} INFO -   remainder__behavioral_consistency_score: 0.022633
+[2026-02-11T15:24:04.386+0000] {fraud_detection_training.py:999} INFO -   cat__account_status: 0.021220
+[2026-02-11T15:24:04.388+0000] {fraud_detection_training.py:999} INFO -   remainder__amount_to_category_avg_ratio: 0.019119
+[2026-02-11T15:24:04.407+0000] {fraud_detection_training.py:999} INFO -   remainder__session_behavior_score: 0.016172
+[2026-02-11T15:24:04.416+0000] {fraud_detection_training.py:999} INFO -   cat__refund_status: 0.012581
+[2026-02-11T15:24:04.418+0000] {fraud_detection_training.py:999} INFO -   remainder__device_trust_score: 0.012436
+[2026-02-11T15:24:04.424+0000] {fraud_detection_training.py:999} INFO -   remainder__payment_status_risk: 0.012107
+[2026-02-11T15:24:04.432+0000] {fraud_detection_training.py:999} INFO -   cat__device_type: 0.010865
+[2026-02-11T15:24:04.438+0000] {fraud_detection_training.py:999} INFO -   remainder__activity_timing_score: 0.009444
+[2026-02-11T15:24:04.440+0000] {fraud_detection_training.py:1001} INFO - Bottom 10 Feature Importances (candidates for next round of feature selection):
+[2026-02-11T15:24:04.458+0000] {fraud_detection_training.py:1003} INFO -   remainder__shared_phone_number_count: 0.000000
+[2026-02-11T15:24:04.460+0000] {fraud_detection_training.py:1003} INFO -   remainder__ip_risk_score: 0.000000
+[2026-02-11T15:24:04.461+0000] {fraud_detection_training.py:1003} INFO -   remainder__proxy_detection_flag: 0.000000
+[2026-02-11T15:24:04.464+0000] {fraud_detection_training.py:1003} INFO -   remainder__vpn_usage_flag: 0.000000
+[2026-02-11T15:24:04.466+0000] {fraud_detection_training.py:1003} INFO -   remainder__payment_method_anomaly: 0.000000
+[2026-02-11T15:24:04.470+0000] {fraud_detection_training.py:1003} INFO -   remainder__fraud_ring_score: 0.000000
+[2026-02-11T15:24:04.474+0000] {fraud_detection_training.py:1003} INFO -   remainder__country_avg_amount: 0.000000
+[2026-02-11T15:24:04.478+0000] {fraud_detection_training.py:1003} INFO -   remainder__shared_ip_count: 0.000000
+[2026-02-11T15:24:04.481+0000] {fraud_detection_training.py:1003} INFO -   cat__currency: 0.000000
+[2026-02-11T15:24:04.482+0000] {fraud_detection_training.py:1003} INFO -   remainder__android_emulator_detection: 0.000000
+[2026-02-11T15:24:04.483+0000] {fraud_detection_training.py:1014} INFO - Weak features for future removal (importance < 1.5% of max = 0.003192):
+[2026-02-11T15:24:04.494+0000] {fraud_detection_training.py:1016} INFO -   - cat__country: 0.000000
+[2026-02-11T15:24:04.498+0000] {fraud_detection_training.py:1016} INFO -   - cat__currency: 0.000000
+[2026-02-11T15:24:04.500+0000] {fraud_detection_training.py:1016} INFO -   - remainder__android_emulator_detection: 0.000000
+[2026-02-11T15:24:04.501+0000] {fraud_detection_training.py:1016} INFO -   - remainder__ip_risk_score: 0.000000
+[2026-02-11T15:24:04.507+0000] {fraud_detection_training.py:1016} INFO -   - remainder__proxy_detection_flag: 0.000000
+[2026-02-11T15:24:04.510+0000] {fraud_detection_training.py:1016} INFO -   - remainder__vpn_usage_flag: 0.000000
+[2026-02-11T15:24:04.513+0000] {fraud_detection_training.py:1016} INFO -   - remainder__payment_method_anomaly: 0.000000
+[2026-02-11T15:24:04.517+0000] {fraud_detection_training.py:1016} INFO -   - remainder__fraud_ring_score: 0.000000
+[2026-02-11T15:24:04.522+0000] {fraud_detection_training.py:1016} INFO -   - remainder__shared_ip_count: 0.000000
+[2026-02-11T15:24:04.526+0000] {fraud_detection_training.py:1016} INFO -   - remainder__shared_phone_number_count: 0.000000
+[2026-02-11T15:24:04.531+0000] {fraud_detection_training.py:1016} INFO -   - remainder__address_reuse_rate: 0.000000
+[2026-02-11T15:24:04.534+0000] {fraud_detection_training.py:1016} INFO -   - remainder__shared_address_count: 0.000000
+[2026-02-11T15:24:04.535+0000] {fraud_detection_training.py:1016} INFO -   - remainder__month: 0.000000
+[2026-02-11T15:24:04.542+0000] {fraud_detection_training.py:1016} INFO -   - remainder__product_popularity: 0.000000
+[2026-02-11T15:24:04.544+0000] {fraud_detection_training.py:1016} INFO -   - remainder__country_avg_amount: 0.000000
+[2026-02-11T15:24:04.547+0000] {fraud_detection_training.py:1016} INFO -   - remainder__identity_verification_score: 0.000402
+[2026-02-11T15:24:04.549+0000] {fraud_detection_training.py:1016} INFO -   - remainder__time_since_prev_txn_sec: 0.000432
+[2026-02-11T15:24:04.550+0000] {fraud_detection_training.py:1016} INFO -   - remainder__vendor_unique_products: 0.000561
+[2026-02-11T15:24:04.551+0000] {fraud_detection_training.py:1016} INFO -   - remainder__discount: 0.000605
+[2026-02-11T15:24:04.552+0000] {fraud_detection_training.py:1016} INFO -   - remainder__failed_delivery_pattern: 0.000613
+[2026-02-11T15:24:04.553+0000] {fraud_detection_training.py:1016} INFO -   - remainder__price_discount_ratio: 0.000615
+[2026-02-11T15:24:04.558+0000] {fraud_detection_training.py:1016} INFO -   - remainder__refund_to_purchase_ratio: 0.000640
+[2026-02-11T15:24:04.563+0000] {fraud_detection_training.py:1016} INFO -   - remainder__device_change_rate: 0.000791
+[2026-02-11T15:24:04.565+0000] {fraud_detection_training.py:1016} INFO -   - remainder__high_value_short_session: 0.000808
+[2026-02-11T15:24:04.566+0000] {fraud_detection_training.py:1016} INFO -   - remainder__user_reputation_score: 0.000813
+[2026-02-11T15:24:04.568+0000] {fraud_detection_training.py:1016} INFO -   - remainder__user_total_amount: 0.000837
+[2026-02-11T15:24:04.575+0000] {fraud_detection_training.py:1016} INFO -   - remainder__session_duration: 0.000855
+[2026-02-11T15:24:04.577+0000] {fraud_detection_training.py:1016} INFO -   - remainder__device_fingerprint_score: 0.000889
+[2026-02-11T15:24:04.582+0000] {fraud_detection_training.py:1016} INFO -   - remainder__delivery_dispute_rate: 0.000942
+[2026-02-11T15:24:04.584+0000] {fraud_detection_training.py:1016} INFO -   - remainder__failed_payment_ratio: 0.000955
+[2026-02-11T15:24:04.586+0000] {fraud_detection_training.py:1016} INFO -   - remainder__refund_abuse_score: 0.000959
+[2026-02-11T15:24:04.587+0000] {fraud_detection_training.py:1016} INFO -   - remainder__user_transaction_count: 0.000979
+[2026-02-11T15:24:04.592+0000] {fraud_detection_training.py:1016} INFO -   - cat__location: 0.000995
+[2026-02-11T15:24:04.597+0000] {fraud_detection_training.py:1016} INFO -   - remainder__vendor_avg_quantity: 0.001005
+[2026-02-11T15:24:04.599+0000] {fraud_detection_training.py:1016} INFO -   - remainder__anomaly_frequency_score: 0.001026
+[2026-02-11T15:24:04.601+0000] {fraud_detection_training.py:1016} INFO -   - remainder__user_avg_session_duration: 0.001118
+[2026-02-11T15:24:04.602+0000] {fraud_detection_training.py:1016} INFO -   - remainder__vendor_risk_score: 0.001253
+[2026-02-11T15:24:04.603+0000] {fraud_detection_training.py:1016} INFO -   - remainder__account_age_days: 0.001282
+[2026-02-11T15:24:04.604+0000] {fraud_detection_training.py:1016} INFO -   - remainder__payment_anomaly_score: 0.001290
+[2026-02-11T15:24:04.605+0000] {fraud_detection_training.py:1016} INFO -   - remainder__user_avg_transaction: 0.001376
+[2026-02-11T15:24:04.606+0000] {fraud_detection_training.py:1016} INFO -   - remainder__session_amount_ratio: 0.001464
+[2026-02-11T15:24:04.607+0000] {fraud_detection_training.py:1016} INFO -   - remainder__age: 0.001620
+[2026-02-11T15:24:04.608+0000] {fraud_detection_training.py:1016} INFO -   - cat__payment_method: 0.002095
+[2026-02-11T15:24:04.610+0000] {fraud_detection_training.py:1016} INFO -   - remainder__amount_percentile: 0.002351
+[2026-02-11T15:24:04.611+0000] {fraud_detection_training.py:1016} INFO -   - remainder__rating: 0.002412
+[2026-02-11T15:24:04.614+0000] {fraud_detection_training.py:1016} INFO -   - remainder__product_price_anomaly_score: 0.003142
+[2026-02-11T15:24:28.379+0000] {warnings.py:112} WARNING - /home/***/.local/lib/python3.12/site-packages/mlflow/types/utils.py:452: UserWarning: Hint: Inferred schema contains integer column(s). Integer columns in Python cannot represent missing values. If your input data contains missing values at inference time, it will be encoded as floats and will cause a schema enforcement error. The best way to avoid this problem is to infer the model schema based on a realistic data sample (training dataset) that includes missing values. Alternatively, you can declare integer columns as doubles (float64) whenever these columns may have missing values. See `Handling Integers With Missing Values <https://www.mlflow.org/docs/latest/models.html#handling-integers-with-missing-values>`_ for more details.
+  warnings.warn(
+
+[2026-02-11T15:24:28.390+0000] {logging_mixin.py:190} WARNING - 2026/02/11 15:24:28 WARNING mlflow.models.model: `artifact_path` is deprecated. Please use `name` instead.
+[2026-02-11T15:24:33.173+0000] {warnings.py:112} WARNING - /home/***/.local/lib/python3.12/site-packages/mlflow/models/model.py:1209: FutureWarning: Saving scikit-learn models in the pickle or cloudpickle format requires exercising caution because these formats rely on Python's object serialization mechanism, which can execute arbitrary code during deserialization.The recommended safe alternative is the 'skops' format.
+  flavor.save_model(path=local_path, mlflow_model=mlflow_model, **kwargs)
+
+[2026-02-11T15:25:12.177+0000] {logging_mixin.py:190} WARNING - Registered model 'fraud_detection_model' already exists. Creating a new version of this model...
+[2026-02-11T15:25:12.411+0000] {logging_mixin.py:190} WARNING - 2026/02/11 15:25:12 INFO mlflow.store.model_registry.abstract_store: Waiting up to 300 seconds for model version to finish creation. Model name: fraud_detection_model, version 11
+[2026-02-11T15:25:12.413+0000] {logging_mixin.py:190} WARNING - Created version '11' of model 'fraud_detection_model'.
+[2026-02-11T15:25:12.946+0000] {fraud_detection_training.py:1047} INFO - Training complete with metrics: {'auc_pr': 0.9505889094936365, 'precision': 0.9888143176733781, 'recall': 0.7949640287769785, 'f1': 0.8813559322033898, 'threshold': 0.9787659049034119}
+[2026-02-11T15:25:13.016+0000] {logging_mixin.py:190} INFO - 🏃 View run persistent-bee-798 at: http://mlflow-server:5500/#/experiments/1/runs/505e228a7e3343f598008915720cde21
+[2026-02-11T15:25:13.017+0000] {logging_mixin.py:190} INFO - 🧪 View experiment at: http://mlflow-server:5500/#/experiments/1
+[2026-02-11T15:25:19.027+0000] {fraud_detection_training_dag.py:156} INFO - Training completed with metrics={'auc_pr': 0.9505889094936365, 'precision': 0.9888143176733781, 'recall': 0.7949640287769785, 'f1': 0.8813559322033898, 'threshold': 0.9787659049034119}
+[2026-02-11T15:25:19.952+0000] {python.py:240} INFO - Done. Returned value was: {'status': 'success', 'metrics': {'auc_pr': 0.9505889094936365, 'precision': 0.9888143176733781, 'recall': 0.7949640287769785, 'f1': 0.8813559322033898, 'threshold': 0.9787659049034119}}
+[2026-02-11T15:25:20.326+0000] {taskinstance.py:340} INFO - ::group::Post task execution logs
+[2026-02-11T15:25:20.328+0000] {taskinstance.py:352} INFO - Marking task as SUCCESS. dag_id=fraud_detection_training, task_id=execute_training, run_id=manual__2026-02-11T14:11:36.931967+00:00, execution_date=20260211T141136, start_date=20260211T141202, end_date=20260211T152520
+[2026-02-11T15:25:20.638+0000] {local_task_job_runner.py:266} INFO - Task exited with return code 0
+[2026-02-11T15:25:20.878+0000] {taskinstance.py:3900} INFO - 1 downstream tasks scheduled from follow-on schedule check
+[2026-02-11T15:25:20.889+0000] {local_task_job_runner.py:245} INFO - ::endgroup::

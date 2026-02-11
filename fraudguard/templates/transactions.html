@@ -88,9 +88,8 @@
             if (status === 'Blocked' || status === 'Declined') statusColor = 'bg-red-100 text-red-800';
             if (status === 'Flagged') statusColor = 'bg-orange-100 text-orange-800';
 
-            // Ensure time format
-            const timeStr = txn.time || txn.timestamp || new Date().toISOString();
-            const displayTime = new Date(timeStr).toLocaleString();
+            // Use server-formatted UTC time directly for consistency with Live Feed
+            const displayTime = txn.time || txn.timestamp || new Date().toISOString();
 
             row.innerHTML = `
                 <td class="px-6 py-4 whitespace-nowrap text-gray-500 text-xs">${displayTime}</td>

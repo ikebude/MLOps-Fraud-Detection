@@ -16,13 +16,13 @@
     {% if alerts %}
     <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
         {% for alert in alerts %}
-        {% set txn_id = alert.get('transaction_id') or alert.get('id') or 'Unknown' %}
-        {% set amount = alert.get('amount') or 0.0 %}
-        {% set fraud_prob = alert.get('fraud_probability') or 0.0 %}
-        {% set risk_score = (fraud_prob * 100)|int %}
-        {% set timestamp = alert.get('timestamp') or '' %}
-        {% set merchant = alert.get('merchant') or 'Unknown Merchant' %}
-        {% set location = alert.get('location') or 'Unknown Location' %}
+        {% set txn_id = alert.id %}
+        {% set amount = alert.amount %}
+        {% set fraud_prob = alert.fraud_probability %}
+        {% set risk_score = alert.risk_score %}
+        {% set timestamp = alert.timestamp %}
+        {% set merchant = alert.merchant %}
+        {% set location = alert.location %}
 
         <div
             class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow group">
@@ -52,10 +52,21 @@
                 <div class="p-3 bg-red-50 rounded-lg border border-red-100">
                     <div class="flex items-start gap-2">
                         <i class="ph ph-siren text-red-500 mt-0.5"></i>
-                        <div>
-                            <p class="text-xs font-bold text-red-800 uppercase tracking-wide mb-1">Detected Issue</p>
+                        <div class="w-full">
+                            <p class="text-xs font-bold text-red-800 uppercase tracking-wide mb-1">Risk Factors</p>
+                            {% if alert.top_features %}
+                            <ul class="space-y-1 mt-1">
+                                {% for explanation in alert.top_features[:3] %}
+                                <li class="text-xs text-red-700 flex justify-between">
+                                    <span>{{ explanation.feature }}</span>
+                                    <span class="font-mono font-semibold">{{ explanation.value }}</span>
+                                </li>
+                                {% endfor %}
+                            </ul>
+                            {% else %}
                             <p class="text-sm text-red-700">High probability of fraud ({{ "%.1f"|format(fraud_prob *
                                 100) }}%) based on transaction patterns.</p>
+                            {% endif %}
                         </div>
                     </div>
                 </div>
