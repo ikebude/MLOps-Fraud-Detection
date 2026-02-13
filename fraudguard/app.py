@@ -2,7 +2,7 @@ from flask import Flask, render_template, jsonify, request, stream_with_context,
 import json
 import os
 import requests
-from datetime import datetime
+from datetime import datetime, timedelta
 import time
 import math
 from dotenv import load_dotenv
@@ -40,11 +40,11 @@ USERS = {
     'Analyst User': {'password': 'password', 'role': 'analyst'},
     'Ops User': {'password': 'password', 'role': 'operations'},
     'Exec User': {'password': 'password', 'role': 'executive'},
-    'Admin User': {'password': 'password', 'role': 'admin'},
 }
 
 # In-memory alert store (for demo purposes — would be DB-backed in production)
 _alerts_store = []
+_integration_logs = []  # Simulated outbound API calls
 _notification_settings = {
     'recipients': [],
     'threshold': 'all',
@@ -339,7 +339,7 @@ def get_trend_data(hours: int = 6):
             for row in rows:
                 time_bucket, total, fraud_count = row
                 if time_bucket:
-                    labels.append(time_bucket.isoformat())
+                    labels.append(time_bucket.strftime('%H:%M'))
                 else:
                     labels.append('--:--')
                 valid_transactions.append(int(total) - int(fraud_count))
@@ -439,7 +439,7 @@ def _build_transactions(results, sort_by: str = 'timestamp', sort_order: str = '
         # Calculate risk score (0-100)
         risk_score = int(fraud_prob * 100) if fraud_prob > 0 else int(confidence * 100)
         
-        # Format timestamp - use consistent UTC display
+        # Format timestamp - use WAT (West Africa Time, UTC+1)
         sort_timestamp = None
         if timestamp:
             try:
@@ -448,15 +448,22 @@ def _build_transactions(results, sort_by: str = 'timestamp', sort_order: str = '
                     dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
                 else:
                     dt = timestamp
-                # Use UTC-aware formatting for consistency across all pages
-                time_str = dt.strftime('%Y-%m-%d %H:%M:%S UTC')
+                # Convert to WAT (UTC+1) for Nigerian market
+
+                if dt.tzinfo is None:
+                    # Assume UTC, add 1 hour for WAT
+                    dt_wat = dt + timedelta(hours=1)
+                else:
+                    dt_wat = dt + timedelta(hours=1)
+                time_str = dt_wat.strftime('%Y-%m-%d %H:%M:%S WAT')
                 sort_timestamp = dt.timestamp()
             except:
                 time_str = str(timestamp)
                 sort_timestamp = 0
         else:
-            dt = datetime.utcnow()
-            time_str = dt.strftime('%Y-%m-%d %H:%M:%S UTC')
+
+            dt = datetime.utcnow() + timedelta(hours=1)
+            time_str = dt.strftime('%Y-%m-%d %H:%M:%S WAT')
             sort_timestamp = dt.timestamp()
         
         # Get top features if available
@@ -468,9 +475,9 @@ def _build_transactions(results, sort_by: str = 'timestamp', sort_order: str = '
             # Amount-based explanation
             amt = float(amount) if amount else 0.0
             if amt > 100000:
-                explanations.append({'feature': 'High Transaction Amount', 'contribution': round(fraud_prob * 0.35, 3), 'value': f'${amt:,.2f}'})
+                explanations.append({'feature': 'High Transaction Amount', 'contribution': round(fraud_prob * 0.35, 3), 'value': f'₦{amt:,.2f}'})
             elif amt > 50000:
-                explanations.append({'feature': 'Elevated Amount', 'contribution': round(fraud_prob * 0.25, 3), 'value': f'${amt:,.2f}'})
+                explanations.append({'feature': 'Elevated Amount', 'contribution': round(fraud_prob * 0.25, 3), 'value': f'₦{amt:,.2f}'})
             # Fraud probability explanation
             if fraud_prob >= 0.8:
                 explanations.append({'feature': 'Very High Fraud Score', 'contribution': round(fraud_prob * 0.4, 3), 'value': f'{fraud_prob:.2%}'})
@@ -496,11 +503,12 @@ def _build_transactions(results, sort_by: str = 'timestamp', sort_order: str = '
         # Get risk level from database (populated by inference service)
         risk_level = _pick_first(result, ['risk_level'], None)
         # If not available from DB, derive from fraud_probability
+        # ALIGNED with inference service main.py (_get_risk_level) thresholds
         if not risk_level:
             if isinstance(fraud_prob, (int, float)):
-                if fraud_prob >= 0.9:
+                if fraud_prob >= 0.8:
                     risk_level = 'CRITICAL'
-                elif fraud_prob >= 0.7:
+                elif fraud_prob >= 0.6:
                     risk_level = 'HIGH'
                 elif fraud_prob >= 0.4:
                     risk_level = 'MEDIUM'
@@ -1152,8 +1160,8 @@ def api_data():
 @app.route('/api/stream')
 def api_stream():
     """Server-Sent Events stream for REAL-TIME database updates."""
-    interval_ms = int(request.args.get('interval_ms', '500'))  # 500ms for TRUE real-time
-    interval_s = max(interval_ms / 1000.0, 0.3)  # Minimum 0.3 second for real-time
+    interval_ms = int(request.args.get('interval_ms', '250'))  # 250ms for TRUE real-time
+    interval_s = max(interval_ms / 1000.0, 0.2)  # Minimum 0.2 second for real-time
 
     def generate():
         yield "retry: 2000\n\n"
@@ -1357,10 +1365,7 @@ def forgot_password():
             message = 'User not found or invalid password.'
     return render_template('password_reset.html', message=message)
 
-@app.route('/admin')
-def admin_dashboard():
-    """Admin dashboard — user management and audit logs"""
-    return render_template('admin_dashboard.html', page='admin', USERS=USERS)
+
 
 @app.route('/executive')
 def exec_dashboard():
@@ -1372,6 +1377,11 @@ def ops_dashboard():
     """Operations dashboard — case list and actions"""
     return render_template('ops_dashboard.html', page='operations')
 
+@app.route('/settings')
+def settings():
+    """User settings page"""
+    return render_template('settings.html', page='settings')
+
 # =============================================
 # Alerts API (supports the enhanced alerts page)
 # =============================================
@@ -1381,7 +1391,7 @@ def _build_alert_from_transaction(txn, idx):
     fraud_prob = txn.get('fraud_probability', 0.0)
     risk_score = txn.get('risk_score', 0)
     
-    # Derive severity from risk_score
+    # Derive severity from risk_score — ALIGNED with inference service thresholds
     if risk_score >= 80:
         severity = 'critical'
     elif risk_score >= 60:
@@ -1486,11 +1496,63 @@ def api_alert_detail(alert_id):
             _alerts_store.append(existing)
         
         if 'status' in data:
-            existing['status'] = data['status']
+            old_status = existing['status']
+            new_status = data['status']
+            existing['status'] = new_status
+            
+            # Simulate Real-World Integrations based on action
+            if new_status == 'Confirmed Fraud':
+                _integration_logs.insert(0, {
+                    'timestamp': datetime.now().strftime('%H:%M:%S'),
+                    'system': 'CORE_BANKING',
+                    'action': 'POST /v1/cards/block',
+                    'payload': f"{{'txn_id': '{alert_id}', 'reason': 'fraud_confirmed'}}",
+                    'status': '200 OK'
+                })
+                _integration_logs.insert(0, {
+                    'timestamp': datetime.now().strftime('%H:%M:%S'),
+                    'system': 'CRM_Service',
+                    'action': 'POST /v1/customers/flag',
+                    'payload': f"{{'customer_id': 'CUST-{alert_id[-4:]}', 'risk_level': 'CRITICAL'}}",
+                    'status': '201 Created'
+                })
+            elif new_status == 'False Positive':
+                _integration_logs.insert(0, {
+                    'timestamp': datetime.now().strftime('%H:%M:%S'),
+                    'system': 'ML_PIPELINE',
+                    'action': 'POST /v1/feedback/train',
+                    'payload': f"{{'id': '{alert_id}', 'label': 0}}",
+                    'status': '202 Accepted'
+                })
+            elif new_status == 'Escalated':
+                _integration_logs.insert(0, {
+                    'timestamp': datetime.now().strftime('%H:%M:%S'),
+                    'system': 'JIRA_TICKET',
+                    'action': 'POST /v1/issue/create',
+                    'payload': f"{{'summary': 'Investigate {alert_id}', 'priority': 'High'}}",
+                    'status': '201 Created'
+                })
+
         if 'assigned_to' in data:
             existing['assigned_to'] = data['assigned_to']
+            _integration_logs.insert(0, {
+                'timestamp': datetime.now().strftime('%H:%M:%S'),
+                'system': 'NOTIFIER',
+                'action': 'POST /slack/send',
+                'payload': f"{{'user': '{data['assigned_to']}', 'message': 'New case assigned: {alert_id}'}}",
+                'status': '200 OK'
+            })
         
+        # Keep logs capped at 50 to prevent memory growth
+        if len(_integration_logs) > 50:
+            _integration_logs.pop()
+
         return jsonify({'success': True, 'alert': existing})
+
+@app.route('/api/system/logs', methods=['GET'])
+def api_system_logs():
+    """Get recent integration simulation logs."""
+    return jsonify(_integration_logs)
 
 # =============================================
 # Notification Settings API

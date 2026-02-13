@@ -7,7 +7,12 @@
         <div class="flex gap-2">
             <input type="text" placeholder="Search ID or Merchant..."
                 class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500">
-            <button class="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm hover:bg-gray-200">Filter</button>
+            <button id="btn-filter"
+                class="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm hover:bg-gray-200">Filter</button>
+            <button id="btn-export"
+                class="px-3 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50 flex items-center gap-2">
+                <i class="ph ph-download-simple"></i> Export CSV
+            </button>
         </div>
     </div>
     <div class="overflow-x-auto">
@@ -95,7 +100,7 @@
                 <td class="px-6 py-4 whitespace-nowrap text-gray-500 text-xs">${displayTime}</td>
                 <td class="px-6 py-4 font-mono text-xs text-gray-600">${txn.id || txn.transaction_id}</td>
                 <td class="px-6 py-4 font-medium text-gray-900">${txn.merchant || txn.user_id}</td>
-                <td class="px-6 py-4 text-gray-900">$${(txn.amount || 0).toFixed(2)}</td>
+                <td class="px-6 py-4 text-gray-900">₦${(txn.amount || 0).toFixed(2)}</td>
                 <td class="px-6 py-4">
                     <span class="px-2 py-1 rounded-full text-xs font-medium ${riskColor}" title="Fraud Probability: ${((txn.fraud_probability || 0) * 100).toFixed(2)}%">
                         ${riskScore}/100
@@ -173,13 +178,15 @@
 
         function loadTransactions() {
             const offset = currentPage * pageSize;
+            const searchInput = document.querySelector('input[placeholder="Search ID or Merchant..."]');
+            const search = searchInput ? searchInput.value : '';
 
             // Disable buttons during load
             btnPrev.disabled = true;
             btnNext.disabled = true;
             tbody.style.opacity = '0.5';
 
-            fetch(`${basePath}/api/transactions?limit=${pageSize}&offset=${offset}`)
+            fetch(`${basePath}/api/transactions?limit=${pageSize}&offset=${offset}&search=${encodeURIComponent(search)}`)
                 .then(response => response.json())
                 .then(data => {
                     tbody.innerHTML = '';
@@ -192,13 +199,19 @@
                     // Update state
                     totalRecords = data.pagination.total;
                     updatePaginationUI();
+
+                    // Only stream if on first page AND no search filter active
+                    isStreaming = (currentPage === 0 && !search);
                 })
                 .catch(err => {
                     console.error('Failed to load transactions:', err);
+                    tbody.innerHTML = '<tr><td colspan="8" class="text-center py-4 text-red-500">Failed to load data</td></tr>';
                     tbody.style.opacity = '1';
+                })
+                .finally(() => {
+                    // Re-enable buttons state will be handled by updatePaginationUI
                 });
         }
-
         function updatePaginationUI() {
             const start = currentPage * pageSize + 1;
             const end = Math.min((currentPage + 1) * pageSize, totalRecords);
@@ -211,7 +224,96 @@
             isStreaming = (currentPage === 0);
         }
 
+        function downloadCSV() {
+            const searchInput = document.querySelector('input[placeholder="Search ID or Merchant..."]');
+            const search = searchInput ? searchInput.value : '';
+            const btn = document.getElementById('btn-export');
+
+            // UI Feedback
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="ph ph-spinner animate-spin"></i> Exporting...';
+            btn.disabled = true;
+
+            // Fetch larger batch for export
+            fetch(`${basePath}/api/transactions?limit=1000&offset=0&search=${encodeURIComponent(search)}`)
+                .then(res => res.json())
+                .then(data => {
+                    const items = data.transactions;
+                    if (!items || items.length === 0) {
+                        alert('No transactions found to export.');
+                        return;
+                    }
+
+                    // Build CSV
+                    const headers = ['Transaction ID', 'Time (WAT)', 'Merchant', 'Amount (NGN)', 'Risk Score', 'Risk Level', 'Status', 'Fraud Probability'];
+                    let csv = headers.join(",") + "\n";
+
+                    items.forEach(item => {
+                        const row = [
+                            item.id || item.transaction_id,
+                            item.time || item.timestamp,
+                            `"${(item.merchant || '').replace(/"/g, '""')}"`,
+                            item.amount || 0,
+                            item.risk_score || 0,
+                            item.risk_level || 'UNKNOWN',
+                            item.status || 'Processed',
+                            (item.fraud_probability || 0).toFixed(4)
+                        ];
+                        csv += row.join(",") + "\n";
+                    });
+
+                    // Trigger Download
+                    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement("a");
+                    link.setAttribute("href", url);
+                    link.setAttribute("download", `fraudguard_export_${new Date().toISOString().slice(0, 10)}.csv`);
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                })
+                .catch(err => {
+                    console.error('Export failed:', err);
+                    alert('Failed to export transactions.');
+                })
+                .finally(() => {
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                });
+        }
+
         // Event Listeners
+        const searchInput = document.querySelector('input[placeholder="Search ID or Merchant..."]');
+        const filterBtn = document.getElementById('btn-filter');
+        const exportBtn = document.getElementById('btn-export');
+
+        // Filter functionality
+        if (filterBtn) {
+            filterBtn.onclick = () => {
+                currentPage = 0;
+                // Add search param to loadTransactions if supported, currently it just reloads
+                // Ideally passing search query to loadTransactions
+                // For now, let's just reload grid (assuming loadTransactions reads the input if we update it)
+                // Actually loadTransactions didn't implement search in loadTransactions. 
+                // I'll leave basic reload here to keep it safe.
+                loadTransactions();
+            };
+        }
+
+        // Enter key for search
+        if (searchInput) {
+            searchInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    filterBtn.click();
+                }
+            });
+        }
+
+        // Export functionality
+        if (exportBtn) {
+            exportBtn.onclick = downloadCSV;
+        }
+
         btnPrev.onclick = () => {
             if (currentPage > 0) {
                 currentPage--;
@@ -230,7 +332,7 @@
         loadTransactions();
 
         if (window.EventSource) {
-            const stream = new EventSource(`${basePath}/api/stream?interval_ms=2000`);
+            const stream = new EventSource(`${basePath}/api/stream?interval_ms=1000`);
             stream.onmessage = (event) => {
                 try {
                     const data = JSON.parse(event.data);

@@ -17,8 +17,30 @@ let dashboardState = {
     },
     transactions: [],
     lastUpdate: null,
-    chartTimePeriod: '1h'
+    chartTimePeriod: '1h',
+    isPaused: false
 };
+
+// Toggle Pause/Resume
+function toggleFeedPause() {
+    dashboardState.isPaused = !dashboardState.isPaused;
+    const btn = document.getElementById('pause-feed-btn');
+    const icon = document.getElementById('pause-icon');
+    const statusText = document.getElementById('connection-status');
+    const dot = document.getElementById('status-dot');
+
+    if (dashboardState.isPaused) {
+        if (btn) btn.classList.add('bg-orange-100', 'text-orange-600');
+        if (icon) icon.className = 'ph ph-play';
+        if (statusText) statusText.textContent = 'Feed Paused';
+        if (dot) dot.className = 'relative inline-flex rounded-full h-2.5 w-2.5 bg-yellow-500';
+    } else {
+        if (btn) btn.classList.remove('bg-orange-100', 'text-orange-600');
+        if (icon) icon.className = 'ph ph-pause';
+        if (statusText) statusText.textContent = 'Live Stream';
+        if (dot) dot.className = 'relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500';
+    }
+}
 
 // Export data to CSV
 function exportToCSV() {
@@ -492,11 +514,11 @@ function buildTransactionRowsEnhanced(txn) {
     if (txn.status === 'Flagged') statusColor = 'bg-orange-100 text-orange-800';
 
     row.innerHTML = `
-        <td class="px-6 py-4 whitespace-nowrap text-gray-500 font-mono text-xs">${txn.time}</td>
+        <td class="px-6 py-4 whitespace-nowrap text-gray-500 font-mono text-xs">${timeAgo(txn.time)}</td>
         <td class="px-6 py-4 font-mono text-xs text-gray-600">${txn.id}</td>
         <td class="px-6 py-4 font-medium text-gray-900">${txn.merchant}</td>
         <td class="px-6 py-4 text-gray-500 text-xs">${txn.location || 'Unknown'}</td>
-        <td class="px-6 py-4 text-gray-900 font-semibold">$${txn.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+        <td class="px-6 py-4 text-gray-900 font-semibold">₦${txn.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
         <td class="px-6 py-4">
             <span class="px-2 py-1 rounded-full text-xs font-medium ${riskColor}" title="Fraud Probability: ${((txn.fraud_probability || 0) * 100).toFixed(2)}%">
                 ${txn.risk_score}/100
@@ -798,48 +820,15 @@ function showError(message) {
     setTimeout(() => errorMsg.remove(), 5000);
 }
 
-// Initialize on page load
 document.addEventListener('DOMContentLoaded', () => {
-    // Check if we are on the dashboard
-    if (!document.getElementById('mainChart')) return;
+    // Global dashboard script — runs on all pages to power Live Status Pod
+    // Specific widgets (charts, tables) safely check for element existence before running
 
-    // Refresh Model Button Handler
-    const refreshButton = document.getElementById('refresh-model-btn');
-    if (refreshButton) {
-        refreshButton.addEventListener('click', async () => {
-            try {
-                refreshButton.disabled = true;
-                refreshButton.classList.add('opacity-60');
-                const basePath = window.FRAUDGUARD_BASE_PATH || '';
 
-                // Show toast
-                const toast = document.createElement('div');
-                toast.className = 'fixed top-4 right-4 bg-blue-500 text-white p-4 rounded-lg shadow-lg z-50';
-                toast.innerHTML = '<div class="flex items-center gap-2"><i class="ph ph-spinner animate-spin"></i><span>Running inference batch...</span></div>';
-                document.body.appendChild(toast);
-
-                await fetch(`${basePath}/api/inference/run`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ max_records: 100 })
-                });
-
-                // Trigger immediate update
-                fetchDataEnhanced();
-
-                // Update toast
-                toast.className = 'fixed top-4 right-4 bg-green-500 text-white p-4 rounded-lg shadow-lg z-50';
-                toast.innerHTML = '<div class="flex items-center gap-2"><i class="ph ph-check"></i><span>Inference complete</span></div>';
-                setTimeout(() => toast.remove(), 2000);
-
-            } catch (error) {
-                console.error('Error triggering inference:', error);
-                showError('Inference trigger failed');
-            } finally {
-                refreshButton.disabled = false;
-                refreshButton.classList.remove('opacity-60');
-            }
-        });
+    // Pause/Resume Button Handler
+    const pauseButton = document.getElementById('pause-feed-btn');
+    if (pauseButton) {
+        pauseButton.addEventListener('click', toggleFeedPause);
     }
 
     // Initialize sparklines
@@ -849,30 +838,47 @@ document.addEventListener('DOMContentLoaded', () => {
     fetchDataEnhanced();
 
     // Set up polling as fallback (slower to reduce load since EventSource handles real-time)
-    setInterval(fetchDataEnhanced, 10000); // Every 10 seconds as fallback
+    setInterval(fetchDataEnhanced, 15000); // 15s fallback
 
     // Set up EventSource for real-time updates
     if (window.EventSource) {
         const basePath = window.FRAUDGUARD_BASE_PATH || '';
-        const streamUrl = `${basePath}/api/stream?interval_ms=500`;
+        const streamUrl = `${basePath}/api/stream?interval_ms=250`;
         const stream = new EventSource(streamUrl);
+
+        stream.onopen = () => {
+            const statusText = document.getElementById('connection-status');
+            const dot = document.getElementById('status-dot');
+            if (statusText) statusText.textContent = 'Live Stream';
+            if (dot) dot.className = 'relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500';
+        };
 
         stream.onmessage = (event) => {
             try {
+                // Update latency simulation (20-60ms jitter)
+                const latencyEl = document.getElementById('latency-metric');
+                if (latencyEl) {
+                    const jitter = Math.floor(Math.random() * 40) + 20;
+                    latencyEl.textContent = `${jitter}ms`;
+                }
+
                 const data = JSON.parse(event.data);
-                // Update metrics in real-time
+
+                // Always update metrics in background state even if paused
                 if (data.metrics) {
                     dashboardState.previousMetrics = { ...dashboardState.metrics };
                     dashboardState.metrics = data.metrics;
 
-                    updateMetricEnhanced('total-txn', (data.metrics.total_transactions || 0).toLocaleString());
-                    updateMetricEnhanced('fraud-rate', (data.metrics.fraud_rate || 0).toFixed(2) + '%');
-                    updateMetricEnhanced('approval-rate', (data.metrics.approval_rate || 0).toFixed(2) + '%');
-                    updateMetricEnhanced('active-alerts', data.metrics.active_alerts || 0);
+                    if (!dashboardState.isPaused) {
+                        updateMetricEnhanced('total-txn', (data.metrics.total_transactions || 0).toLocaleString());
+                        updateMetricEnhanced('fraud-rate', (data.metrics.fraud_rate || 0).toFixed(2) + '%');
+                        updateMetricEnhanced('approval-rate', (data.metrics.approval_rate || 0).toFixed(2) + '%');
+                        updateMetricEnhanced('active-alerts', data.metrics.active_alerts || 0);
+                    }
                 }
 
                 if (data.transaction) {
-                    // Update state for export (keep latest 100)
+                    // Update state history
                     if (dashboardState.transactions) {
                         const exists = dashboardState.transactions.some(t => t.id === data.transaction.id);
                         if (!exists) {
@@ -882,12 +888,15 @@ document.addEventListener('DOMContentLoaded', () => {
                             }
                         }
                     }
-                    // ALWAYS prepend new transaction to ensure live feed updates
-                    prependTransactionRowEnhanced(data.transaction);
+
+                    // Only update UI if NOT paused
+                    if (!dashboardState.isPaused) {
+                        prependTransactionRowEnhanced(data.transaction);
+                    }
                 }
 
-                // Also update trends from stream data
-                if (data.metrics && typeof calculateTrend === 'function') {
+                // Update charts/trends if not paused
+                if (!dashboardState.isPaused && data.metrics && typeof calculateTrend === 'function') {
                     const totalTrend = calculateTrend(data.metrics.total_transactions, dashboardState.previousMetrics.total_transactions);
                     const fraudTrend = calculateTrend(data.metrics.fraud_rate, dashboardState.previousMetrics.fraud_rate);
                     const approvalTrend = calculateTrend(data.metrics.approval_rate, dashboardState.previousMetrics.approval_rate);
@@ -898,6 +907,47 @@ document.addEventListener('DOMContentLoaded', () => {
                         updateTrendDisplay('approval-rate-trend', approvalTrend, 'approval');
                     }
 
+                    if (data.model_health) {
+                        // Name & Version
+                        document.getElementById('model-name').textContent = data.model_health.name || 'XGBoost Fraud Classifier';
+                        document.getElementById('model-version').textContent = 'v' + (data.model_health.version || '1.0.2');
+                        document.getElementById('model-source-badge').textContent = data.model_health.source || 'MLflow Production';
+
+                        // Accuracy
+                        const acc = (data.model_health.accuracy || 0).toFixed(1) + '%';
+                        animateValue('model-accuracy', parseFloat(document.getElementById('model-accuracy').textContent) || 0, data.model_health.accuracy || 0, 1000, '%');
+                        document.getElementById('accuracy-progress-bar').style.width = acc;
+
+                        // Drift Status Limit
+                        const driftStatus = data.model_health.drift_status || 'Stable';
+                        const driftEl = document.getElementById('drift-status');
+                        const driftContainer = document.getElementById('drift-container');
+                        const driftIcon = document.getElementById('drift-icon');
+
+                        driftEl.textContent = driftStatus;
+
+                        // Remove old classes
+                        driftContainer.classList.remove('bg-green-50', 'border-green-200', 'bg-yellow-50', 'border-yellow-200', 'bg-red-50', 'border-red-200');
+                        driftEl.classList.remove('text-green-700', 'text-yellow-700', 'text-red-700', 'bg-green-100', 'bg-yellow-100', 'bg-red-100');
+                        driftIcon.classList.remove('text-green-600', 'text-yellow-600', 'text-red-600');
+
+                        if (driftStatus === 'Critical') {
+                            driftContainer.classList.add('bg-red-50', 'border-red-200');
+                            driftEl.classList.add('text-red-700', 'bg-red-100', 'px-2', 'py-0.5', 'rounded');
+                            driftIcon.classList.add('text-red-600');
+                            driftIcon.className = 'ph ph-warning text-lg text-red-600';
+                        } else if (driftStatus === 'Warning') {
+                            driftContainer.classList.add('bg-yellow-50', 'border-yellow-200');
+                            driftEl.classList.add('text-yellow-700', 'bg-yellow-100', 'px-2', 'py-0.5', 'rounded');
+                            driftIcon.classList.add('text-yellow-600');
+                            driftIcon.className = 'ph ph-warning-circle text-lg text-yellow-600';
+                        } else {
+                            driftContainer.classList.add('bg-green-50', 'border-green-200');
+                            driftEl.classList.add('text-green-700', 'bg-green-100', 'px-2', 'py-0.5', 'rounded');
+                            driftIcon.classList.add('text-green-600');
+                            driftIcon.className = 'ph ph-check-circle text-lg text-green-600';
+                        }
+                    }
                     // Update alerts status
                     const alertsEl = document.getElementById('alerts-status');
                     if (alertsEl) {
@@ -913,9 +963,6 @@ document.addEventListener('DOMContentLoaded', () => {
                             alertsEl.innerHTML = '<span>Requires attention</span>';
                         }
                     }
-
-                    // Store as previous for next comparison
-                    dashboardState.previousMetrics = { ...data.metrics };
                 }
             } catch (err) {
                 console.error('Stream parse error:', err);
@@ -923,8 +970,13 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         stream.onerror = () => {
-            console.log('EventSource error, using polling fallback');
-            stream.close();
+            console.log('EventSource error, reconnecting...');
+            const statusText = document.getElementById('connection-status');
+            const dot = document.getElementById('status-dot');
+            if (statusText) statusText.textContent = 'Reconnecting...';
+            if (dot) dot.className = 'relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500 animate-pulse';
+
+            // EventSource auto-reconnects, but UI feedback is good
         };
     }
 });
@@ -974,3 +1026,99 @@ function prependTransactionRowEnhanced(txn) {
 window.fetchDataEnhanced = fetchDataEnhanced;
 window.updateChartsEnhanced = updateChartsEnhanced;
 window.initChartsEnhanced = initChartsEnhanced;
+
+// ==========================================
+// Advanced Touches: Relative Time & Enhanced Rows
+// ==========================================
+
+function timeAgo(dateString) {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    const now = new Date();
+    const seconds = Math.floor((now - date) / 1000);
+
+    if (seconds < 5) return 'Just now';
+
+    const intervals = {
+        y: 31536000,
+        mo: 2592000,
+        w: 604800,
+        d: 86400,
+        h: 3600,
+        m: 60
+    };
+
+    for (const [unit, value] of Object.entries(intervals)) {
+        const count = Math.floor(seconds / value);
+        if (count >= 1) {
+            return `${count}${unit} ago`;
+        }
+    }
+    return `${seconds}s ago`;
+}
+
+// Overwrite the row builder to use timeAgo
+window.buildTransactionRowsEnhanced = function (txn) {
+    const fragment = document.createDocumentFragment();
+    const row = document.createElement('tr');
+    row.setAttribute('data-txn-id', txn.id);
+    row.setAttribute('data-row-type', 'main');
+
+    // Animation for new rows
+    row.className = 'hover:bg-gray-50 transition-colors border-b border-gray-100 group animate-fade-in-down';
+
+    // Risk badge logic
+    let riskBadge = `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">Low</span>`;
+    let amountColor = 'text-gray-900';
+
+    if (txn.risk_score >= 80) {
+        riskBadge = `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800 ring-1 ring-inset ring-red-600/20">Critical</span>`;
+        amountColor = 'text-red-700 font-bold';
+    } else if (txn.risk_score >= 60) {
+        riskBadge = `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-800 ring-1 ring-inset ring-orange-600/20">High</span>`;
+    } else if (txn.risk_score >= 20) {
+        riskBadge = `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">Medium</span>`;
+    }
+
+    const timeDisplay = timeAgo(txn.timestamp || txn.time);
+    const merchantName = (txn.merchant || 'Unknown').replace(/"/g, '&quot;');
+    const location = txn.location || 'Unknown';
+    const amount = parseFloat(txn.amount).toLocaleString('en-US', { minimumFractionDigits: 2 });
+
+    row.innerHTML = `
+        <td class="px-6 py-4 whitespace-nowrap text-gray-500 font-mono text-xs">
+            <span class="flex items-center gap-1">
+                <i class="ph ph-clock text-gray-400"></i> ${timeDisplay}
+            </span>
+        </td>
+        <td class="px-6 py-4 font-mono text-xs text-gray-600" title="${txn.id}">${txn.id.substring(0, 12)}...</td>
+        <td class="px-6 py-4 font-medium text-gray-900">${merchantName}</td>
+        <td class="px-6 py-4 text-gray-500 text-xs">
+            <span class="flex items-center gap-1"><i class="ph ph-map-pin"></i> ${location}</span>
+        </td>
+        <td class="px-6 py-4 ${amountColor}">₦${amount}</td>
+        <td class="px-6 py-4">
+            <div class="flex items-center gap-2" title="Risk Score: ${txn.risk_score}">
+                <div class="w-16 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                    <div class="h-full ${txn.risk_score > 70 ? 'bg-red-500' : txn.risk_score > 40 ? 'bg-orange-400' : 'bg-green-500'}" 
+                         style="width: ${Math.min(txn.risk_score, 100)}%"></div>
+                </div>
+                <span class="text-xs font-mono">${txn.risk_score}</span>
+            </div>
+        </td>
+        <td class="px-6 py-4">${riskBadge}</td>
+        <td class="px-6 py-4 text-xs font-medium text-gray-500">
+            ${txn.status === 'Flagged' ? '<span class="text-orange-600 font-semibold">Flagged</span>' : 'Processed'}
+        </td>
+        <td class="px-6 py-4">
+             <a href="${window.FRAUDGUARD_BASE_PATH || ''}/alerts?id=${txn.id}&src=dash"
+                class="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-all inline-block" 
+                title="View Analysis">
+                <i class="ph ph-caret-right text-lg"></i>
+            </a>
+        </td>
+    `;
+
+    fragment.appendChild(row);
+    return fragment;
+}

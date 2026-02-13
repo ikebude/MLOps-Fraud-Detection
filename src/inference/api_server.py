@@ -147,7 +147,7 @@ def initialize_inference():
         
         # Start continuous inference worker for real-time processing
         if inference_pipeline.model is not None:
-            poll_interval = float(os.getenv('CONTINUOUS_INFERENCE_INTERVAL', '1.0'))  # Default 1.0 second for real-time responsiveness
+            poll_interval = float(os.getenv('CONTINUOUS_INFERENCE_INTERVAL', '0.2'))  # Default 0.2s for true real-time (5Hz)
             continuous_worker = ContinuousInferenceWorker(inference_pipeline, poll_interval=poll_interval)
             # Pass the _append_results function to the worker
             continuous_worker._append_results_func = _append_results

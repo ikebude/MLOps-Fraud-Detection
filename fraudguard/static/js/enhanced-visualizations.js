@@ -20,7 +20,7 @@ function initFinancialImpactChart(data) {
         data: {
             labels: ['Fraud Prevented', 'Revenue Preserved', 'Total Volume'],
             datasets: [{
-                label: 'USD Value',
+                label: 'NGN Value',
                 data: [
                     businessMetrics.fraud_prevented_value_usd || 0,
                     businessMetrics.revenue_preserved_usd || 0,
@@ -45,12 +45,12 @@ function initFinancialImpactChart(data) {
                 legend: { display: false },
                 title: {
                     display: true,
-                    text: 'Financial Impact (USD)'
+                    text: 'Financial Impact (NGN)'
                 },
                 tooltip: {
                     callbacks: {
                         label: function (context) {
-                            return '$' + context.parsed.y.toLocaleString('en-US', {
+                            return '₦' + context.parsed.y.toLocaleString('en-US', {
                                 minimumFractionDigits: 2,
                                 maximumFractionDigits: 2
                             });
@@ -63,7 +63,7 @@ function initFinancialImpactChart(data) {
                     beginAtZero: true,
                     ticks: {
                         callback: function (value) {
-                            return '$' + value.toLocaleString();
+                            return '₦' + value.toLocaleString();
                         }
                     }
                 }
@@ -190,12 +190,12 @@ function updateEnhancedDashboard(data) {
     const businessMetrics = data.enhanced_metrics?.business_metrics;
     if (businessMetrics) {
         updateMetric('fraud-prevented-value',
-            '$' + (businessMetrics.fraud_prevented_value_usd || 0).toLocaleString('en-US', {
+            '₦' + (businessMetrics.fraud_prevented_value_usd || 0).toLocaleString('en-US', {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2
             }));
         updateMetric('revenue-preserved',
-            '$' + (businessMetrics.revenue_preserved_usd || 0).toLocaleString('en-US', {
+            '₦' + (businessMetrics.revenue_preserved_usd || 0).toLocaleString('en-US', {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2
             }));

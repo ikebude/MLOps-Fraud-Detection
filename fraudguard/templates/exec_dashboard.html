@@ -110,7 +110,18 @@
             );
             const lossPrevented = fraudTxns.reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
             document.getElementById('exec-loss-prevented').textContent =
-                '$' + lossPrevented.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                '₦' + lossPrevented.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+            // Advanced: Calculate ROI (Simulated operational cost: ₦50 per transaction)
+            const operationalCost = (metrics.total_transactions || 0) * 50;
+            if (operationalCost > 0) {
+                const roi = ((lossPrevented - operationalCost) / operationalCost) * 100;
+                // Append ROI badge if positive
+                if (roi > 0) {
+                    const roiHtml = ` <span class="text-xs font-bold text-green-600 bg-green-100 px-2 py-1 rounded-lg ml-2" title="Return on Investment based on ₦50/txn cost">ROI: ${roi.toFixed(0)}%</span>`;
+                    document.getElementById('exec-loss-prevented').innerHTML += roiHtml;
+                }
+            }
 
             // Chart — use real trend data from API
             const labels = (trends.labels || []).map(l => {
@@ -161,7 +172,7 @@
             });
         } catch (err) {
             console.error('Failed to load executive data:', err);
-            document.getElementById('exec-loss-prevented').textContent = '$0.00';
+            document.getElementById('exec-loss-prevented').textContent = '₦0.00';
             document.getElementById('exec-total-txn').textContent = '0';
             document.getElementById('exec-fraud-rate').textContent = '0.00%';
         }

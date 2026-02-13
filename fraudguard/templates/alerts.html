@@ -65,24 +65,27 @@
     <div id="alerts-container" class="space-y-4">
         <div id="alerts-list" class="grid gap-4"></div>
 
-        <div id="alerts-table-wrapper" class="hidden bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-            <table id="alerts-table" class="w-full text-sm">
-                <thead>
-                    <tr class="text-left">
-                        <th class="p-2">Alert ID</th>
-                        <th class="p-2">Txn ID</th>
-                        <th class="p-2">Customer</th>
-                        <th class="p-2">Amount</th>
-                        <th class="p-2">Risk Score</th>
-                        <th class="p-2">Severity</th>
-                        <th class="p-2">Status</th>
-                        <th class="p-2">Analyst</th>
-                        <th class="p-2">Time</th>
-                        <th class="p-2">Action</th>
-                    </tr>
-                </thead>
-                <tbody></tbody>
-            </table>
+        <div id="alerts-table-wrapper"
+            class="hidden bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden flex flex-col max-h-[600px]">
+            <div class="overflow-y-auto custom-scrollbar p-4">
+                <table id="alerts-table" class="w-full text-sm relative">
+                    <thead class="sticky top-0 z-10 bg-white shadow-sm">
+                        <tr class="text-left bg-gray-50/50">
+                            <th class="p-2 py-3 font-semibold text-gray-600">Alert ID</th>
+                            <th class="p-2 py-3 font-semibold text-gray-600">Txn ID</th>
+                            <th class="p-2 py-3 font-semibold text-gray-600">Customer</th>
+                            <th class="p-2 py-3 font-semibold text-gray-600">Amount</th>
+                            <th class="p-2 py-3 font-semibold text-gray-600">Risk Score</th>
+                            <th class="p-2 py-3 font-semibold text-gray-600">Severity</th>
+                            <th class="p-2 py-3 font-semibold text-gray-600">Status</th>
+                            <th class="p-2 py-3 font-semibold text-gray-600">Analyst</th>
+                            <th class="p-2 py-3 font-semibold text-gray-600">Time</th>
+                            <th class="p-2 py-3 font-semibold text-gray-600">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
         </div>
 
         <!-- No alerts state -->
@@ -146,7 +149,7 @@
                 <div class="text-sm text-gray-700">
                     <div><strong>Transaction ID:</strong> ${a.transaction.transaction_id}</div>
                     <div><strong>Customer:</strong> ${a.transaction.customer_id}</div>
-                    <div><strong>Amount:</strong> $${parseFloat(a.transaction.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
+                    <div><strong>Amount:</strong> ₦${parseFloat(a.transaction.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
                     <div><strong>Merchant:</strong> ${a.transaction.merchant}</div>
                 </div>
                 <div class="text-sm text-gray-700">
@@ -185,7 +188,7 @@
                 <td class="p-2" data-label="Alert ID">${a.id}</td>
                 <td class="p-2" data-label="Txn ID">${a.transaction.transaction_id}</td>
                 <td class="p-2" data-label="Customer">${a.transaction.customer_id}</td>
-                <td class="p-2" data-label="Amount">$${parseFloat(a.transaction.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                <td class="p-2" data-label="Amount">₦${parseFloat(a.transaction.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
                 <td class="p-2" data-label="Risk Score">${a.risk_score}/100</td>
                 <td class="p-2" data-label="Severity">${a.severity}</td>
                 <td class="p-2" data-label="Status">${a.status}</td>
@@ -264,7 +267,7 @@
                 <div>
                     <p><strong>Transaction ID:</strong> ${a.transaction.transaction_id}</p>
                     <p><strong>Customer ID:</strong> ${a.transaction.customer_id}</p>
-                    <p><strong>Amount:</strong> $${parseFloat(a.transaction.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                    <p><strong>Amount:</strong> ₦${parseFloat(a.transaction.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
                     <p><strong>Merchant:</strong> ${a.transaction.merchant}</p>
                     <p><strong>Channel:</strong> ${a.transaction.channel}</p>
                     <p><strong>Location:</strong> ${a.transaction.location}</p>
