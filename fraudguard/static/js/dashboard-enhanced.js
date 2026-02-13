@@ -15,9 +15,46 @@ let dashboardState = {
         fraud_rate: [],
         approval_rate: []
     },
+    transactions: [],
     lastUpdate: null,
     chartTimePeriod: '1h'
 };
+
+// Export data to CSV
+function exportToCSV() {
+    if (!dashboardState.transactions || dashboardState.transactions.length === 0) {
+        showError('No transaction data available to export');
+        return;
+    }
+
+    const headers = ['Transaction ID', 'Time', 'Merchant', 'Amount', 'Risk Score', 'Fraud Probability', 'Status'];
+    const rows = dashboardState.transactions.map(t => [
+        t.id,
+        t.time,
+        `"${t.merchant.replace(/"/g, '""')}"`, // Escape quotes
+        t.amount.toFixed(2),
+        t.risk_score,
+        (t.fraud_probability * 100).toFixed(2) + '%',
+        t.status
+    ]);
+
+    const csvContent = [
+        headers.join(','),
+        ...rows.map(row => row.join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    if (link.download !== undefined) {
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', `fraud_report_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+}
 
 // Sparkline charts for metrics
 const sparklineCharts = {};
@@ -621,6 +658,7 @@ async function fetchDataEnhanced() {
         // Update table
         try {
             if (data.transactions && Array.isArray(data.transactions)) {
+                dashboardState.transactions = data.transactions;
                 populateTableEnhanced(data.transactions);
             }
         } catch (e) { console.error('Table update failed:', e); }
@@ -765,6 +803,45 @@ document.addEventListener('DOMContentLoaded', () => {
     // Check if we are on the dashboard
     if (!document.getElementById('mainChart')) return;
 
+    // Refresh Model Button Handler
+    const refreshButton = document.getElementById('refresh-model-btn');
+    if (refreshButton) {
+        refreshButton.addEventListener('click', async () => {
+            try {
+                refreshButton.disabled = true;
+                refreshButton.classList.add('opacity-60');
+                const basePath = window.FRAUDGUARD_BASE_PATH || '';
+
+                // Show toast
+                const toast = document.createElement('div');
+                toast.className = 'fixed top-4 right-4 bg-blue-500 text-white p-4 rounded-lg shadow-lg z-50';
+                toast.innerHTML = '<div class="flex items-center gap-2"><i class="ph ph-spinner animate-spin"></i><span>Running inference batch...</span></div>';
+                document.body.appendChild(toast);
+
+                await fetch(`${basePath}/api/inference/run`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ max_records: 100 })
+                });
+
+                // Trigger immediate update
+                fetchDataEnhanced();
+
+                // Update toast
+                toast.className = 'fixed top-4 right-4 bg-green-500 text-white p-4 rounded-lg shadow-lg z-50';
+                toast.innerHTML = '<div class="flex items-center gap-2"><i class="ph ph-check"></i><span>Inference complete</span></div>';
+                setTimeout(() => toast.remove(), 2000);
+
+            } catch (error) {
+                console.error('Error triggering inference:', error);
+                showError('Inference trigger failed');
+            } finally {
+                refreshButton.disabled = false;
+                refreshButton.classList.remove('opacity-60');
+            }
+        });
+    }
+
     // Initialize sparklines
     initSparklines();
 
@@ -777,7 +854,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Set up EventSource for real-time updates
     if (window.EventSource) {
         const basePath = window.FRAUDGUARD_BASE_PATH || '';
-        const streamUrl = `${basePath}/api/stream?interval_ms=2000`;
+        const streamUrl = `${basePath}/api/stream?interval_ms=500`;
         const stream = new EventSource(streamUrl);
 
         stream.onmessage = (event) => {
@@ -795,6 +872,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 if (data.transaction) {
+                    // Update state for export (keep latest 100)
+                    if (dashboardState.transactions) {
+                        const exists = dashboardState.transactions.some(t => t.id === data.transaction.id);
+                        if (!exists) {
+                            dashboardState.transactions.unshift(data.transaction);
+                            if (dashboardState.transactions.length > 100) {
+                                dashboardState.transactions.pop();
+                            }
+                        }
+                    }
                     // ALWAYS prepend new transaction to ensure live feed updates
                     prependTransactionRowEnhanced(data.transaction);
                 }

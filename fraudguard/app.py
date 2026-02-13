@@ -1,4 +1,4 @@
-from flask import Flask, render_template, jsonify, request, stream_with_context, Response
+from flask import Flask, render_template, jsonify, request, stream_with_context, Response, session, redirect
 import json
 import os
 import requests
@@ -33,6 +33,24 @@ except ImportError:
 load_dotenv()
 
 app = Flask(__name__)
+app.secret_key = os.getenv('SECRET_KEY', 'fraudguard-secret-key-change-in-production')
+
+# User accounts for role-based access (demo/development)
+USERS = {
+    'Analyst User': {'password': 'password', 'role': 'analyst'},
+    'Ops User': {'password': 'password', 'role': 'operations'},
+    'Exec User': {'password': 'password', 'role': 'executive'},
+    'Admin User': {'password': 'password', 'role': 'admin'},
+}
+
+# In-memory alert store (for demo purposes — would be DB-backed in production)
+_alerts_store = []
+_notification_settings = {
+    'recipients': [],
+    'threshold': 'all',
+    'method': 'email',
+    'schedule': 'business_hours'
+}
 
 # Configuration from environment variables
 INFERENCE_SERVICE_URL = os.getenv('INFERENCE_SERVICE_URL', 'http://inference:8000')
@@ -820,6 +838,9 @@ def transactions():
 def system_health():
     """System Health page"""
     try:
+        import sys
+        import platform
+        
         inference_health = get_inference_health()
         model_health = _get_model_health()
         
@@ -833,18 +854,28 @@ def system_health():
                 'fraud_rate': 0.0, 'active_alerts': 0
             }
         
+        # Dynamic system environment
+        sys_env = {
+            'os': platform.system() + ' • Docker Container',
+            'python_version': platform.python_version(),
+            'threads': threading.active_count(),
+            'db_available': PSYCOPG2_AVAILABLE and db_pool is not None,
+        }
+        
         return render_template('system_health.html', 
                              page='system_health',
                              inference_health=inference_health,
                              model_health=model_health,
-                             stats=stats)
+                             stats=stats,
+                             sys_env=sys_env)
     except Exception as e:
         logger.error(f"Error loading system health: {e}")
         return render_template('system_health.html', 
                              page='system_health',
                              inference_health={'status': 'unknown'},
                              model_health={'name': 'Unknown', 'version': 'N/A', 'accuracy': 0.0},
-                             stats={})
+                             stats={},
+                             sys_env={'os': 'Unknown', 'python_version': 'N/A', 'threads': 0, 'db_available': False})
 
 @app.route('/alerts')
 def alerts():
@@ -857,10 +888,10 @@ def alerts():
         # Process with standard builder to get top_features, consistent risk_scores, etc.
         alerts_data = _build_transactions(raw_results, sort_by='risk_score', sort_order='desc')
         
-        return render_template('alerts.html', page='alerts', alerts=alerts_data)
+        return render_template('alerts.html', page='alerts', alerts=alerts_data, USERS=USERS)
     except Exception as e:
         logger.error(f"Error loading alerts: {e}")
-        return render_template('alerts.html', page='alerts', alerts=[])
+        return render_template('alerts.html', page='alerts', alerts=[], USERS=USERS)
 
 @app.route('/settings')
 def settings():
@@ -869,17 +900,20 @@ def settings():
         # Get current configuration
         model_health = _get_model_health()
         inference_health = get_inference_health()
+        db_available = PSYCOPG2_AVAILABLE and db_pool is not None
         
         return render_template('settings.html',
                              page='settings',
                              model_health=model_health,
-                             inference_health=inference_health)
+                             inference_health=inference_health,
+                             db_available=db_available)
     except Exception as e:
         logger.error(f"Error loading settings: {e}")
         return render_template('settings.html',
                              page='settings',
                              model_health={'name': 'Unknown', 'version': 'N/A', 'accuracy': 0.0},
-                             inference_health={'status': 'unknown'})
+                             inference_health={'status': 'unknown'},
+                             db_available=False)
 
 @app.route('/api/transactions')
 def api_transactions():
@@ -1112,30 +1146,7 @@ def api_data():
             }
         }), 500
 
-@app.route('/api/transactions')
-def api_transactions():
-    """API endpoint for paginated transactions list."""
-    try:
-        limit = int(request.args.get('limit', 50))
-        offset = int(request.args.get('offset', 0))
-        search = request.args.get('search', None)
-        
-        # Get data
-        transactions = get_all_predictions_feed(limit=limit, offset=offset, search=search)
-        total_count = get_total_predictions_count(search=search)
-        
-        return jsonify({
-            'transactions': _build_transactions(transactions),
-            'pagination': {
-                'total': total_count,
-                'limit': limit,
-                'offset': offset,
-                'has_more': (offset + limit) < total_count
-            }
-        })
-    except Exception as e:
-        logger.error(f"Error in transactions API: {e}")
-        return jsonify({'error': str(e)}), 500
+
 
 
 @app.route('/api/stream')
@@ -1296,6 +1307,214 @@ def api_health():
         'inference_service': inference_health,
         'timestamp': datetime.now().isoformat()
     }), 200
+
+# =============================================
+# Authentication & Role-Based Routes
+# =============================================
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    """Login page with role selection"""
+    if request.method == 'POST':
+        username = request.form.get('username', '')
+        password = request.form.get('password', '')
+        role = request.form.get('role', '')
+        
+        user = USERS.get(username)
+        if user and user['password'] == password:
+            session['username'] = username
+            session['role'] = role or user.get('role', 'analyst')
+            # Redirect based on role
+            role_map = {
+                'admin': '/admin',
+                'executive': '/executive',
+                'operations': '/operations',
+            }
+            target = role_map.get(session['role'], '/')
+            return redirect(FRAUDGUARD_BASE_PATH + target)
+        
+        return render_template('login.html', error='Invalid credentials')
+    
+    return render_template('login.html')
+
+@app.route('/logout')
+def logout():
+    """Logout and clear session"""
+    session.clear()
+    return redirect(FRAUDGUARD_BASE_PATH + '/login')
+
+@app.route('/forgot-password', methods=['GET', 'POST'])
+def forgot_password():
+    """Password reset page"""
+    message = None
+    if request.method == 'POST':
+        name = request.form.get('name', '')
+        new_password = request.form.get('new_password', '')
+        if name in USERS and new_password:
+            USERS[name]['password'] = new_password
+            message = 'Password updated successfully. You can now login.'
+        else:
+            message = 'User not found or invalid password.'
+    return render_template('password_reset.html', message=message)
+
+@app.route('/admin')
+def admin_dashboard():
+    """Admin dashboard — user management and audit logs"""
+    return render_template('admin_dashboard.html', page='admin', USERS=USERS)
+
+@app.route('/executive')
+def exec_dashboard():
+    """Executive dashboard — high-level KPIs and trends"""
+    return render_template('exec_dashboard.html', page='executive')
+
+@app.route('/operations')
+def ops_dashboard():
+    """Operations dashboard — case list and actions"""
+    return render_template('ops_dashboard.html', page='operations')
+
+# =============================================
+# Alerts API (supports the enhanced alerts page)
+# =============================================
+
+def _build_alert_from_transaction(txn, idx):
+    """Convert a _build_transactions() item into the alert format the UI expects."""
+    fraud_prob = txn.get('fraud_probability', 0.0)
+    risk_score = txn.get('risk_score', 0)
+    
+    # Derive severity from risk_score
+    if risk_score >= 80:
+        severity = 'critical'
+    elif risk_score >= 60:
+        severity = 'high'
+    elif risk_score >= 40:
+        severity = 'medium'
+    else:
+        severity = 'low'
+    
+    # Build a reason string from top_features
+    top_features = txn.get('top_features', [])
+    if top_features:
+        reason = top_features[0].get('feature', 'Suspicious transaction pattern')
+    else:
+        reason = 'Suspicious transaction pattern detected by model'
+    
+    # Check if we already have in-memory state for this alert
+    alert_id = f"ALT-{str(txn.get('id', idx)).replace(' ', '')[:12]}"
+    existing = next((a for a in _alerts_store if a['id'] == alert_id), None)
+    
+    alert = {
+        'id': alert_id,
+        'severity': severity,
+        'reason': reason,
+        'risk_score': risk_score,
+        'fraud_probability': fraud_prob,
+        'status': existing['status'] if existing else 'New',
+        'assigned_to': existing['assigned_to'] if existing else None,
+        'created_at': txn.get('timestamp', datetime.now().isoformat()),
+        'transaction': {
+            'transaction_id': txn.get('id', 'Unknown'),
+            'customer_id': txn.get('user_id', 'Unknown'),
+            'amount': txn.get('amount', 0.0),
+            'merchant': txn.get('merchant', 'Unknown'),
+            'channel': 'Online',
+            'location': txn.get('location', 'Unknown'),
+            'device_id': 'N/A',
+            'previous_login': None
+        }
+    }
+    return alert
+
+@app.route('/api/alerts', methods=['GET'])
+def api_alerts_list():
+    """Get alerts with optional filters."""
+    try:
+        # Get flagged transactions from DB
+        raw_results = get_live_fraud_feed(limit=200)
+        transactions = _build_transactions(raw_results, sort_by='risk_score', sort_order='desc')
+        
+        # Convert to alert format
+        alerts_list = [_build_alert_from_transaction(txn, i) for i, txn in enumerate(transactions)]
+        
+        # Apply filters
+        severity = request.args.get('severity', '')
+        status = request.args.get('status', '')
+        fraud_type = request.args.get('fraud_type', '')
+        start_date = request.args.get('start_date', '')
+        end_date = request.args.get('end_date', '')
+        min_risk = request.args.get('min_risk', '')
+        max_risk = request.args.get('max_risk', '')
+        assigned = request.args.get('assigned', '')
+        
+        if severity:
+            alerts_list = [a for a in alerts_list if a['severity'] == severity]
+        if status:
+            alerts_list = [a for a in alerts_list if a['status'] == status]
+        if min_risk:
+            alerts_list = [a for a in alerts_list if a['risk_score'] >= int(min_risk)]
+        if max_risk:
+            alerts_list = [a for a in alerts_list if a['risk_score'] <= int(max_risk)]
+        if assigned:
+            alerts_list = [a for a in alerts_list if a.get('assigned_to') == assigned]
+        
+        return jsonify(alerts_list)
+    except Exception as e:
+        logger.error(f"Error in alerts API: {e}")
+        return jsonify([]), 500
+
+@app.route('/api/alerts/<alert_id>', methods=['GET', 'POST'])
+def api_alert_detail(alert_id):
+    """Get or update a single alert."""
+    if request.method == 'GET':
+        # Find alert by rebuilding from DB
+        try:
+            raw_results = get_live_fraud_feed(limit=200)
+            transactions = _build_transactions(raw_results, sort_by='risk_score', sort_order='desc')
+            alerts_list = [_build_alert_from_transaction(txn, i) for i, txn in enumerate(transactions)]
+            alert = next((a for a in alerts_list if a['id'] == alert_id), None)
+            if alert:
+                return jsonify(alert)
+            return jsonify({'error': 'Alert not found'}), 404
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+    
+    elif request.method == 'POST':
+        # Update alert status or assignment
+        data = request.get_json(silent=True) or {}
+        existing = next((a for a in _alerts_store if a['id'] == alert_id), None)
+        if not existing:
+            existing = {'id': alert_id, 'status': 'New', 'assigned_to': None}
+            _alerts_store.append(existing)
+        
+        if 'status' in data:
+            existing['status'] = data['status']
+        if 'assigned_to' in data:
+            existing['assigned_to'] = data['assigned_to']
+        
+        return jsonify({'success': True, 'alert': existing})
+
+# =============================================
+# Notification Settings API
+# =============================================
+
+@app.route('/api/notification-settings', methods=['GET', 'POST'])
+def api_notification_settings():
+    """Get or update notification settings."""
+    global _notification_settings
+    
+    if request.method == 'GET':
+        return jsonify(_notification_settings)
+    
+    elif request.method == 'POST':
+        data = request.get_json(silent=True) or {}
+        if 'recipients' in data:
+            _notification_settings['recipients'] = data['recipients']
+        if 'threshold' in data:
+            _notification_settings['threshold'] = data['threshold']
+        if 'method' in data:
+            _notification_settings['method'] = data['method']
+        if 'schedule' in data:
+            _notification_settings['schedule'] = data['schedule']
+        return jsonify({'success': True, 'settings': _notification_settings})
 
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 5000))

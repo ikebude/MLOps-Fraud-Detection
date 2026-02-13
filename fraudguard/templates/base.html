@@ -26,7 +26,7 @@
     </script>
 </head>
 
-<body class="bg-gray-100 text-gray-800 font-sans">
+<body class="bg-gray-100 text-gray-800 font-sans watermark">
     <div class="flex h-screen overflow-hidden">
         <!-- Sidebar -->
         <aside class="w-64 bg-gray-900 text-white flex flex-col">
@@ -57,15 +57,44 @@
                     <i class="ph ph-gear text-xl"></i> Settings
                 </a>
             </nav>
+            <!-- Role-based dashboards -->
+            {% if session.get('role') in ['admin', 'operations', 'executive'] %}
+            <div class="px-4 pt-2">
+                <p class="text-xs text-gray-500 uppercase tracking-wider px-4 mb-2">Role Dashboards</p>
+                {% if session.get('role') == 'admin' %}
+                <a href="{{ base_path }}/admin"
+                    class="flex items-center gap-3 px-4 py-2 rounded-lg transition-colors {% if page == 'admin' %}bg-orange-500 text-white{% else %}text-gray-400 hover:bg-gray-800 hover:text-white{% endif %} text-sm">
+                    <i class="ph ph-user-gear text-lg"></i> Admin Panel
+                </a>
+                {% endif %}
+                {% if session.get('role') == 'executive' %}
+                <a href="{{ base_path }}/executive"
+                    class="flex items-center gap-3 px-4 py-2 rounded-lg transition-colors {% if page == 'executive' %}bg-orange-500 text-white{% else %}text-gray-400 hover:bg-gray-800 hover:text-white{% endif %} text-sm">
+                    <i class="ph ph-chart-line-up text-lg"></i> Executive View
+                </a>
+                {% endif %}
+                {% if session.get('role') == 'operations' %}
+                <a href="{{ base_path }}/operations"
+                    class="flex items-center gap-3 px-4 py-2 rounded-lg transition-colors {% if page == 'operations' %}bg-orange-500 text-white{% else %}text-gray-400 hover:bg-gray-800 hover:text-white{% endif %} text-sm">
+                    <i class="ph ph-clipboard-text text-lg"></i> Operations
+                </a>
+                {% endif %}
+            </div>
+            {% endif %}
             <div class="p-4 border-t border-gray-800">
                 <div class="flex items-center gap-3">
                     <div class="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center">
-                        <span class="text-sm font-bold">OD</span>
+                        <span class="text-sm font-bold">{{ session.get('username', 'OD')[:2] | upper }}</span>
                     </div>
-                    <div>
-                        <p class="text-sm font-medium">Omolola Dada</p>
-                        <p class="text-xs text-gray-500">Security Team</p>
+                    <div class="flex-1">
+                        <p class="text-sm font-medium">{{ session.get('username', 'Omolola Dada') }}</p>
+                        <p class="text-xs text-gray-500 capitalize">{{ session.get('role', 'Security Team') }}</p>
                     </div>
+                    {% if session.get('username') %}
+                    <a href="{{ base_path }}/logout" class="text-gray-400 hover:text-white" title="Logout">
+                        <i class="ph ph-sign-out text-lg"></i>
+                    </a>
+                    {% endif %}
                 </div>
             </div>
         </aside>
@@ -80,16 +109,19 @@
                     {% elif page == 'alerts' %}Active Alerts
                     {% elif page == 'system_health' %}Model & System Health
                     {% elif page == 'settings' %}Settings
+                    {% elif page == 'admin' %}Admin Dashboard
+                    {% elif page == 'executive' %}Executive Dashboard
+                    {% elif page == 'operations' %}Operations Dashboard
                     {% endif %}
                 </h2>
                 <div class="flex items-center gap-4">
-                    <button onclick="alert('Exporting report...')"
-                        class="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
-                        Export Report
+                    <button onclick="exportToCSV()"
+                        class="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-2">
+                        <i class="ph ph-download"></i> Export CSV
                     </button>
                     <button id="refresh-model-btn"
                         class="px-4 py-2 bg-orange-500 text-white rounded-lg text-sm font-medium hover:bg-orange-600 transition-colors flex items-center gap-2">
-                        <i class="ph ph-arrows-clockwise"></i> Refresh Model
+                        <i class="ph ph-lightning"></i> Run Live Inference
                     </button>
                 </div>
             </header>
@@ -104,7 +136,6 @@
     <script>
         window.FRAUDGUARD_BASE_PATH = "{{ base_path }}";
     </script>
-    <script src="{{ base_path }}/static/js/dashboard.js"></script>
     <script src="{{ base_path }}/static/js/dashboard-enhanced.js"></script>
     <script src="{{ base_path }}/static/js/enhanced-visualizations.js"></script>
     <script src="{{ base_path }}/static/charts/charts.js"></script>

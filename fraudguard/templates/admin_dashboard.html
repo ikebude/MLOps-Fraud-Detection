@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-6 max-w-5xl mx-auto">
+    <!-- User Management -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-50 bg-gray-50/50 flex justify-between items-center">
+            <h3 class="font-bold text-gray-900 flex items-center gap-2">
+                <i class="ph ph-users text-purple-500"></i> User Management
+            </h3>
+            <span class="px-2 py-1 bg-blue-100 text-blue-700 text-xs font-bold rounded" id="user-count">
+                {{ USERS|length }} Users
+            </span>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-left">
+                <thead class="bg-gray-50 text-gray-500 text-xs uppercase">
+                    <tr>
+                        <th class="px-6 py-3 font-medium">Username</th>
+                        <th class="px-6 py-3 font-medium">Role</th>
+                        <th class="px-6 py-3 font-medium">Status</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200 text-sm">
+                    {% for username, info in USERS.items() %}
+                    <tr class="hover:bg-gray-50 transition-colors">
+                        <td class="px-6 py-4">
+                            <div class="flex items-center gap-3">
+                                <div
+                                    class="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-xs font-bold text-gray-600">
+                                    {{ username[:2] | upper }}
+                                </div>
+                                <span class="font-medium text-gray-900">{{ username }}</span>
+                            </div>
+                        </td>
+                        <td class="px-6 py-4">
+                            <span class="inline-flex px-2 py-1 rounded-full text-xs font-medium
+                                {% if info.role == 'admin' %}bg-purple-100 text-purple-800
+                                {% elif info.role == 'executive' %}bg-blue-100 text-blue-800
+                                {% elif info.role == 'operations' %}bg-orange-100 text-orange-800
+                                {% else %}bg-green-100 text-green-800{% endif %}">
+                                {{ info.role | capitalize }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4">
+                            {% if session.get('username') == username %}
+                            <span class="inline-flex items-center gap-1 text-green-600 text-xs font-medium">
+                                <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span> Online (You)
+                            </span>
+                            {% else %}
+                            <span class="text-gray-400 text-xs">Offline</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- System Statistics -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+            <p class="text-sm text-gray-500 mb-1">Total Users</p>
+            <h3 class="text-2xl font-bold text-gray-900">{{ USERS|length }}</h3>
+        </div>
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+            <p class="text-sm text-gray-500 mb-1">System Alerts (24h)</p>
+            <h3 class="text-2xl font-bold text-red-600" id="admin-alerts">
+                <span class="inline-block w-12 h-7 bg-gray-100 rounded animate-pulse"></span>
+            </h3>
+        </div>
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+            <p class="text-sm text-gray-500 mb-1">Total Predictions</p>
+            <h3 class="text-2xl font-bold text-blue-600" id="admin-predictions">
+                <span class="inline-block w-16 h-7 bg-gray-100 rounded animate-pulse"></span>
+            </h3>
+        </div>
+    </div>
+
+    <!-- Audit Log (recent activity) -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-50 bg-gray-50/50">
+            <h3 class="font-bold text-gray-900 flex items-center gap-2">
+                <i class="ph ph-clock-counter-clockwise text-orange-500"></i> Recent Activity
+            </h3>
+        </div>
+        <div class="p-6" id="admin-audit-log">
+            <p class="text-sm text-gray-400">Loading audit data...</p>
+        </div>
+    </div>
+</div>
+
+<script>
+    const basePath = window.FRAUDGUARD_BASE_PATH || '';
+
+    async function loadAdminStats() {
+        try {
+            const res = await fetch(basePath + '/api/data');
+            const data = await res.json();
+            const metrics = data.metrics || {};
+
+            document.getElementById('admin-alerts').textContent =
+                (metrics.active_alerts || 0).toLocaleString();
+            document.getElementById('admin-predictions').textContent =
+                (metrics.total_transactions || 0).toLocaleString();
+
+            // Populate audit log with recent fraud detections
+            const txns = data.transactions || [];
+            const auditDiv = document.getElementById('admin-audit-log');
+            if (txns.length === 0) {
+                auditDiv.innerHTML = '<p class="text-sm text-gray-400">No recent activity to display.</p>';
+            } else {
+                auditDiv.innerHTML = txns.slice(0, 8).map(tx => `
+                    <div class="flex items-center justify-between py-3 border-b border-gray-50 last:border-0">
+                        <div class="flex items-center gap-3">
+                            <div class="w-2 h-2 rounded-full ${tx.risk_level === 'CRITICAL' ? 'bg-red-500' : tx.risk_level === 'HIGH' ? 'bg-orange-500' : 'bg-green-500'}"></div>
+                            <div>
+                                <p class="text-sm font-medium text-gray-900">${tx.merchant || tx.user_id || 'Unknown'}</p>
+                                <p class="text-xs text-gray-500">${tx.time || tx.timestamp || ''}</p>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <span class="text-sm font-medium">$${(parseFloat(tx.amount) || 0).toFixed(2)}</span>
+                            <span class="ml-2 px-2 py-0.5 rounded-full text-xs font-medium ${tx.risk_level === 'CRITICAL' ? 'bg-red-100 text-red-800' : tx.risk_level === 'HIGH' ? 'bg-orange-100 text-orange-800' : 'bg-green-100 text-green-800'}">${tx.risk_level || 'N/A'}</span>
+                        </div>
+                    </div>
+                `).join('');
+            }
+        } catch (err) {
+            console.error('Failed to load admin stats:', err);
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', loadAdminStats);
+</script>
+{% endblock %}

@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+        <p class="text-sm text-gray-500 mb-1">Financial Loss Prevented</p>
+        <h3 class="text-3xl font-bold text-green-600" id="exec-loss-prevented">
+            <span class="inline-block w-28 h-9 bg-gray-100 rounded animate-pulse"></span>
+        </h3>
+        <p class="text-xs text-gray-400 mt-2">Sum of blocked fraudulent transactions</p>
+    </div>
+    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+        <p class="text-sm text-gray-500 mb-1">Total Transactions (24h)</p>
+        <h3 class="text-3xl font-bold text-gray-900" id="exec-total-txn">
+            <span class="inline-block w-20 h-9 bg-gray-100 rounded animate-pulse"></span>
+        </h3>
+        <p class="text-xs text-gray-400 mt-2">All processed in last 24 hours</p>
+    </div>
+    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+        <p class="text-sm text-gray-500 mb-1">Average Fraud Rate</p>
+        <h3 class="text-3xl font-bold text-orange-600" id="exec-fraud-rate">
+            <span class="inline-block w-16 h-9 bg-gray-100 rounded animate-pulse"></span>
+        </h3>
+        <p class="text-xs text-gray-400 mt-2">Fraud detections / total volume</p>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+    <!-- Trend Chart -->
+    <div class="lg:col-span-2 bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+        <h3 class="text-lg font-semibold text-gray-900 mb-6">Fraud Trend (Last 6 Hours)</h3>
+        <div class="h-64">
+            <canvas id="execChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+        <h3 class="text-lg font-semibold text-gray-900 mb-4">Key Indicators</h3>
+        <div class="space-y-4">
+            <div class="p-3 bg-red-50 rounded-lg flex justify-between items-center">
+                <span class="text-sm text-red-600">Active Alerts</span>
+                <span class="font-bold text-red-700" id="exec-active-alerts">-</span>
+            </div>
+            <div class="p-3 bg-green-50 rounded-lg flex justify-between items-center">
+                <span class="text-sm text-green-600">Approval Rate</span>
+                <span class="font-bold text-green-700" id="exec-approval-rate">-</span>
+            </div>
+            <div class="p-3 bg-blue-50 rounded-lg flex justify-between items-center">
+                <span class="text-sm text-blue-600">Model Accuracy</span>
+                <span class="font-bold text-blue-700" id="exec-model-accuracy">-</span>
+            </div>
+            <div class="p-3 bg-purple-50 rounded-lg flex justify-between items-center">
+                <span class="text-sm text-purple-600">Avg Fraud Probability</span>
+                <span class="font-bold text-purple-700" id="exec-avg-prob">-</span>
+            </div>
+            <div class="p-3 bg-gray-50 rounded-lg flex justify-between items-center">
+                <span class="text-sm text-gray-600">Drift Status</span>
+                <span class="font-bold" id="exec-drift-status">-</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const basePath = window.FRAUDGUARD_BASE_PATH || '';
+    let execChart = null;
+
+    async function loadExecData() {
+        try {
+            const res = await fetch(basePath + '/api/data');
+            const data = await res.json();
+
+            const metrics = data.metrics || {};
+            const modelHealth = data.model_health || {};
+            const inferenceStats = data.inference_stats || {};
+            const trends = data.trends || {};
+
+            // KPI Cards — live values
+            document.getElementById('exec-total-txn').textContent =
+                (metrics.total_transactions || 0).toLocaleString();
+
+            document.getElementById('exec-fraud-rate').textContent =
+                (metrics.fraud_rate || 0).toFixed(2) + '%';
+
+            document.getElementById('exec-active-alerts').textContent =
+                (metrics.active_alerts || 0).toLocaleString();
+
+            document.getElementById('exec-approval-rate').textContent =
+                (metrics.approval_rate || 0).toFixed(1) + '%';
+
+            document.getElementById('exec-model-accuracy').textContent =
+                (modelHealth.accuracy || 0).toFixed(1) + '%';
+
+            const avgProb = inferenceStats.avg_fraud_probability || metrics.fraud_rate / 100 || 0;
+            document.getElementById('exec-avg-prob').textContent =
+                (avgProb * 100).toFixed(2) + '%';
+
+            // Drift status styling
+            const driftEl = document.getElementById('exec-drift-status');
+            const drift = modelHealth.drift_status || 'Unknown';
+            driftEl.textContent = drift;
+            if (drift === 'Critical') driftEl.className = 'font-bold text-red-600';
+            else if (drift === 'Warning') driftEl.className = 'font-bold text-yellow-600';
+            else driftEl.className = 'font-bold text-green-600';
+
+            // Financial Loss Prevented = sum of amounts from blocked/fraud transactions
+            const fraudTxns = (data.transactions || []).filter(
+                t => t.fraud_prediction === 1 || t.risk_level === 'CRITICAL' || t.risk_level === 'HIGH'
+            );
+            const lossPrevented = fraudTxns.reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
+            document.getElementById('exec-loss-prevented').textContent =
+                '$' + lossPrevented.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+            // Chart — use real trend data from API
+            const labels = (trends.labels || []).map(l => {
+                // Shorten label for readability
+                if (l && l.includes(' ')) return l.split(' ')[1] || l;
+                return l;
+            });
+            const validData = trends.valid_transactions || [];
+            const fraudData = trends.fraud_attempts || [];
+
+            const ctx = document.getElementById('execChart').getContext('2d');
+            if (execChart) execChart.destroy();
+
+            execChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Total Transactions',
+                            data: validData,
+                            borderColor: '#6366F1',
+                            backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                            fill: true,
+                            tension: 0.3
+                        },
+                        {
+                            label: 'Fraud Detections',
+                            data: fraudData,
+                            borderColor: '#F97316',
+                            backgroundColor: 'rgba(249, 115, 22, 0.1)',
+                            fill: true,
+                            tension: 0.3
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'top' }
+                    },
+                    scales: {
+                        y: { beginAtZero: true, ticks: { precision: 0 } },
+                        x: { ticks: { maxTicksLimit: 8 } }
+                    }
+                }
+            });
+        } catch (err) {
+            console.error('Failed to load executive data:', err);
+            document.getElementById('exec-loss-prevented').textContent = '$0.00';
+            document.getElementById('exec-total-txn').textContent = '0';
+            document.getElementById('exec-fraud-rate').textContent = '0.00%';
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', loadExecData);
+    // Auto-refresh every 30 seconds
+    setInterval(loadExecData, 30000);
+</script>
+{% endblock %}

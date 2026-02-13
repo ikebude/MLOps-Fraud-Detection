@@ -1,8 +1,138 @@
-/* Custom styles if needed beyond Tailwind */
-.hover-elevate {
-    transition: transform 0.2s, box-shadow 0.2s;
+/* =========================
+   Brand Colors
+========================= */
+:root {
+    --brand-orange: #F97316;
 }
+
+/* =========================
+   Watermark Background
+========================= */
+.watermark {
+    position: relative;
+}
+
+.watermark::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) rotate(-45deg);
+    width: 400px;
+    height: 400px;
+    background-image: url("/static/images/logo.png");
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: contain;
+    opacity: 0.25;
+    pointer-events: none;
+    z-index: 0;
+}
+
+.watermark>* {
+    position: relative;
+    z-index: 1;
+}
+
+/* Ensure nested content also appears above watermark */
+.watermark div {
+    position: relative;
+}
+
+/* =========================
+   Hover Elevation Effect
+========================= */
+.hover-elevate {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
 .hover-elevate:hover {
     transform: translateY(-2px);
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    box-shadow:
+        0 4px 6px -1px rgba(0, 0, 0, 0.1),
+        0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+/* =========================
+   Responsive Alerts Table
+   Prevent horizontal scrolling: allow rows to stack on small screens
+========================= */
+#alerts-table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: auto;
+}
+
+#alerts-table th,
+#alerts-table td {
+    padding: 8px;
+    text-align: left;
+    vertical-align: top;
+    white-space: normal;
+    word-break: break-word;
+}
+
+@media (max-width: 1024px) {
+
+    /* Hide the table header and show each row as a stacked card */
+    #alerts-table thead {
+        display: none;
+    }
+
+    #alerts-table tbody tr {
+        display: block;
+        margin-bottom: 12px;
+        border: 1px solid #eef2f6;
+        border-radius: 8px;
+        padding: 8px;
+    }
+
+    #alerts-table tbody td {
+        display: flex;
+        justify-content: space-between;
+        padding: 6px 8px;
+        border-bottom: none;
+    }
+
+    #alerts-table tbody td::before {
+        content: attr(data-label);
+        font-weight: 600;
+        color: #374151;
+        margin-right: 8px;
+    }
+}
+
+/* =========================
+   Login & Password Reset Pages
+========================= */
+.login-page {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #1F2937 0%, #374151 50%, #4B5563 100%);
+    font-family: 'Inter', sans-serif;
+}
+
+.login-container {
+    width: 100%;
+    max-width: 420px;
+    padding: 2rem;
+    background: #fff;
+    border-radius: 1rem;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+}
+
+.login-header {
+    text-align: center;
+    margin-bottom: 1.5rem;
+}
+
+.login-form .form-group {
+    margin-bottom: 0.75rem;
+}
+
+.btn-primary {
+    cursor: pointer;
+    transition: background-color 0.2s ease;
 }

@@ -4,17 +4,17 @@ A local MLOps stack for fraud detection: **Airflow** runs the training DAG, **ML
 
 ## Overview
 
-- **Airflow**: DAG `fraud_detection_training` collects data from the Fraud API, trains an XGBoost model, and logs to MLflow.
+- **Airflow**: DAG `fraud_detection_training` collects data from the **PostgreSQL database (populated by Producer)**, trains an XGBoost model, and logs to MLflow.
 - **MLflow**: Experiment tracking and model registry; artifacts in MinIO.
-- **Inference**: Loads the model (from MLflow or local cache), runs on new API records, exposes REST API.
-- **FraudGuard**: Dashboard that calls Inference (and optionally MLflow/Airflow) to display metrics.
+- **Inference**: Loads the model (from MLflow or local cache), runs on new records in DB, exposes REST API.
+- **FraudGuard**: Dashboard that displays real-time metrics and alerts from the database.
 
 ## Architecture
 
 ```
-Fraud API (data) → Airflow DAG → Training → MLflow (model)
-                                        ↘
-FraudGuard UI ← Inference API ←──────────┘
+Transactions Producer → PostgreSQL (Live Data) → Airflow DAG → Training → MLflow (model)
+                                           ↓              ↘
+FraudGuard UI ← PostgreSQL (Live Data) ← Inference API ←──────────┘
 ```
 
 ## Prerequisites
@@ -73,6 +73,7 @@ MLOps_Fraud_Detection/
 │   ├── inference/        # Inference API
 │   ├── dags/
 │   ├── plugins/          # Training logic
+│   ├── producer/         # Transaction Generator
 │   ├── config.yaml
 │   └── docker-compose.yml
 ├── scripts/
@@ -87,24 +88,24 @@ MLOps_Fraud_Detection/
 
 - **`src/.env`**: Copy from `src/.env.example`, adjust if needed.  
 - **`src/config.yaml`**: MLflow, API, and model settings.  
-- **FRAUD_API_URL**: Data source for training and inference (default: `https://3consult-ng.com/fraud_api.php`).  
-- **FRAUD_API_MAX_RECORDS**: Cap for training (default 100000). Reduce on low-memory machines.
+- **Transactions Data**: The system uses a local producer sending data to PostgreSQL. No external API is required.
 
 ## End-to-end workflow (verified)
 
 1. **Postgres** starts → **init-multiple-dbs** creates `mlflow` DB and user. **MinIO** starts → **mc** creates `mlflow` bucket.
 2. **MLflow** starts → backend `mlflow` DB, artifacts `s3://mlflow/fraud_detection` (MinIO).
-3. **Airflow** (scheduler, workers, webserver) start → **fraud_detection_training** DAG is loaded.
-4. **Training** (when DAG runs):
+3. **Producer** starts → generates synthetic transactions and writes to `transactions` table in PostgreSQL.
+4. **Airflow** (scheduler, workers, webserver) start → **fraud_detection_training** DAG is loaded.
+5. **Training** (when DAG runs):
    - Reads `src/config.yaml` and `src/.env` (mounted at `/app`).
-   - Fetches data from **FRAUD_API_URL** → feature engineering → XGBoost + SMOTE → logs to **MLflow** (metrics, params, `fraud_detection_model`), writes artifacts to MinIO.
+   - Fetches data from **PostgreSQL** (`transactions` table) → feature engineering → XGBoost + SMOTE → logs to **MLflow** (metrics, params, `fraud_detection_model`), writes artifacts to MinIO.
    - Saves `fraud_detection_model.pkl` to **`/app/models`** (mounted `src/models`).
-5. **Inference** starts → loads model from **MLflow** first (`models:/fraud_detection_model/latest`), else from **`/app/models/fraud_detection_model.pkl`**. Uses **threshold** from MLflow run when available.
-6. **Run inference** (FraudGuard “Run Inference” or `make inference`):
-   - Fetches from **FRAUD_API_URL** → same preprocessing/features as training → predictions → cumulative stats persisted.
-7. **FraudGuard** → calls Inference **`/inference/stats`**, **`/inference/results`** → dashboard metrics and transaction table.
+6. **Inference** starts → loads model from **MLflow** first (`models:/fraud_detection_model/latest`), else from **`/app/models/fraud_detection_model.pkl`**.
+7. **Run inference** (FraudGuard “Run Inference” or `make inference`):
+   - Fetches recent unscored transactions from **PostgreSQL** → same preprocessing/features as training → predictions → writes back to DB.
+8. **FraudGuard** → queries **PostgreSQL** directly for live transaction feed and real-time aggregations.
 
-**Model**: `fraud_detection_model` everywhere (config, training, inference). **Data**: same **FRAUD_API_URL** for training and inference.
+**Model**: `fraud_detection_model` everywhere (config, training, inference). **Data**: PostgreSQL `transactions` table is the single source of truth.
 
 ## Makefile Targets
 
@@ -136,7 +137,7 @@ MLOps_Fraud_Detection/
 ## Troubleshooting
 
 - **Services not up**: `make logs` or `cd src && docker compose logs -f`
-- **Out of memory**: Lower `FRAUD_API_MAX_RECORDS` and/or `XGB_N_JOBS=1` in `src/.env`
+- **Out of memory**: Lower training batch size (`Airflow Variable: training_batch_size`) or `XGB_N_JOBS=1` in `src/.env`
 - **Port in use**: Change port mappings in `src/docker-compose.yml`
 
 ## API (Inference, port 8000)
