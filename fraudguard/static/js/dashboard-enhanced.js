@@ -176,9 +176,19 @@ function updateDataFreshness(timestamp) {
 
     const now = new Date();
     const lastUpdate = new Date(timestamp);
+
+    // Guard against invalid date
+    if (isNaN(lastUpdate.getTime())) {
+        indicator.classList.add('realtime-indicator');
+        indicator.classList.remove('stale');
+        timestampEl.textContent = 'Updating...';
+        return;
+    }
+
     const diffSeconds = Math.floor((now - lastUpdate) / 1000);
 
-    if (diffSeconds < 10) {
+    // Handle clock skew (negative diff)
+    if (diffSeconds < 0 || diffSeconds < 10) {
         indicator.classList.remove('stale');
         indicator.classList.add('realtime-indicator');
         timestampEl.textContent = 'Live';
@@ -1034,9 +1044,21 @@ window.initChartsEnhanced = initChartsEnhanced;
 function timeAgo(dateString) {
     if (!dateString) return '';
     const date = new Date(dateString);
+
+    // Guard against invalid date (NaN)
+    if (isNaN(date.getTime())) {
+        // If the string looks like a readable timestamp, just return it
+        if (typeof dateString === 'string' && dateString.length > 5) {
+            return dateString;
+        }
+        return '';
+    }
+
     const now = new Date();
     const seconds = Math.floor((now - date) / 1000);
 
+    // If the timestamp is in the future (clock skew), show "Just now"
+    if (seconds < 0) return 'Just now';
     if (seconds < 5) return 'Just now';
 
     const intervals = {
@@ -1057,7 +1079,30 @@ function timeAgo(dateString) {
     return `${seconds}s ago`;
 }
 
-// Overwrite the row builder to use timeAgo
+/**
+ * Format a timestamp in WAT (West Africa Time, UTC+1).
+ * Accepts ISO 8601 string or Date object.
+ */
+function formatWATTime(dateString) {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return dateString;
+    // Format in WAT (UTC+1): use Intl with Africa/Lagos timezone
+    try {
+        return date.toLocaleString('en-NG', {
+            timeZone: 'Africa/Lagos',
+            year: 'numeric', month: '2-digit', day: '2-digit',
+            hour: '2-digit', minute: '2-digit', second: '2-digit',
+            hour12: false
+        }) + ' WAT';
+    } catch (e) {
+        // Fallback: manually offset
+        const watDate = new Date(date.getTime() + (1 * 60 * 60 * 1000));
+        return watDate.toISOString().replace('T', ' ').substring(0, 19) + ' WAT';
+    }
+}
+
+// Overwrite the row builder to use timeAgo + include expandable fraud details
 window.buildTransactionRowsEnhanced = function (txn) {
     const fragment = document.createDocumentFragment();
     const row = document.createElement('tr');
@@ -1065,7 +1110,7 @@ window.buildTransactionRowsEnhanced = function (txn) {
     row.setAttribute('data-row-type', 'main');
 
     // Animation for new rows
-    row.className = 'hover:bg-gray-50 transition-colors border-b border-gray-100 group animate-fade-in-down';
+    row.className = 'hover:bg-gray-50 transition-colors border-b border-gray-100 group animate-fade-in-down cursor-pointer';
 
     // Risk badge logic
     let riskBadge = `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">Low</span>`;
@@ -1081,12 +1126,13 @@ window.buildTransactionRowsEnhanced = function (txn) {
     }
 
     const timeDisplay = timeAgo(txn.timestamp || txn.time);
+    const watTooltip = txn.time_display || formatWATTime(txn.timestamp || txn.time);
     const merchantName = (txn.merchant || 'Unknown').replace(/"/g, '&quot;');
     const location = txn.location || 'Unknown';
     const amount = parseFloat(txn.amount).toLocaleString('en-US', { minimumFractionDigits: 2 });
 
     row.innerHTML = `
-        <td class="px-6 py-4 whitespace-nowrap text-gray-500 font-mono text-xs">
+        <td class="px-6 py-4 whitespace-nowrap text-gray-500 font-mono text-xs" title="${watTooltip}">
             <span class="flex items-center gap-1">
                 <i class="ph ph-clock text-gray-400"></i> ${timeDisplay}
             </span>
@@ -1111,14 +1157,82 @@ window.buildTransactionRowsEnhanced = function (txn) {
             ${txn.status === 'Flagged' ? '<span class="text-orange-600 font-semibold">Flagged</span>' : 'Processed'}
         </td>
         <td class="px-6 py-4">
-             <a href="${window.FRAUDGUARD_BASE_PATH || ''}/alerts?id=${txn.id}&src=dash"
-                class="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-all inline-block" 
-                title="View Analysis">
-                <i class="ph ph-caret-right text-lg"></i>
-            </a>
+            <button class="details-toggle p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-all inline-block" 
+                title="View Fraud Analysis" aria-label="Toggle fraud details">
+                <i class="ph ph-caret-down text-lg"></i>
+            </button>
         </td>
     `;
 
+    // Build expandable details row with fraud explanation factors
+    const detailsRow = document.createElement('tr');
+    detailsRow.className = 'hidden bg-gradient-to-r from-gray-50 to-white';
+    detailsRow.setAttribute('data-row-type', 'details');
+    detailsRow.setAttribute('data-parent-id', txn.id);
+    const detailsCell = document.createElement('td');
+    detailsCell.colSpan = 9;
+    detailsCell.className = 'px-6 py-4';
+
+    // Render top_features content
+    const features = txn.top_features || [];
+    if (features.length > 0) {
+        detailsCell.innerHTML = `
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+                <div class="col-span-2">
+                    <h4 class="font-bold text-gray-700 mb-2 flex items-center gap-1">
+                        <i class="ph ph-shield-warning text-orange-500"></i> Top Risk Factors
+                    </h4>
+                    <ul class="space-y-1.5">
+                        ${features.slice(0, 5).map(f => `
+                            <li class="flex justify-between items-center bg-white rounded px-3 py-1.5 border border-gray-100">
+                                <span class="text-gray-700">${f.feature}</span>
+                                <div class="flex items-center gap-2">
+                                    ${f.value ? `<span class="text-gray-400 text-[10px]">${f.value}</span>` : ''}
+                                    <span class="font-mono font-semibold ${f.contribution > 0.3 ? 'text-red-600' : f.contribution > 0.15 ? 'text-orange-600' : 'text-yellow-600'}">
+                                        +${(f.contribution * 100).toFixed(1)}%
+                                    </span>
+                                </div>
+                            </li>
+                        `).join('')}
+                    </ul>
+                </div>
+                <div class="flex flex-col justify-center items-center gap-2 bg-white rounded-lg border border-gray-100 p-3">
+                    <div class="text-2xl font-bold ${txn.risk_score >= 80 ? 'text-red-600' : txn.risk_score >= 60 ? 'text-orange-600' : txn.risk_score >= 20 ? 'text-yellow-600' : 'text-green-600'}">${txn.risk_score}/100</div>
+                    <div class="text-[10px] text-gray-400 uppercase tracking-wide">Risk Score</div>
+                    <div class="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                        <div class="h-full rounded-full ${txn.risk_score >= 80 ? 'bg-red-500' : txn.risk_score >= 60 ? 'bg-orange-400' : txn.risk_score >= 20 ? 'bg-yellow-400' : 'bg-green-400'}" style="width:${Math.min(txn.risk_score, 100)}%"></div>
+                    </div>
+                    <span class="text-[10px] text-gray-500 italic mt-1">AI-generated analysis • ${features.length} factor${features.length > 1 ? 's' : ''}</span>
+                </div>
+            </div>
+        `;
+    } else {
+        detailsCell.innerHTML = `
+            <div class="flex items-center gap-2 text-gray-400 text-xs py-2">
+                <i class="ph ph-info"></i>
+                <span>No specific risk factors identified for this transaction.</span>
+            </div>
+        `;
+    }
+
+    detailsRow.appendChild(detailsCell);
+
+    // Toggle details row on click
+    const toggleDetails = (e) => {
+        // Don't toggle if they clicked a link
+        if (e && e.target && (e.target.tagName === 'A' || e.target.closest('a'))) return;
+        const isHidden = detailsRow.classList.contains('hidden');
+        detailsRow.classList.toggle('hidden');
+        // Rotate the caret icon
+        const icon = row.querySelector('.details-toggle i');
+        if (icon) {
+            icon.className = isHidden ? 'ph ph-caret-up text-lg' : 'ph ph-caret-down text-lg';
+        }
+    };
+
+    row.addEventListener('click', toggleDetails);
+
     fragment.appendChild(row);
+    fragment.appendChild(detailsRow);
     return fragment;
 }

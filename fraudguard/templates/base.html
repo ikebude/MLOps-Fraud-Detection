@@ -40,8 +40,9 @@
                 </h1>
             </div>
             <nav class="flex-1 px-4 space-y-2">
-                <!-- ANALYST NAVIGATION -->
-                {% if session.get('role') == 'analyst' or not session.get('role') %}
+                <!-- CORE NAVIGATION (Analyst, Ops, Admin) -->
+                {% if session.get('role') in ['analyst', 'operations', 'admin'] %}
+                <p class="text-[10px] text-gray-500 uppercase tracking-widest px-4 pt-4 mb-2">Core Monitoring</p>
                 <a href="{{ base_path }}/"
                     class="flex items-center gap-3 px-4 py-3 rounded-lg transition-colors {% if page == 'overview' %}bg-orange-500 text-white{% else %}text-gray-400 hover:bg-gray-800 hover:text-white{% endif %}">
                     <i class="ph ph-squares-four text-xl"></i> Overview
@@ -50,70 +51,51 @@
                     class="flex items-center gap-3 px-4 py-3 rounded-lg transition-colors {% if page == 'transactions' %}bg-orange-500 text-white{% else %}text-gray-400 hover:bg-gray-800 hover:text-white{% endif %}">
                     <i class="ph ph-list-dashes text-xl"></i> Transactions
                 </a>
-                {% endif %}
-
-                <!-- SHARED: ALERTS (Analyst & Ops) -->
-                {% if session.get('role') in ['analyst', 'operations'] %}
                 <a href="{{ base_path }}/alerts"
                     class="flex items-center gap-3 px-4 py-3 rounded-lg transition-colors {% if page == 'alerts' %}bg-orange-500 text-white{% else %}text-gray-400 hover:bg-gray-800 hover:text-white{% endif %}">
                     <i class="ph ph-warning text-xl"></i> Alerts
                 </a>
                 {% endif %}
 
-                <!-- OPERATIONS NAVIGATION -->
-                {% if session.get('role') == 'operations' %}
+                <!-- ROLE SPECIFIC DASHBOARDS -->
+                <p class="text-[10px] text-gray-500 uppercase tracking-widest px-4 pt-4 mb-2">Advanced Modules</p>
+
+                {% if session.get('role') in ['operations', 'admin'] %}
                 <a href="{{ base_path }}/operations"
                     class="flex items-center gap-3 px-4 py-3 rounded-lg transition-colors {% if page == 'operations' %}bg-orange-500 text-white{% else %}text-gray-400 hover:bg-gray-800 hover:text-white{% endif %}">
-                    <i class="ph ph-briefcase text-xl"></i> Operations
+                    <i class="ph ph-briefcase text-xl"></i> Operations Center
                 </a>
                 {% endif %}
 
-                <!-- EXECUTIVE NAVIGATION -->
-                {% if session.get('role') == 'executive' %}
+                {% if session.get('role') in ['executive', 'admin'] %}
                 <a href="{{ base_path }}/executive"
                     class="flex items-center gap-3 px-4 py-3 rounded-lg transition-colors {% if page == 'executive' %}bg-orange-500 text-white{% else %}text-gray-400 hover:bg-gray-800 hover:text-white{% endif %}">
-                    <i class="ph ph-chart-line-up text-xl"></i> Executive
+                    <i class="ph ph-chart-line-up text-xl"></i> Executive Insights
                 </a>
                 {% endif %}
 
+                {% if session.get('role') == 'admin' %}
+                <a href="{{ base_path }}/admin"
+                    class="flex items-center gap-3 px-4 py-3 rounded-lg transition-colors {% if page == 'admin' %}bg-orange-500 text-white{% else %}text-gray-400 hover:bg-gray-800 hover:text-white{% endif %}">
+                    <i class="ph ph-shield-star text-xl"></i> Admin Panel
+                </a>
+                <a href="{{ base_path }}/system-health"
+                    class="flex items-center gap-3 px-4 py-3 rounded-lg transition-colors {% if page == 'system_health' %}bg-orange-500 text-white{% else %}text-gray-400 hover:bg-gray-800 hover:text-white{% endif %}">
+                    <i class="ph ph-activity text-xl"></i> System Health
+                </a>
+                {% endif %}
 
-
-                <!-- SETTINGS (All Users) -->
+                <!-- SETTINGS & ACCOUNT -->
+                <p class="text-[10px] text-gray-500 uppercase tracking-widest px-4 pt-4 mb-2">Account</p>
                 <a href="{{ base_path }}/settings"
                     class="flex items-center gap-3 px-4 py-3 rounded-lg transition-colors {% if page == 'settings' %}bg-orange-500 text-white{% else %}text-gray-400 hover:bg-gray-800 hover:text-white{% endif %}">
                     <i class="ph ph-gear text-xl"></i> Settings
                 </a>
-                {% if session.get('username') %}
                 <a href="{{ base_path }}/logout"
                     class="flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-red-400 hover:bg-red-900/30 hover:text-red-300">
                     <i class="ph ph-sign-out text-xl"></i> Log Out
                 </a>
-                {% else %}
-                <a href="{{ base_path }}/login"
-                    class="flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-gray-400 hover:bg-gray-800 hover:text-white">
-                    <i class="ph ph-sign-in text-xl"></i> Login
-                </a>
-                {% endif %}
             </nav>
-            <!-- Role-based dashboards -->
-            {% if session.get('role') in ['operations', 'executive'] %}
-            <div class="px-4 pt-2">
-                <p class="text-xs text-gray-500 uppercase tracking-wider px-4 mb-2">Role Dashboards</p>
-
-                {% if session.get('role') == 'executive' %}
-                <a href="{{ base_path }}/executive"
-                    class="flex items-center gap-3 px-4 py-2 rounded-lg transition-colors {% if page == 'executive' %}bg-orange-500 text-white{% else %}text-gray-400 hover:bg-gray-800 hover:text-white{% endif %} text-sm">
-                    <i class="ph ph-chart-line-up text-lg"></i> Executive View
-                </a>
-                {% endif %}
-                {% if session.get('role') == 'operations' %}
-                <a href="{{ base_path }}/operations"
-                    class="flex items-center gap-3 px-4 py-2 rounded-lg transition-colors {% if page == 'operations' %}bg-orange-500 text-white{% else %}text-gray-400 hover:bg-gray-800 hover:text-white{% endif %} text-sm">
-                    <i class="ph ph-clipboard-text text-lg"></i> Operations
-                </a>
-                {% endif %}
-            </div>
-            {% endif %}
             <div class="p-4 border-t border-gray-800">
                 <div class="flex items-center gap-3">
                     <div class="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center">

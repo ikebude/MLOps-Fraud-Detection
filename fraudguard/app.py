@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 import time
 import math
 from dotenv import load_dotenv
-from functools import lru_cache
+from functools import lru_cache, wraps
 import concurrent.futures
 import logging
 import threading
@@ -37,9 +37,10 @@ app.secret_key = os.getenv('SECRET_KEY', 'fraudguard-secret-key-change-in-produc
 
 # User accounts for role-based access (demo/development)
 USERS = {
-    'Analyst User': {'password': 'password', 'role': 'analyst'},
-    'Ops User': {'password': 'password', 'role': 'operations'},
+    'Admin User': {'password': 'password', 'role': 'admin'},
     'Exec User': {'password': 'password', 'role': 'executive'},
+    'Ops User': {'password': 'password', 'role': 'operations'},
+    'Analyst User': {'password': 'password', 'role': 'analyst'},
 }
 
 # In-memory alert store (for demo purposes — would be DB-backed in production)
@@ -139,7 +140,7 @@ def get_live_fraud_feed(limit: int = 100):
                     fp.transaction_id, fp.user_id, fp.amount, fp.fraud_probability,
                     fp.fraud_prediction, fp.fraud_label, fp.risk_level,
                     fp.prediction_timestamp, fp.actual_fraud,
-                    t.vendor_id as merchant, t.location, t.country
+                    t.vendor_id as merchant, t.location, t.country, t.fraud_type
                 FROM fraud_predictions fp
                 LEFT JOIN transactions t ON fp.transaction_id = t.transaction_id
                 WHERE fp.fraud_prediction = 1 OR fp.actual_fraud = 1
@@ -149,7 +150,7 @@ def get_live_fraud_feed(limit: int = 100):
             
             columns = ['transaction_id', 'user_id', 'amount', 'fraud_probability',
                       'fraud_prediction', 'fraud_label', 'risk_level',
-                      'prediction_timestamp', 'actual_fraud', 'merchant', 'location', 'country']
+                      'prediction_timestamp', 'actual_fraud', 'merchant', 'location', 'country', 'fraud_type']
             rows = cur.fetchall()
             
             results = []
@@ -192,7 +193,7 @@ def get_all_predictions_feed(limit: int = 100, offset: int = 0, search: str = No
                     fp.transaction_id, fp.user_id, fp.amount, fp.fraud_probability,
                     fp.fraud_prediction, fp.fraud_label, fp.risk_level,
                     fp.prediction_timestamp, fp.actual_fraud,
-                    t.vendor_id as merchant, t.location, t.country
+                    t.vendor_id as merchant, t.location, t.country, t.fraud_type
                 FROM fraud_predictions fp
                 LEFT JOIN transactions t ON fp.transaction_id = t.transaction_id
             """
@@ -214,7 +215,7 @@ def get_all_predictions_feed(limit: int = 100, offset: int = 0, search: str = No
             
             columns = ['transaction_id', 'user_id', 'amount', 'fraud_probability',
                       'fraud_prediction', 'fraud_label', 'risk_level',
-                      'prediction_timestamp', 'actual_fraud', 'merchant', 'location', 'country']
+                      'prediction_timestamp', 'actual_fraud', 'merchant', 'location', 'country', 'fraud_type']
             rows = cur.fetchall()
             
             results = []
@@ -357,9 +358,54 @@ def get_trend_data(hours: int = 6):
     finally:
         _put_db_connection(conn)
 
-# Initialize database pool on startup
-if PSYCOPG2_AVAILABLE:
-    _init_db_pool()
+# =============================================
+# Helper Decorators & Logic
+# =============================================
+
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'username' not in session:
+            return redirect(FRAUDGUARD_BASE_PATH + '/login')
+        return f(*args, **kwargs)
+    return decorated_function
+
+def role_required(roles):
+    if isinstance(roles, str):
+        roles = [roles]
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            if 'username' not in session:
+                return redirect(FRAUDGUARD_BASE_PATH + '/login')
+            if session.get('role') not in roles:
+                # Redirect to their own dashboard
+                role_dashboards = {
+                    'admin': '/admin',
+                    'executive': '/executive',
+                    'operations': '/operations',
+                    'analyst': '/'
+                }
+                return redirect(FRAUDGUARD_BASE_PATH + role_dashboards.get(session.get('role'), '/'))
+            return f(*args, **kwargs)
+        return decorated_function
+    return decorator
+
+@app.before_request
+def check_auth():
+    """Global authentication check."""
+    # List of open endpoints
+    allowed_paths = ['/login', '/logout', '/forgot-password', '/health', '/api/health']
+    
+    # Check if request path is in allowed or starts with /static/
+    current_path = request.path
+    if FRAUDGUARD_BASE_PATH and current_path.startswith(FRAUDGUARD_BASE_PATH):
+        current_path = current_path[len(FRAUDGUARD_BASE_PATH):]
+        
+    is_allowed = any(current_path == p for p in allowed_paths) or current_path.startswith('/static/')
+    
+    if not is_allowed and 'username' not in session:
+        return redirect(FRAUDGUARD_BASE_PATH + '/login')
 
 DEFAULT_DATA = {
     'metrics': {
@@ -440,6 +486,8 @@ def _build_transactions(results, sort_by: str = 'timestamp', sort_order: str = '
         risk_score = int(fraud_prob * 100) if fraud_prob > 0 else int(confidence * 100)
         
         # Format timestamp - use WAT (West Africa Time, UTC+1)
+        # IMPORTANT: time_str must be ISO 8601 so JavaScript's new Date() can parse it.
+        # WAT = UTC+1, so we append '+01:00' to the ISO string.
         sort_timestamp = None
         if timestamp:
             try:
@@ -449,35 +497,44 @@ def _build_transactions(results, sort_by: str = 'timestamp', sort_order: str = '
                 else:
                     dt = timestamp
                 # Convert to WAT (UTC+1) for Nigerian market
-
                 if dt.tzinfo is None:
                     # Assume UTC, add 1 hour for WAT
                     dt_wat = dt + timedelta(hours=1)
                 else:
                     dt_wat = dt + timedelta(hours=1)
-                time_str = dt_wat.strftime('%Y-%m-%d %H:%M:%S WAT')
+                # ISO 8601 format with +01:00 offset — JS can parse this
+                time_str = dt_wat.strftime('%Y-%m-%dT%H:%M:%S') + '+01:00'
+                time_display = dt_wat.strftime('%Y-%m-%d %H:%M:%S WAT')
                 sort_timestamp = dt.timestamp()
             except:
                 time_str = str(timestamp)
+                time_display = str(timestamp)
                 sort_timestamp = 0
         else:
-
             dt = datetime.utcnow() + timedelta(hours=1)
-            time_str = dt.strftime('%Y-%m-%d %H:%M:%S WAT')
+            time_str = dt.strftime('%Y-%m-%dT%H:%M:%S') + '+01:00'
+            time_display = dt.strftime('%Y-%m-%d %H:%M:%S WAT')
             sort_timestamp = dt.timestamp()
         
         # Get top features if available
         top_features = result.get('top_features', []) if isinstance(result, dict) else []
         
         # Generate explanations from available data when top_features is empty
-        if not top_features and fraud_prob > 0:
+        if not top_features and (fraud_prob > 0 or fraud_pred == 1):
             explanations = []
+            
+            # Use fraud_type if available (most descriptive)
+            fraud_type = _pick_first(result, ['fraud_type'], None)
+            if fraud_type and fraud_type != 'None':
+                explanations.append({'feature': 'Fraud Type (Ground Truth)', 'contribution': 0.95, 'value': fraud_type.replace('_', ' ').title()})
+            
             # Amount-based explanation
             amt = float(amount) if amount else 0.0
             if amt > 100000:
                 explanations.append({'feature': 'High Transaction Amount', 'contribution': round(fraud_prob * 0.35, 3), 'value': f'₦{amt:,.2f}'})
             elif amt > 50000:
                 explanations.append({'feature': 'Elevated Amount', 'contribution': round(fraud_prob * 0.25, 3), 'value': f'₦{amt:,.2f}'})
+            
             # Fraud probability explanation
             if fraud_prob >= 0.8:
                 explanations.append({'feature': 'Very High Fraud Score', 'contribution': round(fraud_prob * 0.4, 3), 'value': f'{fraud_prob:.2%}'})
@@ -485,14 +542,17 @@ def _build_transactions(results, sort_by: str = 'timestamp', sort_order: str = '
                 explanations.append({'feature': 'Elevated Fraud Score', 'contribution': round(fraud_prob * 0.3, 3), 'value': f'{fraud_prob:.2%}'})
             elif fraud_prob >= 0.2:
                 explanations.append({'feature': 'Moderate Fraud Score', 'contribution': round(fraud_prob * 0.2, 3), 'value': f'{fraud_prob:.2%}'})
+                
             # Risk level explanation
             risk_lvl = _pick_first(result, ['risk_level'], None)
             if risk_lvl and risk_lvl in ('CRITICAL', 'HIGH'):
                 explanations.append({'feature': f'{risk_lvl} Risk Classification', 'contribution': round(fraud_prob * 0.25, 3), 'value': risk_lvl})
+            
             # Actual fraud flag
             actual = _pick_first(result, ['actual_fraud', 'is_fraud'], None)
             if actual and int(actual) == 1:
                 explanations.append({'feature': 'Confirmed Fraud', 'contribution': 1.0, 'value': 'Yes'})
+            
             top_features = explanations
         
         # Get merchant/vendor info - Prioritize the joined 'merchant' column
@@ -524,6 +584,7 @@ def _build_transactions(results, sort_by: str = 'timestamp', sort_order: str = '
             'user_id': user_id,
             'time': time_str,
             'timestamp': time_str,
+            'time_display': time_display,
             '_sort_timestamp': sort_timestamp,
             'merchant': merchant,
             'location': location,
@@ -833,16 +894,19 @@ def get_inference_health():
         return {'status': 'unreachable'}
 
 @app.route('/')
+@login_required
 def index():
     """Dashboard home page"""
     return render_template('dashboard.html', page='overview')
 
 @app.route('/transactions')
+@login_required
 def transactions():
     """Transactions page"""
     return render_template('transactions.html', page='transactions')
 
 @app.route('/system-health')
+@role_required(['admin'])
 def system_health():
     """System Health page"""
     try:
@@ -886,6 +950,7 @@ def system_health():
                              sys_env={'os': 'Unknown', 'python_version': 'N/A', 'threads': 0, 'db_available': False})
 
 @app.route('/alerts')
+@role_required(['analyst', 'operations', 'admin'])
 def alerts():
     """Alerts page"""
     try:
@@ -902,6 +967,7 @@ def alerts():
         return render_template('alerts.html', page='alerts', alerts=[], USERS=USERS)
 
 @app.route('/settings')
+@login_required
 def settings_page_view():
     """Settings page"""
     try:
@@ -924,6 +990,7 @@ def settings_page_view():
                              db_available=False)
 
 @app.route('/api/transactions')
+@login_required
 def api_transactions():
     """
     API endpoint for paginated transactions.
@@ -968,6 +1035,7 @@ def api_transactions():
         }), 500
 
 @app.route('/api/data')
+@login_required
 def api_data():
     """API endpoint for dashboard data - fetches REAL-TIME data from fraud_predictions database."""
     try:
@@ -1158,6 +1226,7 @@ def api_data():
 
 
 @app.route('/api/stream')
+@login_required
 def api_stream():
     """Server-Sent Events stream for REAL-TIME database updates."""
     interval_ms = int(request.args.get('interval_ms', '250'))  # 250ms for TRUE real-time
@@ -1323,6 +1392,16 @@ def api_health():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     """Login page with role selection"""
+    # Redirect if already logged in
+    if 'username' in session:
+        role_dashboards = {
+            'admin': '/admin',
+            'executive': '/executive',
+            'operations': '/operations',
+            'analyst': '/'
+        }
+        return redirect(FRAUDGUARD_BASE_PATH + role_dashboards.get(session.get('role'), '/'))
+
     if request.method == 'POST':
         username = request.form.get('username', '')
         password = request.form.get('password', '')
@@ -1367,12 +1446,20 @@ def forgot_password():
 
 
 
+@app.route('/admin')
+@role_required(['admin'])
+def admin_dashboard():
+    """Admin dashboard — system oversight"""
+    return render_template('admin_dashboard.html', page='admin', USERS=USERS)
+
 @app.route('/executive')
+@role_required(['executive', 'admin'])
 def exec_dashboard():
     """Executive dashboard — high-level KPIs and trends"""
     return render_template('exec_dashboard.html', page='executive')
 
 @app.route('/operations')
+@role_required(['operations', 'admin'])
 def ops_dashboard():
     """Operations dashboard — case list and actions"""
     return render_template('ops_dashboard.html', page='operations')
@@ -1432,6 +1519,7 @@ def _build_alert_from_transaction(txn, idx):
     return alert
 
 @app.route('/api/alerts', methods=['GET'])
+@role_required(['analyst', 'operations', 'admin'])
 def api_alerts_list():
     """Get alerts with optional filters."""
     try:
@@ -1469,6 +1557,7 @@ def api_alerts_list():
         return jsonify([]), 500
 
 @app.route('/api/alerts/<alert_id>', methods=['GET', 'POST'])
+@login_required
 def api_alert_detail(alert_id):
     """Get or update a single alert."""
     if request.method == 'GET':
@@ -1547,6 +1636,7 @@ def api_alert_detail(alert_id):
         return jsonify({'success': True, 'alert': existing})
 
 @app.route('/api/system/logs', methods=['GET'])
+@role_required(['admin'])
 def api_system_logs():
     """Get recent integration simulation logs."""
     return jsonify(_integration_logs)
@@ -1556,6 +1646,7 @@ def api_system_logs():
 # =============================================
 
 @app.route('/api/notification-settings', methods=['GET', 'POST'])
+@role_required(['admin'])
 def api_notification_settings():
     """Get or update notification settings."""
     global _notification_settings
