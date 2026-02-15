@@ -902,7 +902,7 @@ def alerts():
         return render_template('alerts.html', page='alerts', alerts=[], USERS=USERS)
 
 @app.route('/settings')
-def settings():
+def settings_page_view():
     """Settings page"""
     try:
         # Get current configuration
@@ -1377,10 +1377,7 @@ def ops_dashboard():
     """Operations dashboard — case list and actions"""
     return render_template('ops_dashboard.html', page='operations')
 
-@app.route('/settings')
-def settings():
-    """User settings page"""
-    return render_template('settings.html', page='settings')
+
 
 # =============================================
 # Alerts API (supports the enhanced alerts page)
