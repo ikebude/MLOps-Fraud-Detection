@@ -51,3 +51,6 @@
 [2026-02-13T15:37:11.681+0000] {fraud_detection_training.py:858} INFO - Starting hyperparameter tuning with RECALL MAXIMIZATION (beta=5, realistic fraud prevention)...
 [2026-02-13T15:37:11.735+0000] {logging_mixin.py:190} INFO - Fitting 3 folds for each of 50 candidates, totalling 150 fits
 [2026-02-15T07:26:58.563+0000] {local_task_job_runner.py:123} INFO - ::group::Pre task execution logs
+[2026-02-16T08:22:15.704+0000] {local_task_job_runner.py:123} INFO - ::group::Pre task execution logs
+[2026-02-16T08:22:15.756+0000] {taskinstance.py:2602} INFO - Dependencies not met for <TaskInstance: fraud_detection_training.execute_training scheduled__2026-02-12T12:00:00+00:00 [failed]>, dependency 'Task Instance State' FAILED: Task is in the 'failed' state.
+[2026-02-16T08:22:15.770+0000] {local_task_job_runner.py:166} INFO - Task is not able to be run

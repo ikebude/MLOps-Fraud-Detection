@@ -1,0 +1,54 @@
+[2026-02-15T09:20:16.760+0000] {local_task_job_runner.py:123} INFO - ::group::Pre task execution logs
+[2026-02-15T09:20:16.964+0000] {taskinstance.py:2612} INFO - Dependencies all met for dep_context=non-requeueable deps ti=<TaskInstance: fraud_detection_training.execute_training scheduled__2026-02-13T12:00:00+00:00 [queued]>
+[2026-02-15T09:20:17.015+0000] {taskinstance.py:2612} INFO - Dependencies all met for dep_context=requeueable deps ti=<TaskInstance: fraud_detection_training.execute_training scheduled__2026-02-13T12:00:00+00:00 [queued]>
+[2026-02-15T09:20:17.016+0000] {taskinstance.py:2865} INFO - Starting attempt 1 of 1
+[2026-02-15T09:20:17.185+0000] {taskinstance.py:2888} INFO - Executing <Task(PythonOperator): execute_training> on 2026-02-13 12:00:00+00:00
+[2026-02-15T09:20:17.287+0000] {warnings.py:112} WARNING - /home/***/.local/lib/python3.12/site-packages/***/task/task_runner/standard_task_runner.py:70: DeprecationWarning: This process (pid=188) is multi-threaded, use of fork() may lead to deadlocks in the child.
+  pid = os.fork()
+
+[2026-02-15T09:20:17.331+0000] {standard_task_runner.py:72} INFO - Started process 201 to run task
+[2026-02-15T09:20:17.308+0000] {standard_task_runner.py:104} INFO - Running: ['***', 'tasks', 'run', 'fraud_detection_training', 'execute_training', 'scheduled__2026-02-13T12:00:00+00:00', '--job-id', '173', '--raw', '--subdir', 'DAGS_FOLDER/fraud_detection_training_dag.py', '--cfg-path', '/tmp/tmpmfa_hw0t']
+[2026-02-15T09:20:17.359+0000] {standard_task_runner.py:105} INFO - Job 173: Subtask execute_training
+[2026-02-15T09:20:19.941+0000] {task_command.py:467} INFO - Running <TaskInstance: fraud_detection_training.execute_training scheduled__2026-02-13T12:00:00+00:00 [running]> on host 078751fe78e0
+[2026-02-15T09:20:22.474+0000] {taskinstance.py:3131} INFO - Exporting env vars: AIRFLOW_CTX_DAG_OWNER='datamasterylab.com' AIRFLOW_CTX_DAG_ID='fraud_detection_training' AIRFLOW_CTX_TASK_ID='execute_training' AIRFLOW_CTX_EXECUTION_DATE='2026-02-13T12:00:00+00:00' AIRFLOW_CTX_TRY_NUMBER='1' AIRFLOW_CTX_DAG_RUN_ID='scheduled__2026-02-13T12:00:00+00:00'
+[2026-02-15T09:20:22.477+0000] {taskinstance.py:731} INFO - ::endgroup::
+[2026-02-15T09:20:22.843+0000] {fraud_detection_training_dag.py:121} INFO - Initializing fraud detection training (transactions_table=transactions)
+[2026-02-15T09:20:23.023+0000] {fraud_detection_training.py:144} INFO - Configuration loaded successfully
+[2026-02-15T09:20:23.025+0000] {fraud_detection_training.py:158} INFO - Database configured: postgres
+[2026-02-15T09:20:31.874+0000] {fraud_detection_training.py:195} INFO - Object storage verified. Buckets: ['mlflow']
+[2026-02-15T09:20:32.904+0000] {fraud_detection_training.py:241} INFO - MLflow configured successfully
+[2026-02-15T09:20:32.934+0000] {fraud_detection_training.py:137} INFO - Fraud detection training system initialized
+[2026-02-15T09:20:32.961+0000] {fraud_detection_training_dag.py:128} INFO - Starting model training...
+[2026-02-15T09:20:33.227+0000] {fraud_detection_training_dag.py:134} INFO - Requested training batch_size=100000, min_records=100000
+[2026-02-15T09:20:33.233+0000] {fraud_detection_training.py:257} INFO - Starting data ingestion from PostgreSQL (table=transactions, limit=100000)...
+[2026-02-15T09:20:33.244+0000] {fraud_detection_training.py:279} INFO - Connecting to transactions DB: postgres:5432/transactions_db (user=fraud_producer)
+[2026-02-15T09:20:33.349+0000] {fraud_detection_training.py:334} INFO - Executing query (limit=100000) against transactions
+[2026-02-15T09:21:14.867+0000] {fraud_detection_training.py:355} INFO - Ingested 100000 raw transactions from transactions (requested 100000)
+[2026-02-15T09:21:14.968+0000] {fraud_detection_training.py:357} INFO - Date range: 2026-02-09 08:30:27.158605 to 2026-02-15 09:20:32.154757
+[2026-02-15T09:21:14.970+0000] {fraud_detection_training.py:358} INFO - Fraud rate: 2.79%
+[2026-02-15T09:21:14.987+0000] {fraud_detection_training.py:697} INFO - Starting model training...
+[2026-02-15T09:21:24.153+0000] {font_manager.py:1095} WARNING - Matplotlib is building the font cache; this may take a moment.
+[2026-02-15T09:21:26.542+0000] {font_manager.py:1639} INFO - generated new fontManager
+[2026-02-15T09:21:38.224+0000] {fraud_detection_training.py:377} INFO - Starting feature engineering for 74 features (54 engineered + 20 raw)...
+[2026-02-15T09:21:43.289+0000] {fraud_detection_training.py:390} INFO - Engineering amount-based features (strongest signal)...
+[2026-02-15T09:21:47.227+0000] {fraud_detection_training.py:444} INFO - Engineering identity features...
+[2026-02-15T09:21:47.669+0000] {fraud_detection_training.py:465} INFO - Engineering device features...
+[2026-02-15T09:21:55.465+0000] {fraud_detection_training.py:496} INFO - Engineering location features...
+[2026-02-15T09:21:58.278+0000] {fraud_detection_training.py:511} INFO - Engineering payment features...
+[2026-02-15T09:22:19.800+0000] {fraud_detection_training.py:539} INFO - Engineering network features...
+[2026-02-15T09:22:26.348+0000] {fraud_detection_training.py:565} INFO - Engineering behavioral features...
+[2026-02-15T09:22:26.776+0000] {fraud_detection_training.py:593} INFO - Engineering product features...
+[2026-02-15T09:22:27.071+0000] {fraud_detection_training.py:602} INFO - Engineering address features...
+[2026-02-15T09:22:32.120+0000] {fraud_detection_training.py:613} INFO - Engineering delivery and refund features...
+[2026-02-15T09:22:33.812+0000] {fraud_detection_training.py:650} INFO - Adding aggregate features...
+[2026-02-15T09:22:38.854+0000] {fraud_detection_training.py:681} INFO - Feature engineering complete with enhanced amount-based features
+[2026-02-15T09:22:38.872+0000] {fraud_detection_training.py:682} INFO - Total columns: 96 (engineered + raw)
+[2026-02-15T09:22:38.888+0000] {fraud_detection_training.py:716} INFO - Post-engineering columns: 96
+[2026-02-15T09:22:50.435+0000] {fraud_detection_training.py:738} INFO - Training with 77 features
+[2026-02-15T09:22:50.447+0000] {fraud_detection_training.py:739} INFO - Categorical: 12, Numeric: 64
+[2026-02-15T09:22:50.455+0000] {fraud_detection_training.py:740} INFO - Class distribution: {0: 97210, 1: 2790}
+[2026-02-15T09:22:54.491+0000] {fraud_detection_training.py:808} INFO - Computed scale_pos_weight=52.2634 (base=34.8423, neg=77768, pos=2232)
+[2026-02-15T09:22:55.163+0000] {fraud_detection_training.py:822} INFO - Constructing pipeline with SMOTE for class imbalance
+[2026-02-15T09:22:55.204+0000] {fraud_detection_training.py:858} INFO - Starting hyperparameter tuning with RECALL MAXIMIZATION (beta=5, realistic fraud prevention)...
+[2026-02-15T09:22:55.374+0000] {logging_mixin.py:190} INFO - Fitting 3 folds for each of 50 candidates, totalling 150 fits
+[2026-02-16T08:59:23.341+0000] {local_task_job_runner.py:123} INFO - ::group::Pre task execution logs
