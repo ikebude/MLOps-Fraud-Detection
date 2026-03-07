@@ -1,0 +1,288 @@
+{% extends "base.html" %}
+
+{% block content %}
+<!-- Data Freshness Indicator -->
+<div class="mb-4">
+    <div class="data-freshness">
+        <span class="realtime-indicator" id="realtime-indicator"></span>
+        <span id="data-timestamp">Loading...</span>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+    <!-- Metric Card 1 - Total Transactions -->
+    <div
+        class="metric-card bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-all cursor-pointer group">
+        <div class="flex justify-between items-start mb-4">
+            <div class="flex-1">
+                <p class="text-sm text-gray-500 mb-1 flex items-center gap-2">
+                    <span>Total Transactions</span>
+                    <span class="tooltip-enhanced" data-tooltip="Cumulative count of all processed transactions">
+                        <i class="ph ph-info text-gray-400 text-xs"></i>
+                    </span>
+                </p>
+                <h3 class="text-2xl font-bold text-gray-900 metric-value" id="total-txn">
+                    <span class="skeleton inline-block w-20 h-8 rounded"></span>
+                </h3>
+                <div class="sparkline-container" id="total-txn-sparkline"></div>
+            </div>
+            <div class="p-2 bg-blue-50 text-blue-600 rounded-lg group-hover:bg-blue-100 transition-colors">
+                <i class="ph ph-arrows-left-right text-xl"></i>
+            </div>
+        </div>
+        <div class="flex items-center text-sm" id="total-txn-trend">
+            <i class="ph ph-trend-up mr-1"></i>
+            <span>Calculating trend...</span>
+        </div>
+    </div>
+
+    <!-- Metric Card 2 - Fraud Rate -->
+    <div
+        class="metric-card bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-all cursor-pointer group">
+        <div class="flex justify-between items-start mb-4">
+            <div class="flex-1">
+                <p class="text-sm text-gray-500 mb-1 flex items-center gap-2">
+                    <span>Fraud Rate</span>
+                    <span class="tooltip-enhanced" data-tooltip="Percentage of transactions flagged as fraudulent">
+                        <i class="ph ph-info text-gray-400 text-xs"></i>
+                    </span>
+                </p>
+                <h3 class="text-2xl font-bold text-gray-900 metric-value" id="fraud-rate">
+                    <span class="skeleton inline-block w-16 h-8 rounded"></span>
+                </h3>
+                <div class="sparkline-container" id="fraud-rate-sparkline"></div>
+            </div>
+            <div class="p-2 bg-blue-50 text-blue-600 rounded-lg group-hover:bg-blue-100 transition-colors">
+                <i class="ph ph-warning-circle text-xl"></i>
+            </div>
+        </div>
+        <div class="flex items-center text-sm" id="fraud-rate-trend" title="Comparison to baseline">
+            <i class="ph ph-trend-up mr-1"></i>
+            <span>Calculating variance...</span>
+        </div>
+    </div>
+
+    <!-- Metric Card 3 - Approval Rate -->
+    <div
+        class="metric-card bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-all cursor-pointer group">
+        <div class="flex justify-between items-start mb-4">
+            <div class="flex-1">
+                <p class="text-sm text-gray-500 mb-1 flex items-center gap-2">
+                    <span>Approval Rate</span>
+                    <span class="tooltip-enhanced" data-tooltip="Percentage of transactions approved">
+                        <i class="ph ph-info text-gray-400 text-xs"></i>
+                    </span>
+                </p>
+                <h3 class="text-2xl font-bold text-gray-900 metric-value" id="approval-rate">
+                    <span class="skeleton inline-block w-16 h-8 rounded"></span>
+                </h3>
+                <div class="sparkline-container" id="approval-rate-sparkline"></div>
+            </div>
+            <div class="p-2 bg-green-50 text-green-600 rounded-lg group-hover:bg-green-100 transition-colors">
+                <i class="ph ph-check-circle text-xl"></i>
+            </div>
+        </div>
+        <div class="flex items-center text-sm" id="approval-rate-trend">
+            <i class="ph ph-trend-up mr-1"></i>
+            <span>Calculating trend...</span>
+        </div>
+    </div>
+
+    <!-- Metric Card 4 - Active Alerts -->
+    <div
+        class="metric-card bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-all cursor-pointer group">
+        <div class="flex justify-between items-start mb-4">
+            <div class="flex-1">
+                <p class="text-sm text-gray-500 mb-1 flex items-center gap-2">
+                    <span>Active Alerts</span>
+                    <span class="tooltip-enhanced" data-tooltip="Number of transactions requiring review">
+                        <i class="ph ph-info text-gray-400 text-xs"></i>
+                    </span>
+                </p>
+                <h3 class="text-2xl font-bold text-gray-900 metric-value" id="active-alerts">
+                    <span class="skeleton inline-block w-12 h-8 rounded"></span>
+                </h3>
+            </div>
+            <div class="p-2 bg-red-50 text-red-600 rounded-lg group-hover:bg-red-100 transition-colors">
+                <i class="ph ph-bell text-xl"></i>
+            </div>
+        </div>
+        <div class="flex items-center text-sm" id="alerts-status">
+            <span>Calculating...</span>
+        </div>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+    <!-- Chart -->
+    <div class="lg:col-span-2 bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+        <div class="flex justify-between items-center mb-6">
+            <div>
+                <h3 class="text-lg font-semibold text-gray-900">Transaction Volume &amp; Fraud Trends</h3>
+                <p class="text-xs text-gray-500 mt-1">Real-time monitoring with 15-minute intervals</p>
+            </div>
+            <div class="flex gap-2">
+                <button class="px-3 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded chart-time-btn active"
+                    data-period="1h">1H</button>
+                <button class="px-3 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded chart-time-btn"
+                    data-period="6h">6H</button>
+                <button class="px-3 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded chart-time-btn"
+                    data-period="24h">24H</button>
+            </div>
+        </div>
+        <div class="chart-container h-96 relative">
+            <canvas id="mainChart"></canvas>
+            <div class="chart-overlay">
+                <div class="text-center">
+                    <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                    <p class="mt-2 text-sm text-gray-600">Loading chart data...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Model Health (now to the RIGHT of the chart in same grid row) -->
+    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+        <div class="flex justify-between items-center mb-6">
+            <h3 class="text-lg font-semibold text-gray-900">Model Health</h3>
+            <span class="text-xs text-gray-400" id="model-last-updated">-</span>
+        </div>
+        <div class="space-y-4">
+            <div class="p-3 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-xs font-medium text-gray-600 uppercase tracking-wide">Model Info</span>
+                </div>
+                <div class="space-y-1.5">
+                    <div class="flex justify-between items-center">
+                        <span class="text-xs text-gray-600">Name</span>
+                        <span class="text-xs font-semibold text-gray-900" id="model-name">
+                            <span class="skeleton inline-block w-20 h-3 rounded"></span>
+                        </span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-xs text-gray-600">Version</span>
+                        <span class="text-xs font-medium text-blue-600" id="model-version">
+                            <span class="skeleton inline-block w-10 h-3 rounded"></span>
+                        </span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-xs text-gray-600">Source</span>
+                        <span class="text-[10px] font-medium px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded"
+                            id="model-source-badge">-</span>
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <div class="flex justify-between items-center mb-1.5">
+                    <span class="text-xs text-gray-600">Accuracy (Precision)</span>
+                    <span class="text-xs font-bold text-green-600 metric-value" id="model-accuracy">
+                        <span class="skeleton inline-block w-10 h-3 rounded"></span>
+                    </span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
+                    <div class="bg-gradient-to-r from-green-400 to-green-600 h-2.5 rounded-full transition-all duration-500 ease-out"
+                        id="accuracy-progress-bar" style="width: 0%"></div>
+                </div>
+                <p class="text-[10px] text-gray-500 mt-0.5">Based on test set precision score</p>
+            </div>
+
+            <div class="p-3 rounded-lg border-2" id="drift-container">
+                <div class="flex items-center justify-between mb-1.5">
+                    <div class="flex items-center gap-1.5">
+                        <i class="ph ph-activity text-sm" id="drift-icon"></i>
+                        <span class="text-xs font-medium text-gray-900">Data Drift</span>
+                    </div>
+                    <span class="status-badge text-xs font-semibold" id="drift-status">
+                        <span class="skeleton inline-block w-14 h-3 rounded"></span>
+                    </span>
+                </div>
+                <p class="text-[10px] text-gray-600 mt-1" id="drift-explanation">Monitoring fraud rate against baseline...
+                </p>
+            </div>
+
+            <!-- Enhanced Inference Stats -->
+            <div class="p-3 bg-gradient-to-br from-indigo-50 to-purple-50 rounded-lg border border-indigo-200">
+                <div class="flex items-center gap-1.5 mb-2">
+                    <i class="ph ph-chart-line text-indigo-600 text-sm"></i>
+                    <span class="text-xs font-semibold text-gray-900">Live Inference</span>
+                </div>
+                <div class="space-y-2 text-[11px]">
+                    <div class="flex justify-between items-center py-0.5 border-b border-indigo-100">
+                        <span class="text-gray-600">Avg Fraud Prob</span>
+                        <span class="font-bold text-indigo-700" id="avg-fraud-prob">-</span>
+                    </div>
+                    <div class="flex justify-between items-center py-0.5 border-b border-indigo-100">
+                        <span class="text-gray-600">Avg Confidence</span>
+                        <span class="font-bold text-indigo-700" id="avg-confidence">-</span>
+                    </div>
+                    <div class="flex justify-between items-center py-0.5">
+                        <span class="text-gray-600">Total Processed</span>
+                        <span class="font-semibold text-gray-900" id="inference-total">-</span>
+                    </div>
+                    <div class="flex justify-between items-center py-0.5">
+                        <span class="text-gray-600">Fraud Detections</span>
+                        <span class="font-semibold text-red-600" id="inference-fraud">-</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Live Feed -->
+<div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+    <div
+        class="px-6 py-4 border-b border-gray-200 flex justify-between items-center bg-gradient-to-r from-red-50 to-white">
+        <div>
+            <div class="flex items-center gap-2">
+                <span class="relative flex h-3 w-3">
+                    <span
+                        class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                </span>
+                <h3 class="text-lg font-bold text-gray-900">Live Fraud Transaction Feed</h3>
+            </div>
+            <p class="text-xs text-gray-500 mt-1 ml-5">Real-time stream of detected high-risk transactions</p>
+        </div>
+        <a href="{{ base_path }}/transactions"
+            class="text-sm text-indigo-600 hover:text-indigo-700 font-medium flex items-center gap-1">
+            <span>View All History</span>
+            <i class="ph ph-arrow-right"></i>
+        </a>
+    </div>
+    <div class="overflow-x-auto max-h-[600px] overflow-y-auto custom-scrollbar">
+        <table class="w-full text-left relative">
+            <thead class="bg-gray-50 text-gray-500 text-xs uppercase sticky top-0 z-10 shadow-sm">
+                <tr>
+                    <th class="px-6 py-3 font-medium bg-gray-50">Time</th>
+                    <th class="px-6 py-3 font-medium bg-gray-50">Transaction ID</th>
+                    <th class="px-6 py-3 font-medium bg-gray-50">Merchant</th>
+                    <th class="px-6 py-3 font-medium bg-gray-50">Location</th>
+                    <th class="px-6 py-3 font-medium bg-gray-50">Amount</th>
+                    <th class="px-6 py-3 font-medium bg-gray-50">Risk Score</th>
+                    <th class="px-6 py-3 font-medium bg-gray-50">Risk Level</th>
+                    <th class="px-6 py-3 font-medium bg-gray-50">Status</th>
+                    <th class="px-6 py-3 font-medium bg-gray-50">Details</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200 text-sm" id="txn-table-body">
+                <tr>
+                    <td colspan="9" class="px-6 py-8 text-center text-gray-400">
+                        <div class="flex flex-col items-center gap-2">
+                            <div class="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600">
+                            </div>
+                            <span>Connecting to live fraud stream...</span>
+                        </div>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+
+
+
+

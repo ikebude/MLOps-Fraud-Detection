@@ -1,0 +1,73 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info
+dist
+build
+.pytest_cache
+.coverage
+htmlcov
+
+# Virtual environments
+env/
+venv/
+ENV/
+.venv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Documentation
+*.md
+!README.md
+
+# Scripts (not needed in containers)
+scripts/
+
+# Data (should be mounted as volumes)
+data/
+*.csv
+*.json
+
+# Models (should be mounted as volumes)
+models/
+*.pkl
+*.h5
+*.onnx
+
+# Airflow specific
+state/
+logs/
+plugins/__pycache__
+
+
+
+
+

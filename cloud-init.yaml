@@ -1,0 +1,48 @@
+#cloud-config
+package_upgrade: true
+packages:
+  - docker.io
+  - docker-compose
+  - git
+  - curl
+  - wget
+  - htop
+  - unzip
+
+runcmd:
+  - systemctl enable docker
+  - systemctl start docker
+  - usermod -aG docker ubuntu
+  - curl -fsSL https://deb.nodesource.com/setup_16.x | bash -
+  - apt-get install -y nodejs
+  - mkdir -p /opt/fraud-detection
+  - cd /opt/fraud-detection
+  - git clone https://github.com/your-repo/MLOps_Fraud_Detection.git .
+  - chmod +x scripts/setup-local.sh
+  - ./scripts/setup-local.sh
+
+write_files:
+  - path: /etc/docker/daemon.json
+    content: |
+      {
+        "log-driver": "json-file",
+        "log-opts": {
+          "max-size": "10m",
+          "max-file": "3"
+        },
+        "storage-driver": "overlay2"
+      }
+  - path: /etc/sysctl.conf
+    content: |
+      # Increase network buffer sizes
+      net.core.rmem_max = 16777216
+      net.core.wmem_max = 16777216
+      # Increase file descriptor limits
+      fs.file-max = 2097152
+
+final_message: "MLOps Fraud Detection VM setup completed. Services will be available after Docker Compose startup."
+
+
+
+
+

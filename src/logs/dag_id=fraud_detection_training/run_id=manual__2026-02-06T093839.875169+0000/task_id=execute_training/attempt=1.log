@@ -1,0 +1,78 @@
+[2026-02-06T09:39:15.608+0000] {local_task_job_runner.py:123} INFO - ::group::Pre task execution logs
+[2026-02-06T09:39:15.678+0000] {taskinstance.py:2612} INFO - Dependencies all met for dep_context=non-requeueable deps ti=<TaskInstance: fraud_detection_training.execute_training manual__2026-02-06T09:38:39.875169+00:00 [queued]>
+[2026-02-06T09:39:15.717+0000] {taskinstance.py:2612} INFO - Dependencies all met for dep_context=requeueable deps ti=<TaskInstance: fraud_detection_training.execute_training manual__2026-02-06T09:38:39.875169+00:00 [queued]>
+[2026-02-06T09:39:15.732+0000] {taskinstance.py:2865} INFO - Starting attempt 1 of 1
+[2026-02-06T09:39:15.830+0000] {taskinstance.py:2888} INFO - Executing <Task(PythonOperator): execute_training> on 2026-02-06 09:38:39.875169+00:00
+[2026-02-06T09:39:15.863+0000] {warnings.py:112} WARNING - /home/***/.local/lib/python3.12/site-packages/***/task/task_runner/standard_task_runner.py:70: DeprecationWarning: This process (pid=3278) is multi-threaded, use of fork() may lead to deadlocks in the child.
+  pid = os.fork()
+
+[2026-02-06T09:39:15.885+0000] {standard_task_runner.py:72} INFO - Started process 3291 to run task
+[2026-02-06T09:39:15.876+0000] {standard_task_runner.py:104} INFO - Running: ['***', 'tasks', 'run', 'fraud_detection_training', 'execute_training', 'manual__2026-02-06T09:38:39.875169+00:00', '--job-id', '46', '--raw', '--subdir', 'DAGS_FOLDER/fraud_detection_training_dag.py', '--cfg-path', '/tmp/tmpvppla1dx']
+[2026-02-06T09:39:15.902+0000] {standard_task_runner.py:105} INFO - Job 46: Subtask execute_training
+[2026-02-06T09:39:16.062+0000] {task_command.py:467} INFO - Running <TaskInstance: fraud_detection_training.execute_training manual__2026-02-06T09:38:39.875169+00:00 [running]> on host 76a62e6a2564
+[2026-02-06T09:39:16.311+0000] {taskinstance.py:3131} INFO - Exporting env vars: AIRFLOW_CTX_DAG_OWNER='datamasterylab.com' AIRFLOW_CTX_DAG_ID='fraud_detection_training' AIRFLOW_CTX_TASK_ID='execute_training' AIRFLOW_CTX_EXECUTION_DATE='2026-02-06T09:38:39.875169+00:00' AIRFLOW_CTX_TRY_NUMBER='1' AIRFLOW_CTX_DAG_RUN_ID='manual__2026-02-06T09:38:39.875169+00:00'
+[2026-02-06T09:39:16.313+0000] {taskinstance.py:731} INFO - ::endgroup::
+[2026-02-06T09:39:16.404+0000] {fraud_detection_training_dag.py:66} INFO - Initializing fraud detection training (transactions_table=transactions)
+[2026-02-06T09:39:16.444+0000] {fraud_detection_training.py:106} INFO - Configuration loaded successfully
+[2026-02-06T09:39:16.445+0000] {fraud_detection_training.py:120} INFO - Database configured: postgres
+[2026-02-06T09:39:18.395+0000] {fraud_detection_training.py:157} INFO - Object storage verified. Buckets: ['mlflow']
+[2026-02-06T09:39:18.704+0000] {fraud_detection_training.py:203} INFO - MLflow configured successfully
+[2026-02-06T09:39:18.705+0000] {fraud_detection_training.py:99} INFO - Fraud detection training system initialized
+[2026-02-06T09:39:18.705+0000] {fraud_detection_training_dag.py:75} INFO - Starting model training...
+[2026-02-06T09:39:18.728+0000] {fraud_detection_training_dag.py:81} INFO - Requested training batch_size=100000, min_records=100000
+[2026-02-06T09:39:18.732+0000] {fraud_detection_training.py:219} INFO - Starting data ingestion from PostgreSQL (table=transactions, limit=100000)...
+[2026-02-06T09:39:18.734+0000] {fraud_detection_training.py:241} INFO - Connecting to transactions DB: postgres:5432/transactions_db (user=fraud_training)
+[2026-02-06T09:39:18.744+0000] {fraud_detection_training.py:296} INFO - Executing query (limit=100000) against transactions
+[2026-02-06T09:39:27.265+0000] {fraud_detection_training.py:317} INFO - Ingested 100000 raw transactions from transactions (requested 100000)
+[2026-02-06T09:39:27.296+0000] {fraud_detection_training.py:319} INFO - Date range: 2026-02-04 10:29:22.659846 to 2026-02-04 13:30:01.162836
+[2026-02-06T09:39:27.297+0000] {fraud_detection_training.py:320} INFO - Fraud rate: 2.79%
+[2026-02-06T09:39:27.298+0000] {fraud_detection_training.py:695} INFO - Starting model training...
+[2026-02-06T09:39:29.571+0000] {fraud_detection_training.py:338} INFO - Starting feature engineering for 62 features...
+[2026-02-06T09:39:30.187+0000] {fraud_detection_training.py:350} INFO - Engineering temporal features...
+[2026-02-06T09:39:34.840+0000] {fraud_detection_training.py:388} INFO - Engineering identity features...
+[2026-02-06T09:39:35.486+0000] {fraud_detection_training.py:425} INFO - Engineering device features...
+[2026-02-06T09:39:37.585+0000] {fraud_detection_training.py:457} INFO - Engineering location features...
+[2026-02-06T09:39:38.736+0000] {fraud_detection_training.py:479} INFO - Engineering payment features...
+[2026-02-06T09:39:41.620+0000] {fraud_detection_training.py:516} INFO - Engineering network features...
+[2026-02-06T09:39:42.531+0000] {fraud_detection_training.py:555} INFO - Engineering behavioral features...
+[2026-02-06T09:39:42.563+0000] {fraud_detection_training.py:589} INFO - Engineering product features...
+[2026-02-06T09:39:42.610+0000] {fraud_detection_training.py:604} INFO - Engineering address features...
+[2026-02-06T09:39:43.671+0000] {fraud_detection_training.py:630} INFO - Engineering delivery and refund features...
+[2026-02-06T09:39:44.032+0000] {fraud_detection_training.py:681} INFO - Feature engineering complete. Generated 100 features
+[2026-02-06T09:39:44.033+0000] {fraud_detection_training.py:714} INFO - Post-engineering columns: 103
+[2026-02-06T09:39:45.288+0000] {fraud_detection_training.py:736} INFO - Training with 84 features
+[2026-02-06T09:39:45.289+0000] {fraud_detection_training.py:737} INFO - Categorical: 12, Numeric: 71
+[2026-02-06T09:39:45.293+0000] {fraud_detection_training.py:738} INFO - Class distribution: {0: 97208, 1: 2792}
+[2026-02-06T09:39:46.196+0000] {fraud_detection_training.py:818} INFO - Constructing pipeline with SMOTE for class imbalance
+[2026-02-06T09:39:46.197+0000] {fraud_detection_training.py:851} INFO - Starting hyperparameter tuning...
+[2026-02-06T09:39:46.204+0000] {logging_mixin.py:190} INFO - Fitting 3 folds for each of 20 candidates, totalling 60 fits
+[2026-02-06T09:50:27.962+0000] {job.py:229} INFO - Heartbeat recovered after 12.48 seconds
+[2026-02-06T09:50:33.450+0000] {job.py:229} INFO - Heartbeat recovered after 11.90 seconds
+[2026-02-06T10:06:21.960+0000] {fraud_detection_training.py:855} INFO - Best hyperparameters: {'classifier__subsample': 0.6, 'classifier__reg_alpha': 0, 'classifier__max_depth': 5, 'classifier__learning_rate': 0.1, 'classifier__gamma': 0.3, 'classifier__colsample_bytree': 0.8}
+[2026-02-06T10:06:24.830+0000] {fraud_detection_training.py:863} INFO - Optimal threshold determined: 0.0851
+[2026-02-06T10:06:26.512+0000] {credentials.py:1147} INFO - Found credentials in environment variables.
+[2026-02-06T10:06:44.636+0000] {warnings.py:112} WARNING - /home/***/.local/lib/python3.12/site-packages/mlflow/types/utils.py:452: UserWarning: Hint: Inferred schema contains integer column(s). Integer columns in Python cannot represent missing values. If your input data contains missing values at inference time, it will be encoded as floats and will cause a schema enforcement error. The best way to avoid this problem is to infer the model schema based on a realistic data sample (training dataset) that includes missing values. Alternatively, you can declare integer columns as doubles (float64) whenever these columns may have missing values. See `Handling Integers With Missing Values <https://www.mlflow.org/docs/latest/models.html#handling-integers-with-missing-values>`_ for more details.
+  warnings.warn(
+
+[2026-02-06T10:06:44.638+0000] {logging_mixin.py:190} WARNING - 2026/02/06 10:06:44 WARNING mlflow.models.model: `artifact_path` is deprecated. Please use `name` instead.
+[2026-02-06T10:06:46.058+0000] {warnings.py:112} WARNING - /home/***/.local/lib/python3.12/site-packages/mlflow/models/model.py:1209: FutureWarning: Saving scikit-learn models in the pickle or cloudpickle format requires exercising caution because these formats rely on Python's object serialization mechanism, which can execute arbitrary code during deserialization.The recommended safe alternative is the 'skops' format.
+  flavor.save_model(path=local_path, mlflow_model=mlflow_model, **kwargs)
+
+[2026-02-06T10:07:11.632+0000] {logging_mixin.py:190} WARNING - Registered model 'fraud_detection_model' already exists. Creating a new version of this model...
+[2026-02-06T10:07:11.837+0000] {logging_mixin.py:190} WARNING - 2026/02/06 10:07:11 INFO mlflow.store.model_registry.abstract_store: Waiting up to 300 seconds for model version to finish creation. Model name: fraud_detection_model, version 2
+[2026-02-06T10:07:11.839+0000] {logging_mixin.py:190} WARNING - Created version '2' of model 'fraud_detection_model'.
+[2026-02-06T10:07:12.098+0000] {fraud_detection_training.py:928} INFO - Training complete with metrics: {'auc_pr': 0.22973259766652482, 'precision': 0.25040916530278234, 'recall': 0.27419354838709675, 'f1': 0.2617621899059025, 'threshold': 0.08505818247795105}
+[2026-02-06T10:07:12.162+0000] {logging_mixin.py:190} INFO - 🏃 View run bemused-hawk-35 at: http://mlflow-server:5500/#/experiments/1/runs/cee29aa5176646f3b66d3da27d65f274
+[2026-02-06T10:07:12.166+0000] {logging_mixin.py:190} INFO - 🧪 View experiment at: http://mlflow-server:5500/#/experiments/1
+[2026-02-06T10:07:13.222+0000] {fraud_detection_training_dag.py:101} INFO - Training completed with metrics={'auc_pr': 0.22973259766652482, 'precision': 0.25040916530278234, 'recall': 0.27419354838709675, 'f1': 0.2617621899059025, 'threshold': 0.08505818247795105}
+[2026-02-06T10:07:13.838+0000] {python.py:240} INFO - Done. Returned value was: {'status': 'success', 'metrics': {'auc_pr': 0.22973259766652482, 'precision': 0.25040916530278234, 'recall': 0.27419354838709675, 'f1': 0.2617621899059025, 'threshold': 0.08505818247795105}}
+[2026-02-06T10:07:13.908+0000] {taskinstance.py:340} INFO - ::group::Post task execution logs
+[2026-02-06T10:07:13.909+0000] {taskinstance.py:352} INFO - Marking task as SUCCESS. dag_id=fraud_detection_training, task_id=execute_training, run_id=manual__2026-02-06T09:38:39.875169+00:00, execution_date=20260206T093839, start_date=20260206T093915, end_date=20260206T100713
+[2026-02-06T10:07:14.092+0000] {local_task_job_runner.py:266} INFO - Task exited with return code 0
+[2026-02-06T10:07:14.141+0000] {taskinstance.py:3900} INFO - 1 downstream tasks scheduled from follow-on schedule check
+[2026-02-06T10:07:14.161+0000] {local_task_job_runner.py:245} INFO - ::endgroup::
+
+
+
+
+

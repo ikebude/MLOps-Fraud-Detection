@@ -1,0 +1,173 @@
+[2026-02-05T08:33:14.264+0000] {local_task_job_runner.py:123} INFO - ::group::Pre task execution logs
+[2026-02-05T08:33:14.925+0000] {taskinstance.py:2612} INFO - Dependencies all met for dep_context=non-requeueable deps ti=<TaskInstance: fraud_detection_training.execute_training manual__2026-02-05T08:32:01.449800+00:00 [queued]>
+[2026-02-05T08:33:15.089+0000] {taskinstance.py:2612} INFO - Dependencies all met for dep_context=requeueable deps ti=<TaskInstance: fraud_detection_training.execute_training manual__2026-02-05T08:32:01.449800+00:00 [queued]>
+[2026-02-05T08:33:15.093+0000] {taskinstance.py:2865} INFO - Starting attempt 1 of 1
+[2026-02-05T08:33:15.352+0000] {taskinstance.py:2888} INFO - Executing <Task(PythonOperator): execute_training> on 2026-02-05 08:32:01.449800+00:00
+[2026-02-05T08:33:15.466+0000] {warnings.py:112} WARNING - /home/***/.local/lib/python3.12/site-packages/***/task/task_runner/standard_task_runner.py:70: DeprecationWarning: This process (pid=192) is multi-threaded, use of fork() may lead to deadlocks in the child.
+  pid = os.fork()
+
+[2026-02-05T08:33:15.511+0000] {standard_task_runner.py:72} INFO - Started process 194 to run task
+[2026-02-05T08:33:15.555+0000] {standard_task_runner.py:104} INFO - Running: ['***', 'tasks', 'run', 'fraud_detection_training', 'execute_training', 'manual__2026-02-05T08:32:01.449800+00:00', '--job-id', '28', '--raw', '--subdir', 'DAGS_FOLDER/fraud_detection_training_dag.py', '--cfg-path', '/tmp/tmpe8wn_ho2']
+[2026-02-05T08:33:15.630+0000] {standard_task_runner.py:105} INFO - Job 28: Subtask execute_training
+[2026-02-05T08:33:16.846+0000] {task_command.py:467} INFO - Running <TaskInstance: fraud_detection_training.execute_training manual__2026-02-05T08:32:01.449800+00:00 [running]> on host 26d43d95d170
+[2026-02-05T08:33:23.391+0000] {taskinstance.py:3131} INFO - Exporting env vars: AIRFLOW_CTX_DAG_OWNER='datamasterylab.com' AIRFLOW_CTX_DAG_ID='fraud_detection_training' AIRFLOW_CTX_TASK_ID='execute_training' AIRFLOW_CTX_EXECUTION_DATE='2026-02-05T08:32:01.449800+00:00' AIRFLOW_CTX_TRY_NUMBER='1' AIRFLOW_CTX_DAG_RUN_ID='manual__2026-02-05T08:32:01.449800+00:00'
+[2026-02-05T08:33:23.403+0000] {taskinstance.py:731} INFO - ::endgroup::
+[2026-02-05T08:33:23.808+0000] {fraud_detection_training_dag.py:66} INFO - Initializing fraud detection training (transactions_table=transactions)
+[2026-02-05T08:33:24.050+0000] {fraud_detection_training.py:104} INFO - Configuration loaded successfully
+[2026-02-05T08:33:24.064+0000] {fraud_detection_training.py:118} INFO - Database configured: postgres
+[2026-02-05T08:33:42.692+0000] {fraud_detection_training.py:155} INFO - Object storage verified. Buckets: ['mlflow']
+[2026-02-05T08:33:46.208+0000] {warnings.py:112} WARNING - /home/***/.local/lib/python3.12/site-packages/pydantic/_internal/_fields.py:132: UserWarning: Field "model_name" in PromptModelConfig has conflict with protected namespace "model_".
+
+You may be able to resolve this warning by setting `model_config['protected_namespaces'] = ()`.
+  warnings.warn(
+
+[2026-02-05T08:34:13.748+0000] {job.py:229} INFO - Heartbeat recovered after 10.71 seconds
+[2026-02-05T08:34:25.648+0000] {job.py:229} INFO - Heartbeat recovered after 12.54 seconds
+[2026-02-05T08:34:52.751+0000] {fraud_detection_training.py:201} INFO - MLflow configured successfully
+[2026-02-05T08:34:52.809+0000] {fraud_detection_training.py:97} INFO - Fraud detection training system initialized
+[2026-02-05T08:34:52.810+0000] {fraud_detection_training_dag.py:75} INFO - Starting model training...
+[2026-02-05T08:34:53.396+0000] {fraud_detection_training_dag.py:81} INFO - Requested training batch_size=100000, min_records=100000
+[2026-02-05T08:34:53.412+0000] {fraud_detection_training.py:217} INFO - Starting data ingestion from PostgreSQL (table=transactions, limit=100000)...
+[2026-02-05T08:34:53.414+0000] {fraud_detection_training.py:239} INFO - Connecting to transactions DB: postgres:5432/transactions_db (user=fraud_training)
+[2026-02-05T08:34:53.616+0000] {fraud_detection_training.py:294} INFO - Executing query (limit=100000) against transactions
+[2026-02-05T08:35:46.297+0000] {fraud_detection_training.py:315} INFO - Ingested 100000 raw transactions from transactions (requested 100000)
+[2026-02-05T08:35:46.327+0000] {fraud_detection_training.py:317} INFO - Date range: 2026-02-04 10:29:22.659846 to 2026-02-04 13:30:01.162836
+[2026-02-05T08:35:46.338+0000] {fraud_detection_training.py:318} INFO - Fraud rate: 2.79%
+[2026-02-05T08:35:46.342+0000] {fraud_detection_training.py:696} INFO - Starting model training...
+[2026-02-05T08:36:03.828+0000] {fraud_detection_training.py:724} INFO - Training with 20 features
+[2026-02-05T08:36:03.830+0000] {fraud_detection_training.py:725} INFO - Categorical: 12, Numeric: 7
+[2026-02-05T08:36:03.864+0000] {fraud_detection_training.py:726} INFO - Class distribution: {0: 97208, 1: 2792}
+[2026-02-05T08:36:04.338+0000] {fraud_detection_training.py:743} WARNING - MLflow start_run attempt 1/3 failed: name 'mlflow' is not defined
+[2026-02-05T08:36:05.341+0000] {fraud_detection_training.py:743} WARNING - MLflow start_run attempt 2/3 failed: name 'mlflow' is not defined
+[2026-02-05T08:36:07.346+0000] {fraud_detection_training.py:743} WARNING - MLflow start_run attempt 3/3 failed: name 'mlflow' is not defined
+[2026-02-05T08:36:07.347+0000] {fraud_detection_training.py:913} ERROR - Training failed: name 'mlflow' is not defined
+Traceback (most recent call last):
+  File "/opt/airflow/plugins/fraud_detection_training.py", line 740, in train_model
+    run = mlflow.start_run()
+          ^^^^^^
+NameError: name 'mlflow' is not defined
+[2026-02-05T08:36:07.496+0000] {fraud_detection_training_dag.py:104} ERROR - Training failed: name 'mlflow' is not defined
+Traceback (most recent call last):
+  File "/opt/airflow/dags/fraud_detection_training_dag.py", line 96, in _train_model
+    model, metrics = trainer.train_model(df)
+                     ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/airflow/plugins/fraud_detection_training.py", line 740, in train_model
+    run = mlflow.start_run()
+          ^^^^^^
+NameError: name 'mlflow' is not defined
+[2026-02-05T08:36:08.260+0000] {taskinstance.py:3310} ERROR - Task failed with exception
+Traceback (most recent call last):
+  File "/opt/airflow/dags/fraud_detection_training_dag.py", line 96, in _train_model
+    model, metrics = trainer.train_model(df)
+                     ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/airflow/plugins/fraud_detection_training.py", line 740, in train_model
+    run = mlflow.start_run()
+          ^^^^^^
+NameError: name 'mlflow' is not defined
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/models/taskinstance.py", line 767, in _execute_task
+    result = _execute_callable(context=context, **execute_callable_kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/models/taskinstance.py", line 733, in _execute_callable
+    return ExecutionCallableRunner(
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/utils/operator_helpers.py", line 252, in run
+    return self.func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/models/baseoperator.py", line 406, in wrapper
+    return func(self, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/operators/python.py", line 238, in execute
+    return_value = self.execute_callable()
+                   ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/operators/python.py", line 256, in execute_callable
+    return runner.run(*self.op_args, **self.op_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/utils/operator_helpers.py", line 252, in run
+    return self.func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/airflow/dags/fraud_detection_training_dag.py", line 105, in _train_model
+    raise AirflowException(f'Model training failed: {str(e)}')
+airflow.exceptions.AirflowException: Model training failed: name 'mlflow' is not defined
+[2026-02-05T08:36:08.564+0000] {taskinstance.py:1225} INFO - Marking task as FAILED. dag_id=fraud_detection_training, task_id=execute_training, run_id=manual__2026-02-05T08:32:01.449800+00:00, execution_date=20260205T083201, start_date=20260205T083314, end_date=20260205T083608
+[2026-02-05T08:36:08.907+0000] {taskinstance.py:340} INFO - ::group::Post task execution logs
+[2026-02-05T08:36:08.910+0000] {standard_task_runner.py:124} ERROR - Failed to execute job 28 for task execute_training (Model training failed: name 'mlflow' is not defined; 194)
+Traceback (most recent call last):
+  File "/opt/airflow/dags/fraud_detection_training_dag.py", line 96, in _train_model
+    model, metrics = trainer.train_model(df)
+                     ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/airflow/plugins/fraud_detection_training.py", line 740, in train_model
+    run = mlflow.start_run()
+          ^^^^^^
+NameError: name 'mlflow' is not defined
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/task/task_runner/standard_task_runner.py", line 117, in _start_by_fork
+    ret = args.func(args, dag=self.dag)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/cli/cli_config.py", line 49, in command
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/utils/cli.py", line 115, in wrapper
+    return f(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/cli/commands/task_command.py", line 483, in task_run
+    task_return_code = _run_task_by_selected_method(args, _dag, ti)
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/cli/commands/task_command.py", line 256, in _run_task_by_selected_method
+    return _run_raw_task(args, ti)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/cli/commands/task_command.py", line 341, in _run_raw_task
+    return ti._run_raw_task(
+           ^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/utils/session.py", line 97, in wrapper
+    return func(*args, session=session, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/models/taskinstance.py", line 3004, in _run_raw_task
+    return _run_raw_task(
+           ^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/models/taskinstance.py", line 273, in _run_raw_task
+    TaskInstance._execute_task_with_callbacks(
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/models/taskinstance.py", line 3158, in _execute_task_with_callbacks
+    result = self._execute_task(context, task_orig)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/models/taskinstance.py", line 3182, in _execute_task
+    return _execute_task(self, context, task_orig)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/models/taskinstance.py", line 767, in _execute_task
+    result = _execute_callable(context=context, **execute_callable_kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/models/taskinstance.py", line 733, in _execute_callable
+    return ExecutionCallableRunner(
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/utils/operator_helpers.py", line 252, in run
+    return self.func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/models/baseoperator.py", line 406, in wrapper
+    return func(self, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/operators/python.py", line 238, in execute
+    return_value = self.execute_callable()
+                   ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/operators/python.py", line 256, in execute_callable
+    return runner.run(*self.op_args, **self.op_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/utils/operator_helpers.py", line 252, in run
+    return self.func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/airflow/dags/fraud_detection_training_dag.py", line 105, in _train_model
+    raise AirflowException(f'Model training failed: {str(e)}')
+airflow.exceptions.AirflowException: Model training failed: name 'mlflow' is not defined
+[2026-02-05T08:36:10.135+0000] {local_task_job_runner.py:266} INFO - Task exited with return code 1
+[2026-02-05T08:36:10.305+0000] {taskinstance.py:3900} INFO - 0 downstream tasks scheduled from follow-on schedule check
+[2026-02-05T08:36:10.352+0000] {local_task_job_runner.py:245} INFO - ::endgroup::
+
+
+
+
+

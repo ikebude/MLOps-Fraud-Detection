@@ -1,0 +1,288 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-6 max-w-5xl mx-auto">
+    <div class="flex justify-between items-center">
+        <div>
+            <h2 class="text-2xl font-bold text-gray-900">System Settings</h2>
+            <p class="text-sm text-gray-500 mt-1">Manage monitoring thresholds and system configurations</p>
+        </div>
+        <button id="save-all-btn"
+            class="px-4 py-2 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors flex items-center gap-2">
+            <i class="ph ph-floppy-disk"></i> Save Changes
+        </button>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Model Configuration -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            <div class="px-6 py-4 border-b border-gray-50 bg-gray-50/50 flex justify-between items-center">
+                <h3 class="font-bold text-gray-900 flex items-center gap-2">
+                    <i class="ph ph-brain text-purple-500"></i> Model Configuration
+                </h3>
+                <span class="px-2 py-1 bg-green-100 text-green-700 text-xs font-bold rounded uppercase">Active</span>
+            </div>
+            <div class="p-6 space-y-4">
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="p-3 bg-gray-50 rounded-lg border border-gray-100">
+                        <span class="text-xs text-gray-500 block mb-1">Model Name</span>
+                        <span class="text-sm font-bold text-gray-900 block truncate" title="{{ model_health.name }}">{{
+                            model_health.name }}</span>
+                    </div>
+                    <div class="p-3 bg-gray-50 rounded-lg border border-gray-100">
+                        <span class="text-xs text-gray-500 block mb-1">Version</span>
+                        <span class="text-sm font-bold text-blue-600 block">{{ model_health.version }}</span>
+                    </div>
+                </div>
+
+                <div class="space-y-3 pt-2">
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm text-gray-600">Model Accuracy</span>
+                        <div class="flex items-center gap-2">
+                            <div class="w-24 h-2 bg-gray-100 rounded-full overflow-hidden">
+                                <div class="h-full bg-green-500" style="width: {{ model_health.accuracy }}%"></div>
+                            </div>
+                            <span class="text-sm font-bold text-gray-900">{{ "%.2f"|format(model_health.accuracy)
+                                }}%</span>
+                        </div>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm text-gray-600">Run ID</span>
+                        <span class="text-xs font-mono text-gray-500">{{ model_health.run_name or 'N/A' }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Thresholds Configuration -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            <div class="px-6 py-4 border-b border-gray-50 bg-gray-50/50">
+                <h3 class="font-bold text-gray-900 flex items-center gap-2">
+                    <i class="ph ph-sliders text-blue-500"></i> Detection Thresholds
+                </h3>
+            </div>
+            <div class="p-6 space-y-5">
+                <div>
+                    <div class="flex justify-between mb-2">
+                        <label class="text-sm font-medium text-gray-700">Fraud Risk Score Threshold</label>
+                        <span id="risk-threshold-label"
+                            class="text-xs font-bold text-blue-600 bg-blue-50 px-2 rounded">70/100</span>
+                    </div>
+                    <input type="range" min="0" max="100" value="70" id="risk-threshold-slider"
+                        class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                        oninput="document.getElementById('risk-threshold-label').textContent = this.value + '/100'; document.getElementById('risk-threshold-desc').textContent = 'Transactions with risk score above ' + this.value + ' are flagged immediately.';">
+                    <p id="risk-threshold-desc" class="text-xs text-gray-500 mt-2">Transactions with risk score above 70
+                        are flagged immediately.
+                    </p>
+                </div>
+
+                <div>
+                    <div class="flex justify-between mb-2">
+                        <label class="text-sm font-medium text-gray-700">Drift Warning Sensitivity</label>
+                        <span id="drift-threshold-label"
+                            class="text-xs font-bold text-blue-600 bg-blue-50 px-2 rounded">2.0x</span>
+                    </div>
+                    <input type="range" min="1" max="5" step="0.1" value="2.0" id="drift-threshold-slider"
+                        class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                        oninput="document.getElementById('drift-threshold-label').textContent = parseFloat(this.value).toFixed(1) + 'x'; document.getElementById('drift-threshold-desc').textContent = 'Alert when fraud rate exceeds ' + parseFloat(this.value).toFixed(1) + 'x the baseline (2.5%).';">
+                    <p id="drift-threshold-desc" class="text-xs text-gray-500 mt-2">Alert when fraud rate exceeds 2.0x
+                        the baseline (2.5%).</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Notification Settings -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden lg:col-span-2">
+            <div class="px-6 py-4 border-b border-gray-50 bg-gray-50/50">
+                <h3 class="font-bold text-gray-900 flex items-center gap-2">
+                    <i class="ph ph-bell text-blue-500"></i> Notification Settings
+                </h3>
+            </div>
+            <div class="p-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div>
+                        <h4 class="text-sm font-bold text-gray-700 mb-3">Who Receives Alerts</h4>
+                        <div class="space-y-2">
+                            <label class="flex items-center gap-2 text-sm">
+                                <input type="checkbox" id="notify-analyst" class="accent-blue-500 rounded"> Fraud
+                                Analysts
+                            </label>
+                            <label class="flex items-center gap-2 text-sm">
+                                <input type="checkbox" id="notify-ops" class="accent-blue-500 rounded"> Operations
+                                Team
+                            </label>
+                            <label class="flex items-center gap-2 text-sm">
+                                <input type="checkbox" id="notify-exec" class="accent-blue-500 rounded"> Executives
+                                (Critical only)
+                            </label>
+                            <label class="flex items-center gap-2 text-sm">
+                                <input type="checkbox" id="notify-admin" class="accent-blue-500 rounded"> Admins
+                            </label>
+                        </div>
+                    </div>
+
+                    <div>
+                        <h4 class="text-sm font-bold text-gray-700 mb-3">Alert Threshold</h4>
+                        <select id="notify-threshold" class="w-full px-3 py-2 border rounded-lg text-sm">
+                            <option value="all">All Alerts</option>
+                            <option value="high">High &amp; Critical Only</option>
+                            <option value="critical">Critical Only</option>
+                        </select>
+                        <p class="text-xs text-gray-500 mt-2">Choose which severity level triggers a notification.</p>
+                    </div>
+
+                    <div>
+                        <h4 class="text-sm font-bold text-gray-700 mb-3">Notification Method</h4>
+                        <div class="space-y-2">
+                            <label class="flex items-center gap-2 text-sm">
+                                <input type="radio" name="notify-method" value="email" class="accent-blue-500"> Email
+                            </label>
+                            <label class="flex items-center gap-2 text-sm">
+                                <input type="radio" name="notify-method" value="slack" class="accent-blue-500"> Slack
+                            </label>
+                            <label class="flex items-center gap-2 text-sm">
+                                <input type="radio" name="notify-method" value="both" class="accent-blue-500"> Both
+                            </label>
+                        </div>
+                    </div>
+
+                    <div>
+                        <h4 class="text-sm font-bold text-gray-700 mb-3">Notification Schedule</h4>
+                        <div class="space-y-2">
+                            <label class="flex items-center gap-2 text-sm">
+                                <input type="radio" name="notify-schedule" value="business_hours"
+                                    class="accent-blue-500"> Business Hours Only
+                            </label>
+                            <label class="flex items-center gap-2 text-sm">
+                                <input type="radio" name="notify-schedule" value="24_7" class="accent-blue-500"> 24/7
+                                Monitoring
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex gap-4 pt-6 border-t mt-6">
+                    <button id="save-notifications-btn"
+                        class="px-6 py-2 bg-blue-500 text-white rounded-lg text-sm font-medium hover:bg-blue-600 transition-colors">
+                        Save Notification Settings
+                    </button>
+                    <span id="notify-status" class="text-sm text-gray-500 self-center"></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- System Health -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden lg:col-span-2">
+            <div class="px-6 py-4 border-b border-gray-50 bg-gray-50/50 flex justify-between items-center">
+                <h3 class="font-bold text-gray-900 flex items-center gap-2">
+                    <i class="ph ph-heartbeat text-red-500"></i> Service Status
+                </h3>
+                <span
+                    class="px-2 py-1 bg-gray-100 text-gray-600 text-xs font-medium rounded hover:bg-gray-200 cursor-pointer">Check
+                    Connection</span>
+            </div>
+            <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="flex items-center justify-between p-4 border border-gray-100 rounded-lg">
+                    <div class="flex items-center gap-3">
+                        <div
+                            class="w-2 h-2 rounded-full {% if inference_health.status == 'healthy' %}bg-green-500{% else %}bg-red-500{% endif %} animate-pulse">
+                        </div>
+                        <div>
+                            <p class="text-sm font-bold text-gray-900">Inference Service</p>
+                            <p class="text-xs text-gray-500">http://inference:8000</p>
+                        </div>
+                    </div>
+                    <span
+                        class="text-xs font-bold uppercase {% if inference_health.status == 'healthy' %}text-green-600{% else %}text-red-600{% endif %}">
+                        {{ inference_health.status or 'Unknown' }}
+                    </span>
+                </div>
+
+                <div class="flex items-center justify-between p-4 border border-gray-100 rounded-lg">
+                    <div class="flex items-center gap-3">
+                        <div
+                            class="w-2 h-2 rounded-full {% if db_available %}bg-green-500{% else %}bg-red-500{% endif %} animate-pulse">
+                        </div>
+                        <div>
+                            <p class="text-sm font-bold text-gray-900">Database</p>
+                            <p class="text-xs text-gray-500">PostgreSQL</p>
+                        </div>
+                    </div>
+                    <span
+                        class="text-xs font-bold uppercase {% if db_available %}text-green-600{% else %}text-red-600{% endif %}">
+                        {{ 'Connected' if db_available else 'Unavailable' }}
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const basePath = window.MONIGUARD_BASE_PATH || '';
+
+    async function loadNotificationSettings() {
+        try {
+            const res = await fetch(basePath + '/api/notification-settings');
+            const settings = await res.json();
+
+            const recipients = settings.recipients || [];
+            document.getElementById('notify-analyst').checked = recipients.includes('analyst');
+            document.getElementById('notify-ops').checked = recipients.includes('operations');
+            document.getElementById('notify-exec').checked = recipients.includes('executive');
+            document.getElementById('notify-admin').checked = recipients.includes('admin');
+
+            const thresholdEl = document.getElementById('notify-threshold');
+            if (thresholdEl) thresholdEl.value = settings.threshold || 'all';
+
+            const methodRadios = document.querySelectorAll('input[name="notify-method"]');
+            methodRadios.forEach(r => { r.checked = r.value === (settings.method || 'email'); });
+
+            const scheduleRadios = document.querySelectorAll('input[name="notify-schedule"]');
+            scheduleRadios.forEach(r => { r.checked = r.value === (settings.schedule || 'business_hours'); });
+        } catch (e) {
+            console.error('Failed to load notification settings:', e);
+        }
+    }
+
+    async function saveNotificationSettings() {
+        const recipients = [];
+        if (document.getElementById('notify-analyst').checked) recipients.push('analyst');
+        if (document.getElementById('notify-ops').checked) recipients.push('operations');
+        if (document.getElementById('notify-exec').checked) recipients.push('executive');
+        if (document.getElementById('notify-admin').checked) recipients.push('admin');
+
+        const threshold = document.getElementById('notify-threshold').value;
+        const method = document.querySelector('input[name="notify-method"]:checked')?.value || 'email';
+        const schedule = document.querySelector('input[name="notify-schedule"]:checked')?.value || 'business_hours';
+
+        try {
+            const res = await fetch(basePath + '/api/notification-settings', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ recipients, threshold, method, schedule })
+            });
+            const result = await res.json();
+            const statusEl = document.getElementById('notify-status');
+            if (result.success) {
+                statusEl.textContent = '✓ Settings saved successfully';
+                statusEl.className = 'text-sm text-green-600 self-center font-medium';
+            } else {
+                statusEl.textContent = '✗ Failed to save settings';
+                statusEl.className = 'text-sm text-red-600 self-center font-medium';
+            }
+            setTimeout(() => { statusEl.textContent = ''; }, 3000);
+        } catch (e) {
+            console.error('Failed to save notification settings:', e);
+        }
+    }
+
+    document.getElementById('save-notifications-btn').addEventListener('click', saveNotificationSettings);
+    document.addEventListener('DOMContentLoaded', loadNotificationSettings);
+</script>
+{% endblock %}
+
+
+
+
+

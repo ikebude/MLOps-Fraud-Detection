@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Moniguard</title>
+    <link rel="stylesheet" href="{{ base_path }}/static/css/styles.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+
+<body class="login-page">
+    <div class="login-container max-w-md mx-auto mt-20 p-6 bg-white rounded-lg shadow-lg">
+        <div class="login-header text-center mb-6">
+            <h1 class="text-3xl font-bold text-blue-600">Moniguard</h1>
+            <p class="text-gray-500">Sign in to your dashboard</p>
+        </div>
+
+        <!-- Login Form -->
+        <form action="{{ base_path }}/login" method="POST" class="login-form space-y-4">
+
+            {% if error %}
+            <div class="error-message bg-red-50 text-red-600 p-3 rounded-lg text-sm">
+                {{ error }}
+            </div>
+            {% endif %}
+
+            <!-- Username -->
+            <div class="form-group text-left">
+                <label class="block text-sm font-medium mb-1">Username</label>
+                <input type="text" name="username" placeholder="Enter username" class="w-full p-2 border rounded-lg"
+                    required>
+                <p class="text-[10px] text-gray-400 mt-1">Try: Analyst User, Ops User, Exec User, Admin User</p>
+            </div>
+
+            <!-- Password -->
+            <div class="form-group text-left">
+                <label class="block text-sm font-medium mb-1">Password</label>
+                <input type="password" name="password" placeholder="••••••••" class="w-full p-2 border rounded-lg"
+                    required>
+            </div>
+
+            <!-- Role Selection -->
+            <div class="form-group text-left">
+                <label class="block text-sm font-medium mb-1">Select Role</label>
+                <select name="role" class="w-full p-2 border rounded-lg" required>
+                    <option value="" disabled selected>Select your role...</option>
+                    <option value="analyst">Fraud Analyst</option>
+                    <option value="operations">Fraud Operations</option>
+                    <option value="executive">Executive</option>
+                    <option value="admin">Admin</option>
+                </select>
+            </div>
+
+            <!-- Submit Button -->
+            <button type="submit"
+                class="btn-primary w-full bg-blue-600 text-white p-2 rounded-lg font-semibold hover:bg-blue-700">
+                Login
+            </button>
+
+            <!-- Forgot Password Link -->
+            <div class="text-sm mt-4 text-center">
+                <a href="{{ base_path }}/forgot-password" class="text-blue-600 hover:underline">
+                    Forgot Password?
+                </a>
+            </div>
+        </form>
+    </div>
+</body>
+
+</html>
+
+
+
+
+

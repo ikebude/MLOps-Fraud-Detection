@@ -1,0 +1,83 @@
+[2026-02-06T13:54:53.642+0000] {local_task_job_runner.py:123} INFO - ::group::Pre task execution logs
+[2026-02-06T13:54:53.745+0000] {taskinstance.py:2612} INFO - Dependencies all met for dep_context=non-requeueable deps ti=<TaskInstance: fraud_detection_training.execute_training scheduled__2026-02-05T12:00:00+00:00 [queued]>
+[2026-02-06T13:54:53.789+0000] {taskinstance.py:2612} INFO - Dependencies all met for dep_context=requeueable deps ti=<TaskInstance: fraud_detection_training.execute_training scheduled__2026-02-05T12:00:00+00:00 [queued]>
+[2026-02-06T13:54:53.793+0000] {taskinstance.py:2865} INFO - Starting attempt 1 of 1
+[2026-02-06T13:54:54.023+0000] {taskinstance.py:2888} INFO - Executing <Task(PythonOperator): execute_training> on 2026-02-05 12:00:00+00:00
+[2026-02-06T13:54:54.297+0000] {warnings.py:112} WARNING - /home/***/.local/lib/python3.12/site-packages/***/task/task_runner/standard_task_runner.py:70: DeprecationWarning: This process (pid=113) is multi-threaded, use of fork() may lead to deadlocks in the child.
+  pid = os.fork()
+
+[2026-02-06T13:54:54.309+0000] {standard_task_runner.py:72} INFO - Started process 119 to run task
+[2026-02-06T13:54:54.319+0000] {standard_task_runner.py:104} INFO - Running: ['***', 'tasks', 'run', 'fraud_detection_training', 'execute_training', 'scheduled__2026-02-05T12:00:00+00:00', '--job-id', '58', '--raw', '--subdir', 'DAGS_FOLDER/fraud_detection_training_dag.py', '--cfg-path', '/tmp/tmphyvk08bd']
+[2026-02-06T13:54:54.344+0000] {standard_task_runner.py:105} INFO - Job 58: Subtask execute_training
+[2026-02-06T13:54:54.733+0000] {task_command.py:467} INFO - Running <TaskInstance: fraud_detection_training.execute_training scheduled__2026-02-05T12:00:00+00:00 [running]> on host 5181b9040285
+[2026-02-06T13:54:55.626+0000] {taskinstance.py:3131} INFO - Exporting env vars: AIRFLOW_CTX_DAG_OWNER='datamasterylab.com' AIRFLOW_CTX_DAG_ID='fraud_detection_training' AIRFLOW_CTX_TASK_ID='execute_training' AIRFLOW_CTX_EXECUTION_DATE='2026-02-05T12:00:00+00:00' AIRFLOW_CTX_TRY_NUMBER='1' AIRFLOW_CTX_DAG_RUN_ID='scheduled__2026-02-05T12:00:00+00:00'
+[2026-02-06T13:54:55.630+0000] {taskinstance.py:731} INFO - ::endgroup::
+[2026-02-06T13:54:55.975+0000] {fraud_detection_training_dag.py:121} INFO - Initializing fraud detection training (transactions_table=transactions)
+[2026-02-06T13:54:56.093+0000] {fraud_detection_training.py:144} INFO - Configuration loaded successfully
+[2026-02-06T13:54:56.096+0000] {fraud_detection_training.py:158} INFO - Database configured: postgres
+[2026-02-06T13:55:04.149+0000] {fraud_detection_training.py:195} INFO - Object storage verified. Buckets: ['mlflow']
+[2026-02-06T13:55:17.678+0000] {fraud_detection_training.py:241} INFO - MLflow configured successfully
+[2026-02-06T13:55:17.680+0000] {fraud_detection_training.py:137} INFO - Fraud detection training system initialized
+[2026-02-06T13:55:17.681+0000] {fraud_detection_training_dag.py:128} INFO - Starting model training...
+[2026-02-06T13:55:17.730+0000] {fraud_detection_training_dag.py:134} INFO - Requested training batch_size=100000, min_records=100000
+[2026-02-06T13:55:17.731+0000] {fraud_detection_training.py:257} INFO - Starting data ingestion from PostgreSQL (table=transactions, limit=100000)...
+[2026-02-06T13:55:17.733+0000] {fraud_detection_training.py:279} INFO - Connecting to transactions DB: postgres:5432/transactions_db (user=fraud_training)
+[2026-02-06T13:55:17.794+0000] {fraud_detection_training.py:334} INFO - Executing query (limit=100000) against transactions
+[2026-02-06T13:55:47.922+0000] {fraud_detection_training.py:355} INFO - Ingested 100000 raw transactions from transactions (requested 100000)
+[2026-02-06T13:55:47.955+0000] {fraud_detection_training.py:357} INFO - Date range: 2026-02-04 10:29:22.659846 to 2026-02-04 13:30:01.162836
+[2026-02-06T13:55:47.960+0000] {fraud_detection_training.py:358} INFO - Fraud rate: 2.79%
+[2026-02-06T13:55:47.962+0000] {fraud_detection_training.py:683} INFO - Starting model training...
+[2026-02-06T13:55:52.323+0000] {font_manager.py:1639} INFO - generated new fontManager
+[2026-02-06T13:55:59.523+0000] {fraud_detection_training.py:377} INFO - Starting feature engineering for 74 features (54 engineered + 20 raw)...
+[2026-02-06T13:56:03.529+0000] {fraud_detection_training.py:389} INFO - Engineering temporal features...
+[2026-02-06T13:56:18.247+0000] {fraud_detection_training.py:427} INFO - Engineering identity features...
+[2026-02-06T13:56:18.442+0000] {fraud_detection_training.py:448} INFO - Engineering device features...
+[2026-02-06T13:56:19.689+0000] {fraud_detection_training.py:479} INFO - Engineering location features...
+[2026-02-06T13:56:19.916+0000] {fraud_detection_training.py:494} INFO - Engineering payment features...
+[2026-02-06T13:56:22.118+0000] {fraud_detection_training.py:522} INFO - Engineering network features...
+[2026-02-06T13:56:24.444+0000] {fraud_detection_training.py:548} INFO - Engineering behavioral features...
+[2026-02-06T13:56:24.594+0000] {fraud_detection_training.py:573} INFO - Engineering product features...
+[2026-02-06T13:56:24.663+0000] {fraud_detection_training.py:582} INFO - Engineering address features...
+[2026-02-06T13:56:26.009+0000] {fraud_detection_training.py:593} INFO - Engineering delivery and refund features...
+[2026-02-06T13:56:26.572+0000] {fraud_detection_training.py:629} INFO - Adding cyclical and aggregate features...
+[2026-02-06T13:56:28.826+0000] {fraud_detection_training.py:667} INFO - Feature engineering complete. Total engineered features: 54
+[2026-02-06T13:56:28.834+0000] {fraud_detection_training.py:668} INFO - Plus 20 raw producer columns = 74 total features for training
+[2026-02-06T13:56:28.835+0000] {fraud_detection_training.py:702} INFO - Post-engineering columns: 94
+[2026-02-06T13:56:39.106+0000] {fraud_detection_training.py:724} INFO - Training with 75 features
+[2026-02-06T13:56:39.113+0000] {fraud_detection_training.py:725} INFO - Categorical: 12, Numeric: 62
+[2026-02-06T13:56:39.377+0000] {fraud_detection_training.py:726} INFO - Class distribution: {0: 97208, 1: 2792}
+[2026-02-06T13:56:49.240+0000] {fraud_detection_training.py:800} INFO - Computed scale_pos_weight=34.8102 (neg=77766, pos=2234)
+[2026-02-06T13:56:49.367+0000] {fraud_detection_training.py:814} INFO - Constructing pipeline with SMOTE for class imbalance
+[2026-02-06T13:56:49.370+0000] {fraud_detection_training.py:847} INFO - Starting hyperparameter tuning...
+[2026-02-06T13:56:49.380+0000] {logging_mixin.py:190} INFO - Fitting 3 folds for each of 20 candidates, totalling 60 fits
+[2026-02-06T14:43:39.566+0000] {job.py:229} INFO - Heartbeat recovered after 15.57 seconds
+[2026-02-06T14:43:46.731+0000] {job.py:229} INFO - Heartbeat recovered after 16.15 seconds
+[2026-02-06T14:55:25.006+0000] {fraud_detection_training.py:851} INFO - Best hyperparameters: {'classifier__subsample': 0.6, 'classifier__reg_alpha': 0.5, 'classifier__max_depth': 7, 'classifier__learning_rate': 0.1, 'classifier__gamma': 0, 'classifier__colsample_bytree': 0.6}
+[2026-02-06T14:55:30.107+0000] {fraud_detection_training.py:860} INFO - Optimal threshold determined: 0.7180
+[2026-02-06T14:55:37.248+0000] {credentials.py:1147} INFO - Found credentials in environment variables.
+[2026-02-06T14:55:59.496+0000] {warnings.py:112} WARNING - /home/***/.local/lib/python3.12/site-packages/mlflow/types/utils.py:452: UserWarning: Hint: Inferred schema contains integer column(s). Integer columns in Python cannot represent missing values. If your input data contains missing values at inference time, it will be encoded as floats and will cause a schema enforcement error. The best way to avoid this problem is to infer the model schema based on a realistic data sample (training dataset) that includes missing values. Alternatively, you can declare integer columns as doubles (float64) whenever these columns may have missing values. See `Handling Integers With Missing Values <https://www.mlflow.org/docs/latest/models.html#handling-integers-with-missing-values>`_ for more details.
+  warnings.warn(
+
+[2026-02-06T14:55:59.533+0000] {logging_mixin.py:190} WARNING - 2026/02/06 14:55:59 WARNING mlflow.models.model: `artifact_path` is deprecated. Please use `name` instead.
+[2026-02-06T14:56:02.012+0000] {warnings.py:112} WARNING - /home/***/.local/lib/python3.12/site-packages/mlflow/models/model.py:1209: FutureWarning: Saving scikit-learn models in the pickle or cloudpickle format requires exercising caution because these formats rely on Python's object serialization mechanism, which can execute arbitrary code during deserialization.The recommended safe alternative is the 'skops' format.
+  flavor.save_model(path=local_path, mlflow_model=mlflow_model, **kwargs)
+
+[2026-02-06T14:56:39.271+0000] {logging_mixin.py:190} WARNING - Registered model 'fraud_detection_model' already exists. Creating a new version of this model...
+[2026-02-06T14:56:40.105+0000] {logging_mixin.py:190} WARNING - 2026/02/06 14:56:40 INFO mlflow.store.model_registry.abstract_store: Waiting up to 300 seconds for model version to finish creation. Model name: fraud_detection_model, version 4
+[2026-02-06T14:56:40.107+0000] {logging_mixin.py:190} WARNING - Created version '4' of model 'fraud_detection_model'.
+[2026-02-06T14:56:40.337+0000] {fraud_detection_training.py:925} INFO - Training complete with metrics: {'auc_pr': 0.18937039909459286, 'precision': 0.4702702702702703, 'recall': 0.15591397849462366, 'f1': 0.23418573351278602, 'threshold': 0.7179594039916992}
+[2026-02-06T14:56:40.409+0000] {logging_mixin.py:190} INFO - 🏃 View run handsome-robin-834 at: http://mlflow-server:5500/#/experiments/1/runs/4f94369f06f14984a2c2239764bf5ab1
+[2026-02-06T14:56:40.410+0000] {logging_mixin.py:190} INFO - 🧪 View experiment at: http://mlflow-server:5500/#/experiments/1
+[2026-02-06T14:56:54.413+0000] {fraud_detection_training_dag.py:156} INFO - Training completed with metrics={'auc_pr': 0.18937039909459286, 'precision': 0.4702702702702703, 'recall': 0.15591397849462366, 'f1': 0.23418573351278602, 'threshold': 0.7179594039916992}
+[2026-02-06T14:56:54.414+0000] {fraud_detection_training_dag.py:176} WARNING - Failed to record Prometheus metrics: name 'training_precision' is not defined
+[2026-02-06T14:56:56.672+0000] {python.py:240} INFO - Done. Returned value was: {'status': 'success', 'metrics': {'auc_pr': 0.18937039909459286, 'precision': 0.4702702702702703, 'recall': 0.15591397849462366, 'f1': 0.23418573351278602, 'threshold': 0.7179594039916992}}
+[2026-02-06T14:56:56.874+0000] {taskinstance.py:340} INFO - ::group::Post task execution logs
+[2026-02-06T14:56:56.887+0000] {taskinstance.py:352} INFO - Marking task as SUCCESS. dag_id=fraud_detection_training, task_id=execute_training, run_id=scheduled__2026-02-05T12:00:00+00:00, execution_date=20260205T120000, start_date=20260206T135453, end_date=20260206T145656
+[2026-02-06T14:56:57.867+0000] {local_task_job_runner.py:266} INFO - Task exited with return code 0
+[2026-02-06T14:56:59.060+0000] {taskinstance.py:3900} INFO - 0 downstream tasks scheduled from follow-on schedule check
+[2026-02-06T14:56:59.075+0000] {local_task_job_runner.py:245} INFO - ::endgroup::
+
+
+
+
+

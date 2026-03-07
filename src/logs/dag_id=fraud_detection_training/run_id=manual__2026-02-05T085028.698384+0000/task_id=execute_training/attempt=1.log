@@ -1,0 +1,44 @@
+[2026-02-05T08:52:04.324+0000] {local_task_job_runner.py:123} INFO - ::group::Pre task execution logs
+[2026-02-05T08:52:04.588+0000] {taskinstance.py:2612} INFO - Dependencies all met for dep_context=non-requeueable deps ti=<TaskInstance: fraud_detection_training.execute_training manual__2026-02-05T08:50:28.698384+00:00 [queued]>
+[2026-02-05T08:52:04.895+0000] {taskinstance.py:2612} INFO - Dependencies all met for dep_context=requeueable deps ti=<TaskInstance: fraud_detection_training.execute_training manual__2026-02-05T08:50:28.698384+00:00 [queued]>
+[2026-02-05T08:52:04.934+0000] {taskinstance.py:2865} INFO - Starting attempt 1 of 1
+[2026-02-05T08:52:05.193+0000] {taskinstance.py:2888} INFO - Executing <Task(PythonOperator): execute_training> on 2026-02-05 08:50:28.698384+00:00
+[2026-02-05T08:52:05.389+0000] {warnings.py:112} WARNING - /home/***/.local/lib/python3.12/site-packages/***/task/task_runner/standard_task_runner.py:70: DeprecationWarning: This process (pid=382) is multi-threaded, use of fork() may lead to deadlocks in the child.
+  pid = os.fork()
+
+[2026-02-05T08:52:05.403+0000] {standard_task_runner.py:104} INFO - Running: ['***', 'tasks', 'run', 'fraud_detection_training', 'execute_training', 'manual__2026-02-05T08:50:28.698384+00:00', '--job-id', '34', '--raw', '--subdir', 'DAGS_FOLDER/fraud_detection_training_dag.py', '--cfg-path', '/tmp/tmpzv_opkub']
+[2026-02-05T08:52:05.511+0000] {standard_task_runner.py:105} INFO - Job 34: Subtask execute_training
+[2026-02-05T08:52:05.457+0000] {standard_task_runner.py:72} INFO - Started process 391 to run task
+[2026-02-05T08:52:06.809+0000] {task_command.py:467} INFO - Running <TaskInstance: fraud_detection_training.execute_training manual__2026-02-05T08:50:28.698384+00:00 [running]> on host 76a62e6a2564
+[2026-02-05T08:52:08.681+0000] {taskinstance.py:3131} INFO - Exporting env vars: AIRFLOW_CTX_DAG_OWNER='datamasterylab.com' AIRFLOW_CTX_DAG_ID='fraud_detection_training' AIRFLOW_CTX_TASK_ID='execute_training' AIRFLOW_CTX_EXECUTION_DATE='2026-02-05T08:50:28.698384+00:00' AIRFLOW_CTX_TRY_NUMBER='1' AIRFLOW_CTX_DAG_RUN_ID='manual__2026-02-05T08:50:28.698384+00:00'
+[2026-02-05T08:52:08.689+0000] {taskinstance.py:731} INFO - ::endgroup::
+[2026-02-05T08:52:09.452+0000] {fraud_detection_training_dag.py:66} INFO - Initializing fraud detection training (transactions_table=transactions)
+[2026-02-05T08:52:09.619+0000] {fraud_detection_training.py:106} INFO - Configuration loaded successfully
+[2026-02-05T08:52:09.622+0000] {fraud_detection_training.py:120} INFO - Database configured: postgres
+[2026-02-05T08:52:13.121+0000] {fraud_detection_training.py:157} INFO - Object storage verified. Buckets: ['mlflow']
+[2026-02-05T08:52:15.331+0000] {fraud_detection_training.py:203} INFO - MLflow configured successfully
+[2026-02-05T08:52:15.368+0000] {fraud_detection_training.py:99} INFO - Fraud detection training system initialized
+[2026-02-05T08:52:15.404+0000] {fraud_detection_training_dag.py:75} INFO - Starting model training...
+[2026-02-05T08:52:15.607+0000] {fraud_detection_training_dag.py:81} INFO - Requested training batch_size=100000, min_records=100000
+[2026-02-05T08:52:15.624+0000] {fraud_detection_training.py:219} INFO - Starting data ingestion from PostgreSQL (table=transactions, limit=100000)...
+[2026-02-05T08:52:15.638+0000] {fraud_detection_training.py:241} INFO - Connecting to transactions DB: postgres:5432/transactions_db (user=fraud_training)
+[2026-02-05T08:52:15.715+0000] {fraud_detection_training.py:296} INFO - Executing query (limit=100000) against transactions
+[2026-02-05T08:53:11.119+0000] {fraud_detection_training.py:317} INFO - Ingested 100000 raw transactions from transactions (requested 100000)
+[2026-02-05T08:53:11.134+0000] {fraud_detection_training.py:319} INFO - Date range: 2026-02-04 10:29:22.659846 to 2026-02-04 13:30:01.162836
+[2026-02-05T08:53:11.137+0000] {fraud_detection_training.py:320} INFO - Fraud rate: 2.79%
+[2026-02-05T08:53:11.149+0000] {fraud_detection_training.py:698} INFO - Starting model training...
+[2026-02-05T08:53:46.567+0000] {fraud_detection_training.py:732} INFO - Training with 20 features
+[2026-02-05T08:53:46.577+0000] {fraud_detection_training.py:733} INFO - Categorical: 12, Numeric: 7
+[2026-02-05T08:53:46.616+0000] {fraud_detection_training.py:734} INFO - Class distribution: {0: 97208, 1: 2792}
+[2026-02-05T08:53:50.455+0000] {fraud_detection_training.py:826} INFO - Starting hyperparameter tuning...
+[2026-02-05T08:53:50.639+0000] {logging_mixin.py:190} INFO - Fitting 3 folds for each of 20 candidates, totalling 60 fits
+[2026-02-05T09:00:42.062+0000] {job.py:229} INFO - Heartbeat recovered after 40.43 seconds
+[2026-02-05T09:00:52.296+0000] {job.py:229} INFO - Heartbeat recovered after 45.37 seconds
+[2026-02-06T08:23:00.257+0000] {local_task_job_runner.py:123} INFO - ::group::Pre task execution logs
+[2026-02-06T08:23:00.300+0000] {taskinstance.py:2602} INFO - Dependencies not met for <TaskInstance: fraud_detection_training.execute_training manual__2026-02-05T08:50:28.698384+00:00 [failed]>, dependency 'Task Instance State' FAILED: Task is in the 'failed' state.
+[2026-02-06T08:23:00.311+0000] {local_task_job_runner.py:166} INFO - Task is not able to be run
+
+
+
+
+
