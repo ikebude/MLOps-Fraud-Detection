@@ -115,3 +115,8 @@ Producer is starting... (Press Ctrl+C to stop)
   ```powershell
   Get-Content producer/producer.log -Tail 20 -Wait
   ```
+
+
+
+
+

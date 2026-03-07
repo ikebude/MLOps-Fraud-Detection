@@ -100,3 +100,8 @@ def insert_transaction(engine, transaction: dict):
     except SQLAlchemyError:
         logger.exception("Failed to insert transaction into Postgres")
         # swallow exception so producer can continue
+
+
+
+
+

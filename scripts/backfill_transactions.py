@@ -85,3 +85,8 @@ if __name__ == '__main__':
     p.add_argument('--rows', '-r', type=int, default=150000, help='Number of rows to insert')
     args = p.parse_args()
     run(args.rows)
+
+
+
+
+

@@ -33,3 +33,7 @@ exec mlflow server \
   --default-artifact-root "${MLFLOW_ARTIFACTS_DESTINATION}" \
   --allowed-hosts '*' \
   --cors-allowed-origins '*'
+
+
+
+

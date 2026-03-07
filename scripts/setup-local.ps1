@@ -66,8 +66,8 @@ New-Item -ItemType Directory -Force -Path "src\models" | Out-Null
 New-Item -ItemType Directory -Force -Path "src\logs" | Out-Null
 New-Item -ItemType Directory -Force -Path "src\state" | Out-Null
 New-Item -ItemType Directory -Force -Path "src\config" | Out-Null
-New-Item -ItemType Directory -Force -Path "fraudguard\data" | Out-Null
-New-Item -ItemType Directory -Force -Path "fraudguard\static" | Out-Null
+New-Item -ItemType Directory -Force -Path "Moniguard\data" | Out-Null
+New-Item -ItemType Directory -Force -Path "Moniguard\static" | Out-Null
 
 # Check Docker
 if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
@@ -97,4 +97,9 @@ Write-Output "  2. make build   # or: cd src; docker compose build"
 Write-Output "  3. make up     # or: cd src; docker compose up -d"
 Write-Output "  4. make init-db   # first time only"
 Write-Output "  5. Airflow: http://localhost:8080 (airflow/airflow) – enable fraud_detection_training DAG"
-Write-Output "  6. FraudGuard: http://localhost:5000""
+Write-Output "  6. Moniguard: http://localhost:5000""
+
+
+
+
+

@@ -557,3 +557,8 @@ if __name__ == '__main__':
     logger.info('Cumulative stats file: %s', CUMULATIVE_STATS_FILE)
     logger.info('Initial cumulative: total=%d, fraud=%d', cumulative_total_records, cumulative_fraud_detections)
     app.run(host='0.0.0.0', port=port, debug=debug)
+
+
+
+
+

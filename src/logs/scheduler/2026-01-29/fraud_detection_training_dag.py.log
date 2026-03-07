@@ -3021,3 +3021,8 @@ ModuleNotFoundError: No module named 'airflow.task.trigger_rule'
 [2026-01-29T15:42:16.667+0000] {logging_mixin.py:190} INFO - [2026-01-29T15:42:16.667+0000] {dag.py:3239} INFO - Sync 1 DAGs
 [2026-01-29T15:42:16.712+0000] {logging_mixin.py:190} INFO - [2026-01-29T15:42:16.712+0000] {dag.py:4180} INFO - Setting next_dagrun for fraud_detection_training to 2026-01-29 12:00:00+00:00, run_after=2026-01-30 12:00:00+00:00
 [2026-01-29T15:42:16.767+0000] {processor.py:208} INFO - Processing /opt/airflow/dags/fraud_detection_training_dag.py took 0.219 seconds
+
+
+
+
+

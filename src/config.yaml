@@ -30,3 +30,7 @@ model:
     scale_pos_weight: 1
     tree_method: "hist"
   path: "/app/models/fraud_detection_model.pkl"
+
+
+
+

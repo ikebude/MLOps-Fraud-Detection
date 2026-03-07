@@ -30,3 +30,8 @@ if [ "$REMOVE_IMAGES" = true ]; then
 fi
 
 echo "Clean complete."
+
+
+
+
+

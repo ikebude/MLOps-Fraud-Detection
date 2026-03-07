@@ -244,3 +244,8 @@ fi
 trap 'print_info "Shutting down producer..."; exit 0' EXIT INT TERM
 
 EOF_MARKER
+
+
+
+
+

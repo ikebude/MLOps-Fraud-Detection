@@ -41,3 +41,8 @@ write_files:
       fs.file-max = 2097152
 
 final_message: "MLOps Fraud Detection VM setup completed. Services will be available after Docker Compose startup."
+
+
+
+
+

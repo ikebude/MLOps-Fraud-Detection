@@ -164,7 +164,7 @@ def main():
     
     # Check core services
     print(f"\n{Colors.BOLD}📡 Service Health Checks{Colors.END}")
-    results.append(check_service("http://localhost:5000/health", "FraudGuard Dashboard"))
+    results.append(check_service("http://localhost:5000/health", "Moniguard Dashboard"))
     results.append(check_service("http://localhost:8000/health", "Inference API"))
     results.append(check_service("http://localhost:5500/health", "MLflow Server"))
     results.append(check_service("http://localhost:8080/health", "Airflow Webserver"))
@@ -208,3 +208,8 @@ def main():
 if __name__ == "__main__":
     success = main()
     sys.exit(0 if success else 1)
+
+
+
+
+

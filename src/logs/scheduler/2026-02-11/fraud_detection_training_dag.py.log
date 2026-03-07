@@ -2848,3 +2848,8 @@
 [2026-02-11T15:54:55.798+0000] {logging_mixin.py:190} INFO - [2026-02-11T15:54:55.797+0000] {dag.py:3239} INFO - Sync 1 DAGs
 [2026-02-11T15:54:55.882+0000] {logging_mixin.py:190} INFO - [2026-02-11T15:54:55.882+0000] {dag.py:4180} INFO - Setting next_dagrun for fraud_detection_training to 2026-02-11 12:00:00+00:00, run_after=2026-02-12 12:00:00+00:00
 [2026-02-11T15:54:55.990+0000] {processor.py:208} INFO - Processing /opt/airflow/dags/fraud_detection_training_dag.py took 0.402 seconds
+
+
+
+
+

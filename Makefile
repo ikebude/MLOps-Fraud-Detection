@@ -86,3 +86,8 @@ results: ## Get inference results
 
 stats: ## Get inference statistics
 	@curl http://localhost:8000/inference/stats | python -m json.tool
+
+
+
+
+

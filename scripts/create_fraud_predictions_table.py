@@ -84,3 +84,8 @@ def create_fraud_predictions_table():
 
 if __name__ == "__main__":
     create_fraud_predictions_table()
+
+
+
+
+

@@ -17,3 +17,8 @@ docker compose build
 cd ..
 
 echo -e "${GREEN}All images built. Start with: make up${NC}"
+
+
+
+
+

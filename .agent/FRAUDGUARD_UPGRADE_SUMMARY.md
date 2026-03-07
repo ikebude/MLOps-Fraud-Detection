@@ -1,7 +1,7 @@
-# FraudGuard Dashboard - Comprehensive Upgrade Summary
+# Moniguard Dashboard - Comprehensive Upgrade Summary
 
 ## Executive Summary
-The FraudGuard dashboard has been completely overhauled to provide a premium, real-time fraud monitoring experience with accurate data from the inference database.
+The Moniguard dashboard has been completely overhauled to provide a premium, real-time fraud monitoring experience with accurate data from the inference database.
 
 ---
 
@@ -151,10 +151,10 @@ Producer → Kafka → Inference Service → fraud_predictions table
                                               ↓
                                     (JOIN with transactions)
                                               ↓
-                                    FraudGuard Dashboard
+                                    Moniguard Dashboard
 ```
 
-**Key Point**: FraudGuard does NOT need the producer. It reads from:
+**Key Point**: Moniguard does NOT need the producer. It reads from:
 1. **Inference Database** (`fraud_predictions` + `transactions` tables)
 2. **MLflow** (model registry for version and accuracy)
 
@@ -194,7 +194,7 @@ Producer → Kafka → Inference Service → fraud_predictions table
 ## 📝 FILES MODIFIED
 
 ### Backend
-- `fraudguard/app.py` (1200 lines)
+- `Moniguard/app.py` (1200 lines)
   - `get_live_fraud_feed()` - Fraud-only feed with joins
   - `get_all_predictions_feed()` - Full transaction history
   - `get_realtime_stats()` - Live metrics calculation
@@ -202,15 +202,15 @@ Producer → Kafka → Inference Service → fraud_predictions table
   - `/api/stream` - Server-Sent Events endpoint
 
 ### Frontend Templates
-- `fraudguard/templates/dashboard.html` - Main overview
-- `fraudguard/templates/transactions.html` - Full history page
-- `fraudguard/templates/system_health.html` - Status monitoring
-- `fraudguard/templates/settings.html` - Configuration panel
-- `fraudguard/templates/alerts.html` - Alert cards
-- `fraudguard/templates/base.html` - Fixed navigation URL
+- `Moniguard/templates/dashboard.html` - Main overview
+- `Moniguard/templates/transactions.html` - Full history page
+- `Moniguard/templates/system_health.html` - Status monitoring
+- `Moniguard/templates/settings.html` - Configuration panel
+- `Moniguard/templates/alerts.html` - Alert cards
+- `Moniguard/templates/base.html` - Fixed navigation URL
 
 ### JavaScript
-- `fraudguard/static/js/dashboard-enhanced.js` (805 lines)
+- `Moniguard/static/js/dashboard-enhanced.js` (805 lines)
   - `initChartsEnhanced()` - Dual-axis chart setup
   - `updateChartsEnhanced()` - Real-time chart updates
   - `buildTransactionRowsEnhanced()` - Table row rendering
@@ -259,3 +259,8 @@ WHERE fraud_prediction = 1 OR actual_fraud = 1
 **Performance**: Real-time updates with <500ms latency
 **Data Accuracy**: 100% from inference database (no fake data)
 **Visual Quality**: Premium, modern UI with animations
+
+
+
+
+

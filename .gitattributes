@@ -8,3 +8,8 @@ Dockerfile text eol=lf
 *.ps1 text eol=lf
 # Default: auto-detect other text files
 * text=auto
+
+
+
+
+

@@ -50,3 +50,8 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 
 # Run inference API server by default (can override with CMD for batch mode)
 CMD ["python", "api_server.py"]
+
+
+
+
+

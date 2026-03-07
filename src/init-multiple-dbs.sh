@@ -232,3 +232,8 @@ echo "  - fraud_inference (read-only access to transactions_db)"
 echo "  - fraud_training (read-only access to transactions_db)"
 echo "  - mlflow (full access to mlflow database)"
 
+
+
+
+
+

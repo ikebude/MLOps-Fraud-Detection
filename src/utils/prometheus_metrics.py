@@ -190,3 +190,8 @@ def get_metrics_exposition() -> str:
         Prometheus metrics in text format
     """
     return generate_latest(REGISTRY).decode('utf-8')
+
+
+
+
+

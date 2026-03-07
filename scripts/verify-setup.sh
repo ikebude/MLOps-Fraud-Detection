@@ -44,10 +44,10 @@ else
 fi
 
 # Check required directories
-if [ ! -d "../fraudguard" ]; then
-    echo -e "${RED}✗ fraudguard directory not found${NC}"
+if [ ! -d "../Moniguard" ]; then
+    echo -e "${RED}✗ Moniguard directory not found${NC}"
 else
-    echo -e "${GREEN}✓ fraudguard directory exists${NC}"
+    echo -e "${GREEN}✓ Moniguard directory exists${NC}"
 fi
 
 if [ ! -d "inference" ]; then
@@ -88,3 +88,8 @@ echo "  1. Ensure all services are running: make up (or: cd src && docker compos
 echo "  2. First time: make init-db"
 echo "  3. Fraud Guard: http://localhost:5000 | Airflow: http://localhost:8080 (airflow/airflow)"
 echo "  4. MinIO Console: http://localhost:9001 | Flower: http://localhost:5555 (make up-flower)"
+
+
+
+
+

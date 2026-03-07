@@ -21,3 +21,7 @@ EXPOSE 5500
 
 # FIX: Use ENTRYPOINT to ensure bash runs directly without sh wrapper
 ENTRYPOINT ["/bin/bash", "/app/start-mlflow.sh"]
+
+
+
+

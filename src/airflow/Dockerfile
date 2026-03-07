@@ -34,3 +34,7 @@ COPY --chown=airflow:root src/dags /opt/airflow/dags
 COPY --chown=airflow:root src/plugins /opt/airflow/plugins
 
 # PATH remains as set by base image (virtualenv active)
+
+
+
+

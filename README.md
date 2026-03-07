@@ -1,20 +1,20 @@
 # MLOps Fraud Detection – Local End-to-End Solution
 
-A local MLOps stack for fraud detection: **Airflow** runs the training DAG, **MLflow** stores the model, **Inference** serves predictions on new records, and **FraudGuard** shows metrics. All services run via Docker Compose on your machine.
+A local MLOps stack for fraud detection: **Airflow** runs the training DAG, **MLflow** stores the model, **Inference** serves predictions on new records, and **Moniguard** shows metrics. All services run via Docker Compose on your machine.
 
 ## Overview
 
 - **Airflow**: DAG `fraud_detection_training` collects data from the **PostgreSQL database (populated by Producer)**, trains an XGBoost model, and logs to MLflow.
 - **MLflow**: Experiment tracking and model registry; artifacts in MinIO.
 - **Inference**: Loads the model (from MLflow or local cache), runs on new records in DB, exposes REST API.
-- **FraudGuard**: Dashboard that displays real-time metrics and alerts from the database.
+- **Moniguard**: Dashboard that displays real-time metrics and alerts from the database.
 
 ## Architecture
 
 ```
 Transactions Producer → PostgreSQL (Live Data) → Airflow DAG → Training → MLflow (model)
                                            ↓              ↘
-FraudGuard UI ← PostgreSQL (Live Data) ← Inference API ←──────────┘
+Moniguard UI ← PostgreSQL (Live Data) ← Inference API ←──────────┘
 ```
 
 ## Prerequisites
@@ -44,7 +44,7 @@ FraudGuard UI ← PostgreSQL (Live Data) ← Inference API ←──────
    **Windows (no `make`):** use `.\make.ps1` instead of `make`, e.g. `.\make.ps1 build`, `.\make.ps1 up`, `.\make.ps1 init-db`.
 
 3. **Access**
-   - **FraudGuard**: http://localhost:5000  
+   - **Moniguard**: http://localhost:5000  
    - **Airflow**: http://localhost:8080 (airflow / airflow)  
    - **MLflow**: http://localhost:5500  
    - **MinIO Console**: http://localhost:9001 (minioadmin / minioadmin)  
@@ -56,13 +56,13 @@ FraudGuard UI ← PostgreSQL (Live Data) ← Inference API ←──────
    - Airflow UI → enable `fraud_detection_training` DAG → trigger a run.
 
 5. **Inference & metrics**
-   - Use “Run Inference” in FraudGuard or `make inference`. Metrics appear in FraudGuard.
+   - Use “Run Inference” in Moniguard or `make inference`. Metrics appear in Moniguard.
 
 ## Project Structure
 
 ```
 MLOps_Fraud_Detection/
-├── fraudguard/           # FraudGuard Flask app
+├── Moniguard/           # Moniguard Flask app
 │   ├── app.py
 │   ├── Dockerfile
 │   ├── templates/
@@ -101,9 +101,9 @@ MLOps_Fraud_Detection/
    - Fetches data from **PostgreSQL** (`transactions` table) → feature engineering → XGBoost + SMOTE → logs to **MLflow** (metrics, params, `fraud_detection_model`), writes artifacts to MinIO.
    - Saves `fraud_detection_model.pkl` to **`/app/models`** (mounted `src/models`).
 6. **Inference** starts → loads model from **MLflow** first (`models:/fraud_detection_model/latest`), else from **`/app/models/fraud_detection_model.pkl`**.
-7. **Run inference** (FraudGuard “Run Inference” or `make inference`):
+7. **Run inference** (Moniguard “Run Inference” or `make inference`):
    - Fetches recent unscored transactions from **PostgreSQL** → same preprocessing/features as training → predictions → writes back to DB.
-8. **FraudGuard** → queries **PostgreSQL** directly for live transaction feed and real-time aggregations.
+8. **Moniguard** → queries **PostgreSQL** directly for live transaction feed and real-time aggregations.
 
 **Model**: `fraud_detection_model` everywhere (config, training, inference). **Data**: PostgreSQL `transactions` table is the single source of truth.
 
@@ -120,13 +120,13 @@ MLOps_Fraud_Detection/
 | `make train` | Trigger training DAG |
 | `make inference` | POST /inference/run (1000 records) |
 | `make stats` | GET /inference/stats |
-| `make test` | Health checks (FraudGuard, Inference, MLflow, Airflow, MinIO, Flower) |
+| `make test` | Health checks (Moniguard, Inference, MLflow, Airflow, MinIO, Flower) |
 
 ## Local endpoints summary
 
 | Service | URL | Notes |
 |--------|-----|-------|
-| FraudGuard | http://localhost:5000 | Dashboard |
+| Moniguard | http://localhost:5000 | Dashboard |
 | Airflow | http://localhost:8080 | airflow / airflow |
 | MLflow | http://localhost:5500 | |
 | MinIO Console | http://localhost:9001 | minioadmin / minioadmin |
@@ -145,8 +145,13 @@ MLOps_Fraud_Detection/
 - `GET /health` – Health check  
 - `POST /inference/run` – Run inference (JSON: `max_records`, etc.)  
 - `GET /inference/results` – Latest results  
-- `GET /inference/stats` – Cumulative stats (used by FraudGuard)
+- `GET /inference/stats` – Cumulative stats (used by Moniguard)
 
 ---
 
 **Local only.** No cloud or Kubernetes; everything runs via Docker Compose.
+
+
+
+
+

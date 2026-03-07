@@ -152,3 +152,8 @@ class ContinuousInferenceWorker:
             'poll_interval': self.poll_interval,
             'thread_alive': self.thread.is_alive() if self.thread else False
         }
+
+
+
+
+

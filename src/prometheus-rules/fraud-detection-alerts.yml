@@ -159,3 +159,8 @@ groups:
           summary: "No predictions generated in last 10 minutes"
           description: "The inference service has not generated any predictions. Check if data is flowing."
           dashboard: "http://localhost:3000/d/fraud-detection"
+
+
+
+
+

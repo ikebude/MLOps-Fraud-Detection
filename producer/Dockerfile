@@ -29,3 +29,7 @@ COPY . .
 
 # Entrypoint
 ENTRYPOINT ["python3", "main.py"]
+
+
+
+

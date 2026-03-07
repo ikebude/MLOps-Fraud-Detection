@@ -5344,3 +5344,8 @@ ValueError: Duplicated timeseries in CollectorRegistry: {'fraud_detection_traini
 [2026-02-06T15:52:22.896+0000] {logging_mixin.py:190} INFO - [2026-02-06T15:52:22.895+0000] {dag.py:3239} INFO - Sync 1 DAGs
 [2026-02-06T15:52:23.502+0000] {logging_mixin.py:190} INFO - [2026-02-06T15:52:23.502+0000] {dag.py:4180} INFO - Setting next_dagrun for fraud_detection_training to 2026-02-06 12:00:00+00:00, run_after=2026-02-07 12:00:00+00:00
 [2026-02-06T15:52:24.305+0000] {processor.py:208} INFO - Processing /opt/airflow/dags/fraud_detection_training_dag.py took 6.252 seconds
+
+
+
+
+

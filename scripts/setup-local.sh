@@ -58,8 +58,8 @@ mkdir -p src/models
 mkdir -p src/logs
 mkdir -p src/state
 mkdir -p src/config
-mkdir -p fraudguard/data
-mkdir -p fraudguard/static
+mkdir -p Moniguard/data
+mkdir -p Moniguard/static
 
 # Set proper permissions
 echo -e "${YELLOW}Setting permissions...${NC}"
@@ -85,4 +85,9 @@ echo "  2. make build   # or: cd src && docker compose build"
 echo "  3. make up     # or: cd src && docker compose up -d"
 echo "  4. make init-db   # first time only"
 echo "  5. Open Airflow http://localhost:8080 (airflow/airflow), enable fraud_detection_training DAG"
-echo "  6. Open FraudGuard http://localhost:5000"
+echo "  6. Open Moniguard http://localhost:5000"
+
+
+
+
+

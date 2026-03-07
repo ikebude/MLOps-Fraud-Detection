@@ -79,7 +79,7 @@ Examples:
     "test"     {
         Write-Host "Testing service health..."
         $checks = @(
-            @{ N = "FraudGuard"; U = "http://localhost:5000/api/health" },
+            @{ N = "Moniguard"; U = "http://localhost:5000/api/health" },
             @{ N = "Inference";  U = "http://localhost:8000/health" },
             @{ N = "MLflow";     U = "http://localhost:5500/health" },
             @{ N = "Airflow";    U = "http://localhost:8080/health" }
@@ -97,3 +97,8 @@ Examples:
     }
     default    { Write-Host "Unknown target: $Target. Run .\make.ps1 help"; exit 1 }
 }
+
+
+
+
+

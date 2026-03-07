@@ -6,7 +6,7 @@ This is your **END-TO-END MLOps Fraud Detection System** with:
 - **Airflow**: Model training orchestration (daily scheduled)
 - **MLflow**: Model registry and experiment tracking
 - **Inference Service**: Real-time fraud predictions
-- **FraudGuard Dashboard**: Premium UI for monitoring (UPGRADED ✨)
+- **Moniguard Dashboard**: Premium UI for monitoring (UPGRADED ✨)
 - **PostgreSQL**: Centralized database (3 databases: airflow, mlflow, transactions_db)
 - **MinIO**: S3-compatible storage for MLflow artifacts
 - **Producer**: Transaction data generator (OPTIONAL)
@@ -67,7 +67,7 @@ This is your **END-TO-END MLOps Fraud Detection System** with:
           │ JOIN
           ▼
    ┌──────────────┐
-   │ FraudGuard   │ (Dashboard)
+   │ Moniguard   │ (Dashboard)
    │ Port: 5000   │
    │ - Live Feed  │
    │ - Metrics    │
@@ -140,7 +140,7 @@ MLFLOW_REGISTERED_MODEL=fraud_detection_model
 INFERENCE_SERVICE_URL=http://inference:8000
 INFERENCE_PORT=8000
 
-# FraudGuard
+# Moniguard
 FLASK_PORT=5000
 FLASK_DEBUG=False
 
@@ -168,14 +168,14 @@ docker compose build
 # ✓ Building fraud-detection-airflow
 # ✓ Building fraud-detection-mlflow
 # ✓ Building fraud-detection-inference
-# ✓ Building fraud-detection-fraudguard
+# ✓ Building fraud-detection-Moniguard
 ```
 
 **What happens**:
 - Airflow image: Installs Python dependencies, copies DAGs and plugins
 - MLflow image: Sets up tracking server
 - Inference image: Installs scikit-learn, xgboost, psycopg2
-- FraudGuard image: Installs Flask, requests, psycopg2
+- Moniguard image: Installs Flask, requests, psycopg2
 
 ---
 
@@ -281,21 +281,21 @@ curl http://localhost:8000/health
 
 ---
 
-### **PHASE 6: Start FraudGuard Dashboard** (~30 seconds)
+### **PHASE 6: Start Moniguard Dashboard** (~30 seconds)
 
 ```powershell
-# Start FraudGuard
-docker compose up -d fraudguard
+# Start Moniguard
+docker compose up -d Moniguard
 
 # Wait for service to be ready
 Start-Sleep -Seconds 20
 
-# Verify FraudGuard is running
+# Verify Moniguard is running
 curl http://localhost:5000/api/health
 ```
 
 **What happens**:
-- FraudGuard Flask app starts
+- Moniguard Flask app starts
 - Connects to:
   - PostgreSQL (`transactions_db`) for direct queries
   - Inference Service (http://inference:8000) for API calls
@@ -340,14 +340,14 @@ docker compose ps
 # airflow-scheduler     running (healthy)
 # airflow-worker        running (healthy)
 # inference-service     running (healthy)
-# fraudguard-web        running (healthy)
+# Moniguard-web        running (healthy)
 ```
 
 ### **2. Access Web Interfaces**
 
 | Service | URL | Credentials | Purpose |
 |---------|-----|-------------|---------|
-| **FraudGuard** | http://localhost:5000 | None | Main dashboard |
+| **Moniguard** | http://localhost:5000 | None | Main dashboard |
 | **Airflow** | http://localhost:8080 | airflow / airflow | DAG management |
 | **MLflow** | http://localhost:5500 | None | Model registry |
 | **MinIO Console** | http://localhost:9001 | minioadmin / minioadmin | S3 storage |
@@ -402,7 +402,7 @@ curl http://localhost:5500/api/2.0/mlflow/registered-models/get?name=fraud_detec
 ### **5. Run Inference**
 
 ```powershell
-# Option 1: Via FraudGuard UI
+# Option 1: Via Moniguard UI
 # 1. Go to http://localhost:5000
 # 2. Click "Run Inference" button
 # 3. Wait for completion
@@ -428,10 +428,10 @@ curl http://localhost:8000/inference/results | ConvertFrom-Json | ConvertTo-Json
    - `risk_level` ("Low", "Medium", "High")
    - `actual_fraud` (from `transactions.is_fraud`)
 
-### **6. Verify FraudGuard Dashboard**
+### **6. Verify Moniguard Dashboard**
 
 ```powershell
-# Open FraudGuard
+# Open Moniguard
 Start-Process http://localhost:5000
 ```
 
@@ -489,7 +489,7 @@ docker compose logs -f <service_name>
 docker compose logs -f postgres
 docker compose logs -f mlflow-server
 docker compose logs -f inference
-docker compose logs -f fraudguard
+docker compose logs -f Moniguard
 
 # Common fixes:
 # 1. Restart service
@@ -529,7 +529,7 @@ docker compose up -d postgres
 # Wait 30 seconds for init-multiple-dbs.sh to run
 ```
 
-### **Issue 3: FraudGuard Shows "No Data"**
+### **Issue 3: Moniguard Shows "No Data"**
 
 **Diagnosis**:
 ```powershell
@@ -542,8 +542,8 @@ docker compose exec postgres psql -U airflow -d transactions_db -c "SELECT COUNT
 # 3. Check if there are transactions
 docker compose exec postgres psql -U airflow -d transactions_db -c "SELECT COUNT(*) FROM transactions;"
 
-# 4. Check FraudGuard logs
-docker compose logs -f fraudguard
+# 4. Check Moniguard logs
+docker compose logs -f Moniguard
 ```
 
 **Solutions**:
@@ -563,8 +563,8 @@ VALUES ('TEST001', 'ORD001', 'USER001', 150.00, 'Amazon', 'New York, US', 'USA',
 curl -X POST http://localhost:8000/inference/run -H "Content-Type: application/json" -d '{"max_records": 100}'
 
 # Solution C: Database connection issue
-# Check FraudGuard environment variables
-docker compose exec fraudguard env | grep DB_
+# Check Moniguard environment variables
+docker compose exec Moniguard env | grep DB_
 # Should show:
 # DB_HOST=postgres
 # DB_NAME=transactions_db
@@ -624,7 +624,7 @@ docker compose restart inference
 
 # Common issues:
 # 1. Server-Sent Events (SSE) connection failed
-#    - Check FraudGuard logs: docker compose logs -f fraudguard
+#    - Check Moniguard logs: docker compose logs -f Moniguard
 #    - Verify /api/stream endpoint: curl http://localhost:5000/api/stream
 
 # 2. No trend data
@@ -678,7 +678,7 @@ WHERE fp.transaction_id = 'E2E_TEST_001';
 # transaction_id | fraud_prediction | fraud_probability | actual_fraud | merchant    | location
 # E2E_TEST_001   | 1                | 0.8500            | 1            | TestVendor  | Los Angeles, US
 
-# 4. Check FraudGuard dashboard
+# 4. Check Moniguard dashboard
 # - Open http://localhost:5000
 # - Look for E2E_TEST_001 in "Live Fraud Transaction Feed"
 # - Verify merchant shows "TestVendor"
@@ -701,7 +701,7 @@ WHERE fp.transaction_id = 'E2E_TEST_001';
    - Default: 1000 records per run
    - Adjust in API call: `{"max_records": 500}`
 
-3. **FraudGuard Update Interval**:
+3. **Moniguard Update Interval**:
    - Default: 500ms (real-time)
    - To reduce load, edit `dashboard-enhanced.js`:
      ```javascript
@@ -760,7 +760,7 @@ services:
 
 ### **Daily Tasks**
 - [ ] Check Airflow DAG runs (should run daily at 2 AM)
-- [ ] Monitor FraudGuard metrics
+- [ ] Monitor Moniguard metrics
 - [ ] Review fraud alerts
 
 ### **Weekly Tasks**
@@ -788,7 +788,7 @@ Start-Sleep -Seconds 30
 docker compose up airflow-init
 docker compose up -d airflow-webserver airflow-scheduler airflow-worker airflow-triggerer redis
 Start-Sleep -Seconds 120
-docker compose up -d inference fraudguard
+docker compose up -d inference Moniguard
 Start-Sleep -Seconds 30
 ```
 
@@ -821,11 +821,11 @@ Before considering the system "ready":
 - [ ] All services show "healthy" in `docker compose ps`
 - [ ] Airflow UI accessible at http://localhost:8080
 - [ ] MLflow UI accessible at http://localhost:5500
-- [ ] FraudGuard UI accessible at http://localhost:5000
+- [ ] Moniguard UI accessible at http://localhost:5000
 - [ ] At least one training run completed successfully
 - [ ] Model visible in MLflow registry
 - [ ] Inference service can load model
-- [ ] FraudGuard shows live metrics (not zeros)
+- [ ] Moniguard shows live metrics (not zeros)
 - [ ] Live Fraud Transaction Feed shows real merchant names
 - [ ] Chart displays dual y-axis with real data
 - [ ] System Health page shows all components green
@@ -838,5 +838,10 @@ Before considering the system "ready":
 1. Run first training: `docker compose exec airflow-webserver airflow dags trigger fraud_detection_training`
 2. Wait 10-30 minutes for training to complete
 3. Run inference: `curl -X POST http://localhost:8000/inference/run -H "Content-Type: application/json" -d '{"max_records": 1000}'`
-4. Open FraudGuard: http://localhost:5000
+4. Open Moniguard: http://localhost:5000
 5. Watch the magic happen! ✨
+
+
+
+
+

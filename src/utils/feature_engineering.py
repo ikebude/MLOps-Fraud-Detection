@@ -272,3 +272,8 @@ class FeatureEngineer:
         df['time_since_prev_txn_sec'] = df.groupby('user_id')['timestamp'].diff().dt.total_seconds().fillna(0)
         
         return df
+
+
+
+
+

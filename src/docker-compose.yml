@@ -349,10 +349,10 @@ services:
       - postgres
       - mlflow-server
 
-  fraudguard:
-    build: ../fraudguard
-    image: fraud-detection-fraudguard:latest
-    container_name: fraudguard-web
+  Moniguard:
+    build: ../Moniguard
+    image: fraud-detection-Moniguard:latest
+    container_name: Moniguard-web
     env_file: .env
     environment:
       - INFERENCE_SERVICE_URL=${INFERENCE_SERVICE_URL:-http://inference:8000}
@@ -371,9 +371,9 @@ services:
     ports:
       - "5000:5000"
     volumes:
-      - ../fraudguard/data:/app/data
-      - ../fraudguard/static:/app/static
-      - ../fraudguard/templates:/app/templates
+      - ../Moniguard/data:/app/data
+      - ../Moniguard/static:/app/static
+      - ../Moniguard/templates:/app/templates
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:5000/api/health" ]
       interval: 30s
@@ -470,3 +470,8 @@ volumes:
   inference-data:
   prometheus-data:
   grafana-data:
+
+
+
+
+

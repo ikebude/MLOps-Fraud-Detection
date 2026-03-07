@@ -7,3 +7,8 @@ providers:
     disableDeletion: false
     options:
       path: /etc/grafana/provisioning/dashboards
+
+
+
+
+
