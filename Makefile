@@ -1,4 +1,4 @@
-.PHONY: help setup build up down logs clean test
+.PHONY: help setup build up down logs clean test demo test-unit
 
 help: ## Show this help message
 	@echo 'Usage: make [target]'
@@ -86,6 +86,17 @@ results: ## Get inference results
 
 stats: ## Get inference statistics
 	@curl http://localhost:8000/inference/stats | python -m json.tool
+
+demo: ## Train the offline demo model and write real metrics to reports/metrics.json (no Docker/DB needed)
+	@pip install --break-system-packages -q -r requirements-demo.txt
+	@python3 scripts/offline_train_demo.py
+	@echo ""
+	@echo "Done. Real metrics written to reports/metrics.json."
+	@echo "Start the scoring API with: uvicorn src.inference.score_api:app --reload --port 8000"
+
+test-unit: ## Run the pytest suite (feature engineering, scoring, API contract) — no Docker/DB needed
+	@pip install --break-system-packages -q -r requirements-demo.txt pytest pytest-cov httpx
+	@python3 -m pytest tests/ -v --cov=src --cov-report=term-missing
 
 
 

@@ -6,3 +6,11 @@ env/
 
 
 
+
+# Added for Moniguard v2 offline demo pipeline
+__pycache__/
+*.pyc
+.coverage
+.pytest_cache/
+reports/labels_feedback.jsonl
+.env

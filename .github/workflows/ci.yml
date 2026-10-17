@@ -1,0 +1,34 @@
+name: CI
+
+# Runs the fast, Docker/DB-free path: feature-engineering tests, the
+# ensemble-scoring tests, and the FastAPI contract tests, with coverage.
+# The full docker-compose stack is exercised manually (see README "How to
+# run") since it needs a long-lived Postgres/Kafka/Airflow stack that
+# doesn't fit a CI job's lifetime on the free tier this targets.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: pip install -r requirements-demo.txt pytest pytest-cov httpx
+      - name: Run tests with coverage
+        run: |
+          python3 -m pytest tests/ -v \
+            --cov=src.utils.feature_engineering --cov=src.inference.scoring --cov=src.inference.score_api \
+            --cov-report=term-missing --cov-fail-under=70
+          # Coverage is scoped to the modules this test suite actually targets
+          # (feature engineering + the v2 scoring/API path). The rest of src/
+          # (streaming inference, the legacy Flask api_server, Airflow plugins)
+          # is exercised by the full docker-compose stack, not by this fast CI
+          # job — see README "How to run".
