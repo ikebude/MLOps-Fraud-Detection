@@ -72,9 +72,9 @@ More adversarial checks:
 
 ## 3. Scope-fence checks (FAIL if violated)
 
-- `git diff main -- README.md` doesn't touch the "Provenance" section or lines 12-13 (the ownership wording). `git diff main | grep -i "3consult\|fraudguard"` shows only unchanged context lines, or none.
+- `git diff main -- README.md` doesn't touch the "Provenance" section or lines 12-13 (the ownership wording). Outside the item-9 edits, `git diff main | grep -i "3consult"` shows no added or removed lines.
 - `FRAUD_API_URL` values are unchanged everywhere: `git diff main | grep FRAUD_API_URL` is empty.
-- `score_api.py`'s `fraudguard/platform` comment is still present.
+- **Moniguard-only naming (owner decision, item 9).** `git grep -n -i "fraudguard\|fraud guard" -- ':!tasks'` hits only README Provenance lines 19 and 21. `git ls-files | grep -i fraudguard` is empty. `git grep -n "Chidi-3Consulting"` is empty: no links to the employer repo. `cloud-init.yaml` clones `github.com/ikebude/MLOps-Fraud-Detection.git`.
 - No history rewrite: `git log --oneline main..HEAD` is linear, and the planner commit plus the builder's commits are on top of `f0845a5`.
 - `--cov-fail-under=70` is unchanged, with no `skip`/`xfail` added: `git diff main -- tests | grep -n "skip\|xfail"` is empty.
 - The owner's name is spelled "Precious Ikebude" (unchanged).
@@ -114,8 +114,7 @@ Expected: no `BROKEN` lines, and no `MISSING-REF` lines for README.md. In partic
 `PORTFOLIO_BUILD_PLAN.md` are no longer referenced as if they were in the repo. Also check the README's in-page
 anchors (`#results`, `#provenance`, `#what-id-do-next`, and any new section anchor) against the headings. External
 links: the CI badge URL points at `ikebude/mlops-fraud-detection`. Don't add new external URLs. `cloud-init.yaml:20`
-clones `github.com/your-repo/MLOps_Fraud_Detection.git`, a placeholder that is still broken. That is an owner
-decision, so report it rather than failing.
+must now clone `https://github.com/ikebude/MLOps-Fraud-Detection.git` (item 9).
 
 ## 6. README claim → evidence table
 

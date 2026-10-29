@@ -149,8 +149,8 @@ def require_api_key(x_api_key: str = Header(..., alias="X-API-Key")) -> str:
 ```
 Update the module docstring and the comment at :46-52 to say that keys are required and there is no default.
 The docstring at :2 and the comment at :47 reference `PRODUCT_SPECS.md`, which isn't in this repo. Reword
-these to "the Moniguard v2 product spec (kept outside this repo)". **Leave the words "fraudguard/platform" in
-the comment at :49 exactly as they are** (section 3).
+these to "the Moniguard v2 product spec (kept outside this repo)". The `fraudguard/platform` mention at :49 is
+handled in item 9; if you do item 2 first, leave it for item 9 so that each commit stays focused.
 
 **New tests** (in `tests/test_score_api.py`, reusing the `client` fixture and `monkeypatch`):
 - `test_unconfigured_keys_fail_closed`: `monkeypatch.delenv("MONIGUARD_API_KEYS", raising=False)`. A POST to `/v1/score` with `X-API-Key: demo-key` returns 503, and so does a POST to `/v1/labels`.
@@ -496,11 +496,50 @@ If they differ, revert the xgboost-cpu change and record why.
 
 ---
 
+---
+
+### Item 9: The repo reads as Moniguard only (no FraudGuard naming)
+
+**Why (owner decision, 2026-10-29, scratchpad `OWNER_DECISIONS.md` §1).** `ikebude/MLOps-Fraud-Detection` is the
+owner's personal product **Moniguard**. **FraudGuard** is a different repo, a 3Consulting product under the
+`Chidi-3Consulting` GitHub org. Nothing in this repo may be named or labelled in a way that implies it *is*
+FraudGuard. Current hits from `git grep -n -i "fraudguard\|fraud guard"`:
+- `.agent/FRAUDGUARD_UPGRADE_SUMMARY.md`: the filename says FraudGuard, but the content is about the Moniguard dashboard. Item 1 already untracks `.agent/`. Verify it is gone from `git ls-files`.
+- `Makefile:61`: `echo "Fraud Guard: Not responding"`.
+- `moniguard/Dockerfile:1`: `# Dockerfile for Fraud Guard Web Application`.
+- `scripts/setup-local.sh:47`, `scripts/setup-local.ps1:53`: `# Fraud Guard` comment in the generated .env.
+- `scripts/verify-setup.sh:76,89`: endpoint labels "Fraud Guard".
+- `src/inference/score_api.py:49`: "(see fraudguard/platform for the pattern this reuses)". This points to FraudGuard code that isn't here and implies this API is FraudGuard's.
+- `README.md:116`: "Add the industry-pack idea from the FraudGuard spec, ... per `PORTFOLIO_BUILD_PLAN.md` ...". This makes Moniguard's roadmap depend on the employer's spec.
+- `cloud-init.yaml:20` clones the placeholder `https://github.com/your-repo/MLOps_Fraud_Detection.git`. The owner confirmed that Moniguard's repo is `ikebude/MLOps-Fraud-Detection`.
+- `make.ps1:2` "Run from project root: MLOps_Fraud_Detection". This is a local folder name, harmless, so leave it.
+
+**Files and changes.**
+- Makefile:61, moniguard/Dockerfile:1, setup-local.sh:47, setup-local.ps1:53, verify-setup.sh:76,89: replace "Fraud Guard"
+  with "Moniguard", for example "Moniguard dashboard". Comments and labels only, no behaviour change. On verify-setup.sh:89,
+  also replace `(airflow/airflow)` with `(credentials in src/.env)`, in line with item 1.
+- `score_api.py:46-52` comment: drop the `fraudguard/platform` sentence. The rewrite reads: keys come from
+  `MONIGUARD_API_KEYS` (comma-separated, sha256 hex or plaintext hashed at load); a production deployment would store hashed
+  keys in a database.
+- README:116, item 4 of "What I'd do next": rewrite as "Add industry packs (feature and threshold presets), scoped to
+  e-commerce and mobile money first." Don't mention a FraudGuard spec or `PORTFOLIO_BUILD_PLAN.md`. This also resolves
+  item 8's line-117 reference.
+- `cloud-init.yaml:20`: `git clone https://github.com/ikebude/MLOps-Fraud-Detection.git .`. Never point at any Chidi-3Consulting URL.
+- **Keep the README "Provenance" section (lines 15-23) and lines 12-13 unchanged.** They state explicitly that Moniguard is
+  *not* FraudGuard and *not* a 3Consulting deliverable, which is the distinction the owner wants. Don't add any link to the
+  Chidi-3Consulting repo in this repo.
+- Don't touch `src/logs/` content; item 1 untracks it. Check `docs/archive/*` and `moniguard/docs/*` with the same grep, and fix
+  any "FraudGuard"/"Fraud Guard" label that names *this* project the same way. Leave sentences that name FraudGuard as a separate product.
+
+**Done when.** `git grep -n -i "fraudguard\|fraud guard" -- ':!tasks'` prints only README Provenance lines 19 and 21.
+`git ls-files | grep -i fraudguard` prints nothing. `bash -n scripts/verify-setup.sh scripts/setup-local.sh` passes.
+The test suite is still green.
+
 ## 3. Things NOT to do (scope fences)
 
-- **Ownership and attribution are the owner's call.** Do not edit the README "Provenance" section, line 12-13
-  ("not a 3Consulting deliverable"), or the `fraudguard/platform` comment in `score_api.py:49`. Don't add or remove any
-  FraudGuard or 3Consulting wording anywhere.
+- **Ownership wording:** do not edit the README "Provenance" section or lines 12-13 ("not a 3Consulting deliverable").
+  The only FraudGuard wording changes allowed are the ones listed in item 9, per the owner decision. Never add links to
+  Chidi-3Consulting repos.
 - **Do not change the `FRAUD_API_URL` value** (`https://3consult-ng.com/fraud_api.php`) in `.env.example`, `src/.env.example`,
   `src/config.yaml:12`, or `scripts/setup-local.{sh,ps1}`. It is a live 3Consulting endpoint used as a data source, which raises
   an ownership question. The owner decides; it is flagged in the report.
@@ -528,6 +567,7 @@ Claude-Session: https://claude.ai/code/session_01HeTRdmBL76YF5tAWX9wiPg
 6. `fix(compose): correct moniguard build path and lowercase image name`
 7. `build: venv-based make targets, xgboost-cpu on linux/windows, single coverage scope`
 8. `docs(readme): fix missing-file references, coverage scope, secure run instructions`
+9. `chore: name the project Moniguard throughout; drop FraudGuard labels (owner decision)`
 
 Push: `git fetch origin main` (first time only), then `git push -u origin ccr-7d21c86c-pnbh8t`. On network failure,
 retry up to 4 times with 2/4/8/16 s backoff.
