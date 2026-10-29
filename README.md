@@ -138,6 +138,35 @@ make test-unit
 see architecture diagram further below): `make build && make up && make init-db`. This needs
 Docker and is meant for an Always-Free-tier VM, not CI.
 
+## Configuration and secrets
+
+No credentials are committed. Copy the template and fill it in before starting the stack:
+
+```bash
+cp src/.env.example src/.env
+scripts/generate_fernet_key.sh        # prints a value for AIRFLOW__CORE__FERNET_KEY
+```
+
+`docker compose` refuses to start until `AIRFLOW__CORE__FERNET_KEY` is set in `src/.env`. Replace every
+`change-me` value with your own secret. `.env.example` (repo root) and `src/.env.example` list every variable
+the stack reads.
+
+**Defaults that must be rotated.** These credentials were committed to this repository earlier (names only,
+never values). If you ever ran the stack with them, change all of them:
+
+| Credential | Where it is configured |
+|---|---|
+| Airflow web user and password | `_AIRFLOW_WWW_USER_USERNAME`, `_AIRFLOW_WWW_USER_PASSWORD` |
+| Postgres `airflow` user | `POSTGRES_USER`, `POSTGRES_PASSWORD` |
+| Transactions DB producer and training passwords | `POSTGRES_TRANSACTIONS_PASSWORD`, `DB_PASSWORD`, `TRAINING_DB_PASSWORD` |
+| MLflow DB password | `MLFLOW_DB_PASSWORD` |
+| MinIO root user and password, S3 access keys | `MINIO_USERNAME`, `MINIO_PASSWORD`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` |
+| Airflow Fernet key | `AIRFLOW__CORE__FERNET_KEY` |
+| Grafana admin password (compose default was `admin`) | `GRAFANA_PASSWORD` |
+| Flask session secret (old built-in default) | `SECRET_KEY` |
+
+These values remain in git history and must be treated as public.
+
 ## API
 
 `POST /v1/score` — `{"transaction": {...}}` → `{score: 0-1000, probability, decision, reasons[],
@@ -157,10 +186,10 @@ code in `src/`, `producer/`, and `moniguard/`, kept here as infrastructure refer
 
 | Service | URL | Credentials |
 |---------|-----|-------------|
-| Moniguard Dashboard | http://localhost:5000 | — |
-| Airflow | http://localhost:8080 | airflow/airflow |
+| Moniguard Dashboard | http://localhost:5000 | `MONIGUARD_*_PASSWORD` in `src/.env` |
+| Airflow | http://localhost:8080 | set in `src/.env` |
 | MLflow | http://localhost:5500 | — |
-| MinIO | http://localhost:9001 | minioadmin/minioadmin |
+| MinIO | http://localhost:9001 | set in `src/.env` |
 | Inference API (legacy Flask) | http://localhost:8000 | — |
 
 ### Architecture (full stack)

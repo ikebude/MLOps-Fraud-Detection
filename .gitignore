@@ -14,3 +14,15 @@ __pycache__/
 .pytest_cache/
 reports/labels_feedback.jsonl
 .env
+
+# Secrets and runtime state (never commit)
+.env
+src/.env
+src/state/*
+!src/state/.gitkeep
+src/logs/
+src/models/*
+!src/models/.gitkeep
+.agent/
+.vscode/
+.venv/
