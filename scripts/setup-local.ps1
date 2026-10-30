@@ -50,7 +50,7 @@ FRAUD_API_MAX_RECORDS=100000
 INFERENCE_PORT=8000
 INFERENCE_SERVICE_URL=http://inference:8000
 
-# Fraud Guard
+# Moniguard
 FLASK_DEBUG=False
 "@
         Set-Content -Path "src\.env" -Value $envContent

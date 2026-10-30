@@ -58,7 +58,7 @@ clean: ## Remove all containers, networks, and images
 
 test: ## Run health checks on all services
 	@echo "Testing service health..."
-	@curl -s http://localhost:5000/api/health | python -m json.tool || echo "Fraud Guard: Not responding"
+	@curl -s http://localhost:5000/api/health | python -m json.tool || echo "Moniguard: Not responding"
 	@curl -s http://localhost:8000/health | python -m json.tool || echo "Inference: Not responding"
 	@curl -s http://localhost:5500/health | python -m json.tool || echo "MLflow: Not responding"
 	@curl -s http://localhost:8080/health | python -m json.tool || echo "Airflow: Not responding"

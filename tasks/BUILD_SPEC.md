@@ -591,4 +591,19 @@ Report before and after: tests 13 → N, coverage 97.14% → X%.
 
 ## Builder notes
 
-(Builder: record deviations, impossibilities and the item-7 ML-results comparison here.)
+- Docker daemon not available in the build sandbox: `docker compose build Moniguard` was NOT run. Only
+  `docker compose config` was checked (build context and image name resolve correctly).
+- Item 2 and 9 overlap: because the whole API-key comment block was rewritten in item 2, the `fraudguard/platform`
+  sentence was dropped in the item 2 commit rather than item 9. Likewise the README "What I'd do next" item 4 was
+  rewritten in the item 8 commit (it contained the PORTFOLIO_BUILD_PLAN.md reference).
+- Item 7 ML-results guard: `FraudScorer()` cannot load the committed artifacts at all: `moniguard/models/offline_demo/
+  feature_columns.json` has only the keys `numeric` and `categorical`, but `src/inference/scoring.py:51` requires `iso_min`
+  and `iso_max` (KeyError). This predates this work and happens identically with xgboost and xgboost-cpu. Fixing it needs
+  retraining or hand-editing the artifacts, which the spec forbids, so it is left for the owner. Fallback comparison: loaded
+  the committed `xgb_model.json` in a venv with `xgboost` and one with `xgboost-cpu` (both 3.4.1), predicted
+  `predict_proba` on 2000 rows from `np.random.RandomState(42)` (74 features). Sum 651.61572265625 and the first five
+  probabilities were bit-identical in both (0.4140409231185913, 0.10480678826570511, 0.47067737579345703,
+  0.3426847755908966, 0.6581401228904724). xgboost-cpu change kept.
+- Compose `$` quoting: checked with `docker compose config`; single-quoted values in an env_file are kept literal, unquoted
+  `$salt` is interpolated (corrupts the hash). README says to single-quote.
+- Commit trailer: used the attribution lines supplied by the session (Sonnet 5.5) rather than the Opus lines in the spec.

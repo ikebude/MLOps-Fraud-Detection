@@ -1,4 +1,4 @@
-# Dockerfile for Fraud Guard Web Application
+# Dockerfile for Moniguard Web Application
 FROM python:3.12-slim
 
 # Install system dependencies

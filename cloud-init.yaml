@@ -17,7 +17,7 @@ runcmd:
   - apt-get install -y nodejs
   - mkdir -p /opt/fraud-detection
   - cd /opt/fraud-detection
-  - git clone https://github.com/your-repo/MLOps_Fraud_Detection.git .
+  - git clone https://github.com/ikebude/MLOps-Fraud-Detection.git .
   - chmod +x scripts/setup-local.sh
   - ./scripts/setup-local.sh
 
