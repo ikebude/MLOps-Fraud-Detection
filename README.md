@@ -40,7 +40,7 @@ patterns injected at a ~2.8% base rate (`card_fraud`, `account_takeover`, `refun
 pattern is constructed). `scripts/offline_train_demo.py` spreads these over a configurable
 historical window (180 days by default) so a genuine time-based split is possible.
 
-**Why not PaySim or IEEE-CIS yet:** the approved spec (`PRODUCT_SPECS.md`) calls for the public
+**Why not PaySim or IEEE-CIS yet:** the approved spec (the Moniguard v2 product spec, kept in the owner's private planning notes, not in this repo) calls for the public
 PaySim mobile-money dataset and/or the IEEE-CIS Fraud Detection dataset (both on Kaggle) as the
 primary benchmark. Pulling either requires a Kaggle API token, which wasn't available when this
 run was produced. **The metrics below are measured on synthetic data only** — real, reproducible,
@@ -113,8 +113,7 @@ transactions — not how it would perform on fraud patterns it wasn't designed t
    TreeExplainer values (noted as the honest interim choice in `src/inference/scoring.py`).
 3. Wire the Airflow DAG in `src/dags/` to retrain on this pipeline with the
    skip-if-fewer-than-500-new-labels rule from the spec, and add a PSI drift check.
-4. Add the industry-pack idea from the FraudGuard spec, scoped down to e-commerce and mobile
-   money only, per `PORTFOLIO_BUILD_PLAN.md` Workstream B item 8.
+4. Add industry packs (feature and threshold presets), scoped to e-commerce and mobile money first.
 5. Fairness slices by channel/region once there's a real dataset to slice (synthetic data's
    "regions" are just Nigerian city labels with no demographic signal attached).
 
@@ -124,12 +123,14 @@ transactions — not how it would perform on fraud patterns it wasn't designed t
 ```bash
 pip install -r requirements-demo.txt
 python3 scripts/offline_train_demo.py        # writes reports/metrics.json, trains the model
-uvicorn src.inference.score_api:app --reload --port 8000   # serves POST /v1/score
+MONIGUARD_API_KEYS=dev-key uvicorn src.inference.score_api:app --reload --port 8000   # serves POST /v1/score
 ```
-or simply `make demo`.
+or simply `make demo` (which creates `.venv`). The API refuses every request (503) when no key is configured.
 
-**Tests** (feature engineering + ensemble scoring + FastAPI contract, 97% line coverage on the
-modules they target):
+**Tests** (feature engineering + ensemble scoring + FastAPI contract, plus dashboard auth;
+**97% line coverage** of `src/utils/feature_engineering.py`, `src/inference/scoring.py` and
+`src/inference/score_api.py`, the modules CI measures; Moniguard dashboard auth is covered by
+`tests/test_moniguard_auth.py` but not included in that figure):
 ```bash
 make test-unit
 ```
@@ -185,7 +186,7 @@ corrupts the hash (checked with `docker compose config`).
 
 `POST /v1/score` — `{"transaction": {...}}` → `{score: 0-1000, probability, decision, reasons[],
 model_version, latency_ms}`. `POST /v1/labels` — `{"transaction_id", "is_fraud"}`, logged for the
-retrain DAG to pick up. Both require an `X-API-Key` header (see `MONIGUARD_API_KEYS` env var).
+retrain DAG to pick up. Both require an `X-API-Key` header (see `MONIGUARD_API_KEYS` env var); there is no default key.
 
 ---
 

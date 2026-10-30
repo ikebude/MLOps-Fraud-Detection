@@ -9,7 +9,7 @@ instead of "now"), engineers the 74 features from
 `src/utils/feature_engineering.py` (the same module imported by both
 training and inference, per architecture rule: one feature source of
 truth), trains the XGBoost + Isolation Forest ensemble described in
-PRODUCT_SPECS.md section 1, evaluates it on a *time-based* split (train on
+the Moniguard v2 product spec (kept outside this repo), evaluates it on a *time-based* split (train on
 the earlier period, test on the later period — never a random shuffle,
 which would leak future information into training), and writes real,
 reproducible numbers to reports/metrics.json.
