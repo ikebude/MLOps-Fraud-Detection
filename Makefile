@@ -101,7 +101,7 @@ venv: $(PY) ## Create .venv and install the demo/test dependencies
 	$(PY) -m pip install -q -r requirements-demo.txt pytest pytest-cov httpx
 
 demo: venv ## Train the offline demo model and write real metrics to reports/metrics.json (no Docker/DB needed)
-	$(PY) scripts/offline_train_demo.py
+	$(PY) scripts/offline_train_demo.py --n-transactions 60000 --days 180 --seed 42
 	@echo ""
 	@echo "Done. Real metrics written to reports/metrics.json."
 	@echo "Start the scoring API with: MONIGUARD_API_KEYS=dev-key $(VENV)/bin/uvicorn src.inference.score_api:app --reload --port 8000"

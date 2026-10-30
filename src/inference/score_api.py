@@ -48,6 +48,12 @@ def get_scorer() -> FraudScorer:
                 detail=f"Model artifacts not found — run `make demo` or "
                        f"`python3 scripts/offline_train_demo.py` first. ({e})",
             )
+        except KeyError as e:
+            # e.g. feature_columns.json written by an older training run without iso_min/iso_max
+            raise HTTPException(
+                status_code=503,
+                detail=f"Model artifacts are incomplete (missing {e}) — retrain with `make demo`.",
+            )
     return _scorer
 
 

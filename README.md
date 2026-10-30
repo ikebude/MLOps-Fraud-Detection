@@ -85,7 +85,9 @@ graph LR
 ## Results
 
 Real numbers from `reports/metrics.json`, produced by running `scripts/offline_train_demo.py`
-(60,000 synthetic transactions over a 180-day simulated period; reproduce with `make demo`):
+(60,000 synthetic transactions over a 180-day simulated period, seed 42; rerun with `make demo`).
+A rerun gives close but not bit-identical numbers: the generator's Faker fields and the "now" anchor for
+the simulated timestamps are not seeded, and latency is measured on the machine that runs it.
 
 | Metric | Value | 95% CI |
 |---|---|---|
@@ -119,16 +121,19 @@ transactions — not how it would perform on fraud patterns it wasn't designed t
 
 ## How to run
 
-**Fast path (no Docker, no database) — reproduces the numbers above:**
+**Fast path (no Docker, no database) — retrains the model and re-measures the numbers above:**
 ```bash
 pip install -r requirements-demo.txt
-python3 scripts/offline_train_demo.py        # writes reports/metrics.json, trains the model
+python3 scripts/offline_train_demo.py --n-transactions 60000 --days 180 --seed 42   # overwrites reports/metrics.json and the model
 MONIGUARD_API_KEYS=dev-key uvicorn src.inference.score_api:app --reload --port 8000   # serves POST /v1/score
 ```
 or simply `make demo` (which creates `.venv`). The API refuses every request (503) when no key is configured.
+Run the training step before serving `/v1/score`: the committed `moniguard/models/offline_demo/` artifacts come
+from an earlier training run that did not save the `iso_min`/`iso_max` bounds `scoring.py` needs, so with them
+`/v1/score` returns 503 until you retrain.
 
 **Tests** (feature engineering + ensemble scoring + FastAPI contract, plus dashboard auth;
-**97% line coverage** of `src/utils/feature_engineering.py`, `src/inference/scoring.py` and
+**98% line coverage** of `src/utils/feature_engineering.py`, `src/inference/scoring.py` and
 `src/inference/score_api.py`, the modules CI measures; Moniguard dashboard auth is covered by
 `tests/test_moniguard_auth.py` but not included in that figure):
 ```bash
@@ -170,7 +175,8 @@ These values remain in git history and must be treated as public.
 
 **Dashboard login.** The dashboard has four fixed accounts (Admin, Exec, Ops and Analyst User). Each is enabled only
 when its `MONIGUARD_*_PASSWORD` variable is set in `src/.env`; the value is a plaintext password or a hash. The
-role is fixed per account, and there is no self-service password reset. To set or change a password, generate a
+role is fixed per account, and there is no self-service password reset. After 5 failed logins for one account from
+one client IP within 15 minutes, further attempts get HTTP 429 until the window passes. To set or change a password, generate a
 hash, put it in `src/.env`, and restart the dashboard:
 
 ```bash

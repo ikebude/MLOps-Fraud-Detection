@@ -107,3 +107,17 @@ def test_multiple_keys(client, monkeypatch):
     monkeypatch.setenv("MONIGUARD_API_KEYS", "a-key, b-key")
     assert _post_label(client, "a-key").status_code == 200
     assert _post_label(client, "b-key").status_code == 200
+
+
+def test_incomplete_artifacts_give_503_not_500(client, monkeypatch):
+    """Artifacts from an older training run (no iso_min/iso_max) must fail with an actionable 503."""
+    import src.inference.score_api as score_api_module
+
+    def old_artifacts():
+        raise KeyError("iso_min")
+
+    monkeypatch.setattr(score_api_module, "_scorer", None)
+    monkeypatch.setattr(score_api_module, "FraudScorer", old_artifacts)
+    resp = client.post("/v1/score", json={"transaction": {}}, headers={"X-API-Key": "test-key"})
+    assert resp.status_code == 503
+    assert "retrain" in resp.json()["detail"]
