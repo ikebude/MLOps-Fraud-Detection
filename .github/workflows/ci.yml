@@ -24,6 +24,7 @@ jobs:
         run: pip install -r requirements-demo.txt pytest pytest-cov httpx
       - name: Run tests with coverage
         run: |
+          # keep in sync with Makefile COV_FLAGS
           python3 -m pytest tests/ -v \
             --cov=src.utils.feature_engineering --cov=src.inference.scoring --cov=src.inference.score_api \
             --cov-report=term-missing --cov-fail-under=70
