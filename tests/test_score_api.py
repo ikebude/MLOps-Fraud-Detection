@@ -65,3 +65,45 @@ def test_labels_endpoint_records_feedback(client, tmp_path, monkeypatch):
     )
     assert resp.status_code == 200
     assert resp.json() == {"status": "recorded"}
+
+
+def _post_label(client, key):
+    return client.post(
+        "/v1/labels",
+        json={"transaction_id": "TXN_TEST123", "is_fraud": 1},
+        headers={"X-API-Key": key},
+    )
+
+
+def test_unconfigured_keys_fail_closed(client, monkeypatch):
+    monkeypatch.delenv("MONIGUARD_API_KEYS", raising=False)
+    resp = client.post("/v1/score", json={"transaction": {}}, headers={"X-API-Key": "demo-key"})
+    assert resp.status_code == 503
+    assert _post_label(client, "demo-key").status_code == 503
+
+
+def test_blank_keys_fail_closed(client, monkeypatch):
+    monkeypatch.setenv("MONIGUARD_API_KEYS", " , ,")
+    resp = client.post("/v1/score", json={"transaction": {}}, headers={"X-API-Key": "demo-key"})
+    assert resp.status_code == 503
+
+
+def test_demo_key_not_accepted_by_default(client, monkeypatch):
+    monkeypatch.setenv("MONIGUARD_API_KEYS", "test-key")
+    resp = client.post("/v1/score", json={"transaction": {}}, headers={"X-API-Key": "demo-key"})
+    assert resp.status_code == 401
+
+
+def test_prehashed_key_accepted(client, monkeypatch):
+    import hashlib
+
+    digest = hashlib.sha256(b"s3cret").hexdigest()
+    monkeypatch.setenv("MONIGUARD_API_KEYS", digest)
+    assert _post_label(client, "s3cret").status_code == 200
+    assert _post_label(client, digest).status_code == 401
+
+
+def test_multiple_keys(client, monkeypatch):
+    monkeypatch.setenv("MONIGUARD_API_KEYS", "a-key, b-key")
+    assert _post_label(client, "a-key").status_code == 200
+    assert _post_label(client, "b-key").status_code == 200
