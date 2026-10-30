@@ -97,23 +97,23 @@
             const displayTime = txn.time || txn.timestamp || new Date().toISOString();
 
             row.innerHTML = `
-                <td class="px-6 py-4 whitespace-nowrap text-gray-500 text-xs">${displayTime}</td>
-                <td class="px-6 py-4 font-mono text-xs text-gray-600">${txn.id || txn.transaction_id}</td>
-                <td class="px-6 py-4 font-medium text-gray-900">${txn.merchant || txn.user_id}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-gray-500 text-xs">${esc(displayTime)}</td>
+                <td class="px-6 py-4 font-mono text-xs text-gray-600">${esc(txn.id || txn.transaction_id)}</td>
+                <td class="px-6 py-4 font-medium text-gray-900">${esc(txn.merchant || txn.user_id)}</td>
                 <td class="px-6 py-4 text-gray-900">₦${(txn.amount || 0).toFixed(2)}</td>
                 <td class="px-6 py-4">
                     <span class="px-2 py-1 rounded-full text-xs font-medium ${riskColor}" title="Fraud Probability: ${((txn.fraud_probability || 0) * 100).toFixed(2)}%">
-                        ${riskScore}/100
+                        ${esc(riskScore)}/100
                     </span>
                 </td>
                 <td class="px-6 py-4">
                     <span class="px-2 py-1 rounded-full text-xs font-medium ${riskLevelColor}">
-                        ${riskLevel}
+                        ${esc(riskLevel)}
                     </span>
                 </td>
                 <td class="px-6 py-4">
                     <span class="px-2 py-1 rounded-full text-xs font-medium ${statusColor}">
-                        ${status}
+                        ${esc(status)}
                     </span>
                 </td>
                  <td class="px-6 py-4">
@@ -353,9 +353,9 @@
             const items = topFeatures.map(item => {
                 const val = item.value === null || item.value === undefined ? 'n/a' : item.value;
                 return `<span class="inline-flex items-center px-2 py-1 mr-2 mb-2 bg-white border border-gray-200 rounded">
-                    <strong class="mr-1">${item.feature}</strong>
+                    <strong class="mr-1">${esc(item.feature)}</strong>
                     <span class="text-gray-500">(${item.contribution.toFixed(3)})</span>
-                    <span class="ml-2 text-gray-400">val: ${val}</span>
+                    <span class="ml-2 text-gray-400">val: ${esc(val)}</span>
                 </span>`;
             });
             return `<div class="flex flex-wrap">${items.join('')}</div>`;

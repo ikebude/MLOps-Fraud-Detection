@@ -480,7 +480,7 @@ function renderTopFeatures(features) {
                 <ul class="space-y-1">
                     ${features.map(f => `
                         <li class="flex justify-between text-xs">
-                            <span class="text-gray-600">${f.feature}</span>
+                            <span class="text-gray-600">${esc(f.feature)}</span>
                             <span class="font-mono font-medium ${f.contribution > 0.3 ? 'text-red-600' : 'text-blue-600'}">
                                 +${(f.contribution * 100).toFixed(1)}%
                             </span>
@@ -524,28 +524,28 @@ function buildTransactionRowsEnhanced(txn) {
     if (txn.status === 'Flagged') statusColor = 'bg-blue-100 text-blue-800';
 
     row.innerHTML = `
-        <td class="px-6 py-4 whitespace-nowrap text-gray-500 font-mono text-xs">${timeAgo(txn.time)}</td>
-        <td class="px-6 py-4 font-mono text-xs text-gray-600">${txn.id}</td>
-        <td class="px-6 py-4 font-medium text-gray-900">${txn.merchant}</td>
-        <td class="px-6 py-4 text-gray-500 text-xs">${txn.location || 'Unknown'}</td>
+        <td class="px-6 py-4 whitespace-nowrap text-gray-500 font-mono text-xs">${esc(timeAgo(txn.time))}</td>
+        <td class="px-6 py-4 font-mono text-xs text-gray-600">${esc(txn.id)}</td>
+        <td class="px-6 py-4 font-medium text-gray-900">${esc(txn.merchant)}</td>
+        <td class="px-6 py-4 text-gray-500 text-xs">${esc(txn.location || 'Unknown')}</td>
         <td class="px-6 py-4 text-gray-900 font-semibold">₦${txn.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
         <td class="px-6 py-4">
             <span class="px-2 py-1 rounded-full text-xs font-medium ${riskColor}" title="Fraud Probability: ${((txn.fraud_probability || 0) * 100).toFixed(2)}%">
-                ${txn.risk_score}/100
+                ${esc(txn.risk_score)}/100
             </span>
         </td>
         <td class="px-6 py-4">
             <span class="px-2 py-1 rounded-full text-xs font-medium ${riskLevelColor}">
-                ${riskLevel}
+                ${esc(riskLevel)}
             </span>
         </td>
         <td class="px-6 py-4">
             <span class="px-2 py-1 rounded-full text-xs font-medium ${statusColor}">
-                ${txn.status}
+                ${esc(txn.status)}
             </span>
         </td>
         <td class="px-6 py-4">
-            <button class="text-blue-600 hover:text-blue-700 text-xs font-medium" onclick="viewTransactionDetails('${txn.id}')">
+            <button class="text-blue-600 hover:text-blue-700 text-xs font-medium" onclick="viewTransactionDetails('${esc(txn.id)}')">
                 Details
             </button>
         </td>
@@ -823,7 +823,7 @@ function showError(message) {
     errorMsg.innerHTML = `
         <div class="flex items-center gap-2">
             <i class="ph ph-warning-circle text-xl"></i>
-            <span>${message}</span>
+            <span>${esc(message)}</span>
         </div>
     `;
     document.body.appendChild(errorMsg);
@@ -1127,29 +1127,29 @@ window.buildTransactionRowsEnhanced = function (txn) {
 
     const timeDisplay = timeAgo(txn.timestamp || txn.time);
     const watTooltip = txn.time_display || formatWATTime(txn.timestamp || txn.time);
-    const merchantName = (txn.merchant || 'Unknown').replace(/"/g, '&quot;');
-    const location = txn.location || 'Unknown';
+    const merchantName = esc(txn.merchant || 'Unknown');
+    const location = esc(txn.location || 'Unknown');
     const amount = parseFloat(txn.amount).toLocaleString('en-US', { minimumFractionDigits: 2 });
 
     row.innerHTML = `
-        <td class="px-6 py-4 whitespace-nowrap text-gray-500 font-mono text-xs" title="${watTooltip}">
+        <td class="px-6 py-4 whitespace-nowrap text-gray-500 font-mono text-xs" title="${esc(watTooltip)}">
             <span class="flex items-center gap-1">
-                <i class="ph ph-clock text-gray-400"></i> ${timeDisplay}
+                <i class="ph ph-clock text-gray-400"></i> ${esc(timeDisplay)}
             </span>
         </td>
-        <td class="px-6 py-4 font-mono text-xs text-gray-600" title="${txn.id}">${txn.id.substring(0, 12)}...</td>
+        <td class="px-6 py-4 font-mono text-xs text-gray-600" title="${esc(txn.id)}">${esc(String(txn.id).substring(0, 12))}...</td>
         <td class="px-6 py-4 font-medium text-gray-900">${merchantName}</td>
         <td class="px-6 py-4 text-gray-500 text-xs">
             <span class="flex items-center gap-1"><i class="ph ph-map-pin"></i> ${location}</span>
         </td>
         <td class="px-6 py-4 ${amountColor}">₦${amount}</td>
         <td class="px-6 py-4">
-            <div class="flex items-center gap-2" title="Risk Score: ${txn.risk_score}">
+            <div class="flex items-center gap-2" title="Risk Score: ${esc(txn.risk_score)}">
                 <div class="w-16 h-1.5 bg-gray-100 rounded-full overflow-hidden">
                     <div class="h-full ${txn.risk_score > 70 ? 'bg-red-500' : txn.risk_score > 40 ? 'bg-blue-400' : 'bg-green-500'}" 
-                         style="width: ${Math.min(txn.risk_score, 100)}%"></div>
+                         style="width: ${Number(Math.min(txn.risk_score, 100)) || 0}%"></div>
                 </div>
-                <span class="text-xs font-mono">${txn.risk_score}</span>
+                <span class="text-xs font-mono">${esc(txn.risk_score)}</span>
             </div>
         </td>
         <td class="px-6 py-4">${riskBadge}</td>
@@ -1185,9 +1185,9 @@ window.buildTransactionRowsEnhanced = function (txn) {
                     <ul class="space-y-1.5">
                         ${features.slice(0, 5).map(f => `
                             <li class="flex justify-between items-center bg-white rounded px-3 py-1.5 border border-gray-100">
-                                <span class="text-gray-700">${f.feature}</span>
+                                <span class="text-gray-700">${esc(f.feature)}</span>
                                 <div class="flex items-center gap-2">
-                                    ${f.value ? `<span class="text-gray-400 text-[10px]">${f.value}</span>` : ''}
+                                    ${f.value ? `<span class="text-gray-400 text-[10px]">${esc(f.value)}</span>` : ''}
                                     <span class="font-mono font-semibold ${f.contribution > 0.3 ? 'text-red-600' : f.contribution > 0.15 ? 'text-blue-600' : 'text-yellow-600'}">
                                         +${(f.contribution * 100).toFixed(1)}%
                                     </span>
@@ -1197,10 +1197,10 @@ window.buildTransactionRowsEnhanced = function (txn) {
                     </ul>
                 </div>
                 <div class="flex flex-col justify-center items-center gap-2 bg-white rounded-lg border border-gray-100 p-3">
-                    <div class="text-2xl font-bold ${txn.risk_score >= 80 ? 'text-red-600' : txn.risk_score >= 60 ? 'text-blue-600' : txn.risk_score >= 20 ? 'text-yellow-600' : 'text-green-600'}">${txn.risk_score}/100</div>
+                    <div class="text-2xl font-bold ${txn.risk_score >= 80 ? 'text-red-600' : txn.risk_score >= 60 ? 'text-blue-600' : txn.risk_score >= 20 ? 'text-yellow-600' : 'text-green-600'}">${esc(txn.risk_score)}/100</div>
                     <div class="text-[10px] text-gray-400 uppercase tracking-wide">Risk Score</div>
                     <div class="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
-                        <div class="h-full rounded-full ${txn.risk_score >= 80 ? 'bg-red-500' : txn.risk_score >= 60 ? 'bg-blue-400' : txn.risk_score >= 20 ? 'bg-yellow-400' : 'bg-green-400'}" style="width:${Math.min(txn.risk_score, 100)}%"></div>
+                        <div class="h-full rounded-full ${txn.risk_score >= 80 ? 'bg-red-500' : txn.risk_score >= 60 ? 'bg-blue-400' : txn.risk_score >= 20 ? 'bg-yellow-400' : 'bg-green-400'}" style="width:${Number(Math.min(txn.risk_score, 100)) || 0}%"></div>
                     </div>
                     <span class="text-[10px] text-gray-500 italic mt-1">AI-generated analysis • ${features.length} factor${features.length > 1 ? 's' : ''}</span>
                 </div>

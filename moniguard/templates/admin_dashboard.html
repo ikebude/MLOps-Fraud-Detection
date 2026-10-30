@@ -129,13 +129,13 @@
                 return `
                 <div class="mb-2 border-b border-gray-800 pb-1 last:border-0 hover:bg-gray-800/50 p-1 rounded transition-colors">
                     <div class="flex gap-3">
-                        <span class="text-blue-400 w-16 shrink-0">[${log.timestamp}]</span>
-                        <span class="text-yellow-500 w-24 shrink-0 font-bold">${log.system}</span>
-                        <span class="text-gray-300 flex-1 break-all">${log.action}</span>
-                        <span class="${colorClass} w-20 text-right shrink-0">${log.status}</span>
+                        <span class="text-blue-400 w-16 shrink-0">[${esc(log.timestamp)}]</span>
+                        <span class="text-yellow-500 w-24 shrink-0 font-bold">${esc(log.system)}</span>
+                        <span class="text-gray-300 flex-1 break-all">${esc(log.action)}</span>
+                        <span class="${colorClass} w-20 text-right shrink-0">${esc(log.status)}</span>
                     </div>
                     <div class="pl-40 text-gray-600 truncate mt-0.5 opacity-70">
-                        Payload: ${log.payload}
+                        Payload: ${esc(typeof log.payload === 'string' ? log.payload : JSON.stringify(log.payload))}
                     </div>
                 </div>`;
             }).join('');

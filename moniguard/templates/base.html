@@ -14,6 +14,12 @@
     <link rel="stylesheet" href="{{ base_path }}/static/css/styles.css">
     <link rel="stylesheet" href="{{ base_path }}/static/css/dashboard-enhanced.css">
     <script>
+        // HTML-escape any value before it goes into an innerHTML template string.
+        window.esc = function (v) {
+            return String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        };
+    </script>
+    <script>
         tailwind.config = {
             theme: {
                 extend: {
@@ -36,7 +42,7 @@
             <div class="p-6 flex items-center gap-3">
                 <i class="ph ph-shield-check text-3xl text-blue-500"></i>
                 <h1 class="text-2xl font-bold text-white tracking-tight">
-                    Fraud<span class="text-blue-500">Guard</span>
+                    Moni<span class="text-blue-500">guard</span>
                 </h1>
             </div>
             <nav class="flex-1 px-4 space-y-2">
@@ -198,7 +204,7 @@
             toast.className = `flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg transform transition-all duration-300 translate-x-full opacity-0 ${colors[type] || colors.info}`;
             toast.innerHTML = `
                 <i class="ph ${icons[type] || icons.info} text-xl"></i>
-                <span class="font-medium text-sm">${message}</span>
+                <span class="font-medium text-sm">${esc(message)}</span>
             `;
 
             container.appendChild(toast);

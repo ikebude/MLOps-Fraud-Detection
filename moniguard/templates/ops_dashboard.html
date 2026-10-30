@@ -188,15 +188,15 @@
             return `
                 <tr class="hover:bg-gray-50 transition-colors group">
                     <td class="px-6 py-4">${priorityBadge}</td>
-                    <td class="px-6 py-4 text-xs font-mono text-gray-500">${timeAgo(alert.created_at)}</td>
-                    <td class="px-6 py-4 font-mono text-gray-600">${tx.transaction_id || tx.id}</td>
-                    <td class="px-6 py-4 font-medium text-gray-900">${tx.merchant}</td>
+                    <td class="px-6 py-4 text-xs font-mono text-gray-500">${esc(timeAgo(alert.created_at))}</td>
+                    <td class="px-6 py-4 font-mono text-gray-600">${esc(tx.transaction_id || tx.id)}</td>
+                    <td class="px-6 py-4 font-medium text-gray-900">${esc(tx.merchant)}</td>
                     <td class="px-6 py-4 text-gray-900 font-bold">₦${(parseFloat(tx.amount) || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
                     <td class="px-6 py-4 text-right space-x-2">
-                         <button onclick="takeAction('${alert.id}', 'block')" class="px-3 py-1.5 bg-red-600 text-white rounded-lg text-xs font-semibold hover:bg-red-700 shadow-sm transition-all hover:scale-105 active:scale-95">
+                         <button onclick="takeAction('${esc(alert.id)}', 'block')" class="px-3 py-1.5 bg-red-600 text-white rounded-lg text-xs font-semibold hover:bg-red-700 shadow-sm transition-all hover:scale-105 active:scale-95">
                             <i class="ph ph-prohibit"></i> Block
                         </button>
-                        <button onclick="takeAction('${alert.id}', 'investigate')" class="px-3 py-1.5 bg-white border border-gray-300 text-gray-700 rounded-lg text-xs font-semibold hover:bg-gray-50 shadow-sm transition-all">
+                        <button onclick="takeAction('${esc(alert.id)}', 'investigate')" class="px-3 py-1.5 bg-white border border-gray-300 text-gray-700 rounded-lg text-xs font-semibold hover:bg-gray-50 shadow-sm transition-all">
                             Details
                         </button>
                     </td>
