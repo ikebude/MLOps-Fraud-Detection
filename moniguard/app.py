@@ -1,6 +1,8 @@
 from flask import Flask, render_template, jsonify, request, stream_with_context, Response, session, redirect
 import json
 import os
+import re
+import secrets
 import requests
 from datetime import datetime, timedelta
 import time
@@ -33,7 +35,30 @@ except ImportError:
 load_dotenv()
 
 app = Flask(__name__)
-app.secret_key = os.getenv('SECRET_KEY', 'Moniguard-secret-key-change-in-production')
+_LEGACY_DEFAULT_SECRET = 'Moniguard-secret-key-change-in-production'
+_DEV_MODE = os.getenv('MONIGUARD_DEV_MODE', 'false').lower() == 'true'
+
+
+def _load_secret_key() -> str:
+    key = os.getenv('SECRET_KEY', '')
+    if key and key != _LEGACY_DEFAULT_SECRET and len(key) >= 32:
+        return key
+    if _DEV_MODE:
+        logger.warning("SECRET_KEY missing/weak; MONIGUARD_DEV_MODE=true so using a random per-process key "
+                       "(sessions will not survive a restart). Never use dev mode in deployment.")
+        return secrets.token_hex(32)
+    raise RuntimeError("SECRET_KEY must be set to a random value of at least 32 characters "
+                       "(python -c \"import secrets; print(secrets.token_hex(32))\"). "
+                       "For local development only, set MONIGUARD_DEV_MODE=true to generate one.")
+
+
+app.secret_key = _load_secret_key()
+app.config.update(
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE='Lax',
+    SESSION_COOKIE_SECURE=os.getenv('MONIGUARD_SECURE_COOKIES', 'false').lower() == 'true',
+    PERMANENT_SESSION_LIFETIME=timedelta(hours=8),
+)
 
 # User accounts for role-based access (demo/development)
 USERS = {

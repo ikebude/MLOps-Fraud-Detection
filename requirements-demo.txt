@@ -13,3 +13,7 @@ psycopg2-binary>=2.9
 fastapi>=0.110
 uvicorn[standard]>=0.29
 pydantic>=2.0
+
+# moniguard dashboard (security tests)
+flask>=3.1,<4
+requests>=2.31
