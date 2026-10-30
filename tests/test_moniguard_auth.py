@@ -249,3 +249,75 @@ def test_alert_store_bounded(analyst, monkeypatch):
     assert client.post("/api/alerts/ALT-3", json={"status": "New"}).status_code == 429
     # updating an existing alert is still allowed at the limit
     assert client.post("/api/alerts/ALT-0", json={"status": "Escalated"}).status_code == 200
+
+
+def test_alert_id_with_trailing_newline_rejected(analyst):
+    mod, client = analyst
+    assert client.post("/api/alerts/ALT-abc%0A", json={"status": "New"}).status_code == 400
+    assert mod._alerts_store == []
+
+
+def test_alert_update_requires_json_object(analyst):
+    """A cross-site form or text/plain POST (CSRF shape) must not create or change state."""
+    mod, client = analyst
+    body = '{"status": "Confirmed Fraud"}'
+    assert client.post("/api/alerts/ALT-C1", data=body, content_type="text/plain").status_code == 400
+    assert client.post("/api/alerts/ALT-C1", data={"status": "Confirmed Fraud"}).status_code == 400
+    assert client.post("/api/alerts/ALT-C1", json=["New"]).status_code == 400
+    assert mod._alerts_store == []
+
+
+def test_notification_settings_require_json_object(app_mod):
+    client = _client_as(app_mod, "Admin User", "MONIGUARD_ADMIN_PASSWORD")
+    before = dict(app_mod._notification_settings)
+    resp = client.post("/api/notification-settings", data='{"method": "sms"}', content_type="text/plain")
+    assert resp.status_code == 400
+    assert app_mod._notification_settings == before
+    assert client.post("/api/notification-settings", json={"method": "sms"}).status_code == 200
+
+
+def test_login_throttled_after_repeated_failures(app_mod):
+    client = app_mod.app.test_client()
+    for _ in range(app_mod._LOGIN_MAX_FAILURES):
+        assert _login(client, "Admin User", "wrong-password").status_code == 401
+    # Locked out even with the right password until the window passes.
+    assert _login(client, "Admin User", "admin-pass-123456").status_code == 429
+    # Other accounts are not affected.
+    assert _login(app_mod.app.test_client(), "Analyst User", "analyst-pass-1234").status_code == 302
+    # After the window, the correct password works again and clears the counter.
+    key = ("Admin User", "127.0.0.1")
+    app_mod._login_failures[key] = [t - app_mod._LOGIN_WINDOW_SECONDS - 1 for t in app_mod._login_failures[key]]
+    assert _login(client, "Admin User", "admin-pass-123456").status_code == 302
+    assert key not in app_mod._login_failures
+
+
+def test_dashboard_templates_escape_data():
+    """Every page that renders transaction/alert/log data through innerHTML uses esc()."""
+    root = REPO_ROOT / "moniguard"
+    base = (root / "templates" / "base.html").read_text(encoding="utf-8")
+    assert "window.esc = function" in base
+    checks = {
+        "templates/transactions.html": ["${esc(txn.merchant || txn.user_id)}", "${esc(item.feature)}"],
+        "templates/ops_dashboard.html": ["${esc(tx.merchant)}", "takeAction('${esc(alert.id)}', 'block')"],
+        "templates/admin_dashboard.html": ["${esc(log.action)}", "${esc(log.system)}"],
+        "templates/base.html": ["${esc(message)}"],
+        "static/js/dashboard-enhanced.js": ["${esc(txn.merchant)}", "esc(txn.merchant || 'Unknown')",
+                                            "${esc(f.feature)}", "${esc(message)}"],
+    }
+    for rel, needles in checks.items():
+        text = (root / rel).read_text(encoding="utf-8")
+        for needle in needles:
+            assert needle in text, f"{rel} is missing {needle}"
+
+
+def test_pages_brand_as_moniguard_not_fraudguard(app_mod):
+    """Owner decision: this repo is Moniguard; no rendered page may brand itself FraudGuard."""
+    import re
+
+    admin = _client_as(app_mod, "Admin User", "MONIGUARD_ADMIN_PASSWORD")
+    anon = app_mod.app.test_client()
+    for client, path in [(anon, "/login"), (admin, "/admin"), (admin, "/settings")]:
+        html = client.get(path).get_data(as_text=True)
+        text = re.sub(r"\s+", "", re.sub(r"<[^>]+>", "", html)).lower()
+        assert "fraudguard" not in text, path
+        assert "moniguard" in text, path

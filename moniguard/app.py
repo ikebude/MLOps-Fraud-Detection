@@ -100,6 +100,33 @@ _ALERT_ID_RE = re.compile(r'^ALT-[A-Za-z0-9_-]{1,12}$')
 # Upper bound on in-memory alert state; further new alerts get 429 (no eviction).
 _MAX_ALERT_STATE = 10_000
 
+# Login throttling: after this many failed attempts for one (username, client IP)
+# within the window, further attempts get 429 until the window passes.
+_LOGIN_MAX_FAILURES = 5
+_LOGIN_WINDOW_SECONDS = 15 * 60
+_login_failures = {}  # (username, ip) -> [monotonic timestamps of recent failures]
+_login_lock = threading.Lock()
+
+
+def _recent_login_failures(key, now):
+    """Prune and return the failures for key still inside the window (caller holds the lock)."""
+    recent = [t for t in _login_failures.get(key, []) if now - t < _LOGIN_WINDOW_SECONDS]
+    if recent:
+        _login_failures[key] = recent
+    else:
+        _login_failures.pop(key, None)
+    return recent
+
+
+def _json_object_body():
+    """The request's JSON object, or None. State-changing API calls only accept
+    application/json objects; a cross-site form or text/plain POST is rejected
+    (JSON content type cannot be sent cross-origin without a CORS preflight)."""
+    if not request.is_json:
+        return None
+    data = request.get_json(silent=True)
+    return data if isinstance(data, dict) else None
+
 # In-memory alert store (for demo purposes — would be DB-backed in production)
 _alerts_store = []
 _integration_logs = []  # Simulated outbound API calls
@@ -1461,9 +1488,22 @@ def login():
     if request.method == 'POST':
         username = request.form.get('username', '')
         password = request.form.get('password', '')
+        throttle_key = (username[:128], request.remote_addr or '')
+        now = time.monotonic()
+        with _login_lock:
+            if len(_recent_login_failures(throttle_key, now)) >= _LOGIN_MAX_FAILURES:
+                return render_template('login.html', error='Too many failed attempts. Try again later.'), 429
         user = USERS.get(username)
         ok = check_password_hash(user['password_hash'] if user else _DUMMY_HASH, password)
+        if not (user and ok):
+            with _login_lock:
+                if len(_login_failures) > 10_000:  # bound memory under a username-spraying attack
+                    for k in list(_login_failures):
+                        _recent_login_failures(k, now)
+                _login_failures.setdefault(throttle_key, []).append(now)
         if user and ok:
+            with _login_lock:
+                _login_failures.pop(throttle_key, None)
             session.clear()  # prevent session fixation
             session['username'] = username
             session['role'] = user['role']  # ONLY from the stored user; any form 'role' is ignored
@@ -1626,11 +1666,11 @@ def api_alert_detail(alert_id):
         # Update alert status or assignment
         if session.get('role') not in ALERT_EDITOR_ROLES:
             return jsonify({'error': 'forbidden'}), 403
-        if not _ALERT_ID_RE.match(alert_id):
+        if not _ALERT_ID_RE.fullmatch(alert_id):
             return jsonify({'error': 'invalid alert id'}), 400
-        data = request.get_json(silent=True)
-        if not isinstance(data, dict):
-            data = {}
+        data = _json_object_body()
+        if data is None:
+            return jsonify({'error': 'expected a JSON object body'}), 400
         # Validate everything before mutating anything.
         if 'status' in data and not (isinstance(data['status'], str) and data['status'] in ALERT_STATUSES):
             return jsonify({'error': 'invalid status'}), 400
@@ -1718,7 +1758,9 @@ def api_notification_settings():
         return jsonify(_notification_settings)
     
     elif request.method == 'POST':
-        data = request.get_json(silent=True) or {}
+        data = _json_object_body()
+        if data is None:
+            return jsonify({'error': 'expected a JSON object body'}), 400
         if 'recipients' in data:
             _notification_settings['recipients'] = data['recipients']
         if 'threshold' in data:
