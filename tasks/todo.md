@@ -5,7 +5,7 @@
 - [x] Item 3: strong SECRET_KEY + cookie hardening
 - [x] Item 4: hashed env users, role from stored user, remove self-service reset
 - [x] Item 5: role-gate and validate alert updates
-- [ ] Item 6: compose build path / lowercase image
+- [x] Item 6: compose build path / lowercase image
 - [ ] Item 7: venv make targets, xgboost-cpu, single coverage scope
 - [ ] Item 8: README/docs truthfulness
 - [ ] Item 9: Moniguard-only naming

@@ -350,9 +350,10 @@ services:
       - mlflow-server
 
   Moniguard:
-    build: ../Moniguard
-    image: fraud-detection-Moniguard:latest
+    build: ../moniguard
+    image: fraud-detection-moniguard:latest
     container_name: Moniguard-web
+    # env_file must provide SECRET_KEY (>= 32 chars) and the MONIGUARD_*_PASSWORD values; the dashboard refuses to start without SECRET_KEY.
     env_file: .env
     environment:
       - INFERENCE_SERVICE_URL=${INFERENCE_SERVICE_URL:-http://inference:8000}
@@ -371,9 +372,9 @@ services:
     ports:
       - "5000:5000"
     volumes:
-      - ../Moniguard/data:/app/data
-      - ../Moniguard/static:/app/static
-      - ../Moniguard/templates:/app/templates
+      - ../moniguard/data:/app/data
+      - ../moniguard/static:/app/static
+      - ../moniguard/templates:/app/templates
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:5000/api/health" ]
       interval: 30s

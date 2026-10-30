@@ -44,7 +44,7 @@ else
 fi
 
 # Check required directories
-if [ ! -d "../Moniguard" ]; then
+if [ ! -d "../moniguard" ]; then
     echo -e "${RED}✗ Moniguard directory not found${NC}"
 else
     echo -e "${GREEN}✓ Moniguard directory exists${NC}"
