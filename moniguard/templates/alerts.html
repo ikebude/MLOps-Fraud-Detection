@@ -123,11 +123,11 @@
     </div>
 </div>
 
-<script id="users-data" type="application/json">{{ USERS | tojson }}</script>
+<script id="users-data" type="application/json">{{ USERNAMES | tojson }}</script>
 
 <script>
     const basePath = window.MONIGUARD_BASE_PATH || '';
-    const USERS = Object.keys(JSON.parse(document.getElementById('users-data').textContent || '{}'));
+    const USERS = JSON.parse(document.getElementById('users-data').textContent || '[]');
 
     function severityBadge(sev) {
         const map = { critical: '🔴 Critical', high: '🟠 High', medium: '🟡 Medium', low: '🟢 Low' };

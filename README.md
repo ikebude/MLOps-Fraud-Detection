@@ -167,6 +167,20 @@ never values). If you ever ran the stack with them, change all of them:
 
 These values remain in git history and must be treated as public.
 
+**Dashboard login.** The dashboard has four fixed accounts (Admin, Exec, Ops and Analyst User). Each is enabled only
+when its `MONIGUARD_*_PASSWORD` variable is set in `src/.env`; the value is a plaintext password or a hash. The
+role is fixed per account, and there is no self-service password reset. To set or change a password, generate a
+hash, put it in `src/.env`, and restart the dashboard:
+
+```bash
+SECRET_KEY=<at least 32 random characters> flask --app moniguard/app.py hash-password
+docker compose restart Moniguard
+```
+
+A hash contains `$` characters, so wrap it in single quotes in `.env`
+(`MONIGUARD_ADMIN_PASSWORD='scrypt:32768:8:1$...'`). Without quotes, Compose treats `$...` as a variable and
+corrupts the hash (checked with `docker compose config`).
+
 ## API
 
 `POST /v1/score` — `{"transaction": {...}}` → `{score: 0-1000, probability, decision, reasons[],

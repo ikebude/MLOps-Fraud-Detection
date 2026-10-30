@@ -10,6 +10,7 @@ import math
 from dotenv import load_dotenv
 from functools import lru_cache, wraps
 import concurrent.futures
+from werkzeug.security import generate_password_hash, check_password_hash
 import logging
 import threading
 
@@ -60,13 +61,38 @@ app.config.update(
     PERMANENT_SESSION_LIFETIME=timedelta(hours=8),
 )
 
-# User accounts for role-based access (demo/development)
-USERS = {
-    'Admin User': {'password': 'password', 'role': 'admin'},
-    'Exec User': {'password': 'password', 'role': 'executive'},
-    'Ops User': {'password': 'password', 'role': 'operations'},
-    'Analyst User': {'password': 'password', 'role': 'analyst'},
-}
+# User accounts for role-based access (demo/development). Passwords come from the
+# environment (plaintext, hashed at load, or a werkzeug hash); never from source.
+_DEMO_ACCOUNTS = [  # (username, role, env var holding its password or werkzeug hash)
+    ('Admin User', 'admin', 'MONIGUARD_ADMIN_PASSWORD'),
+    ('Exec User', 'executive', 'MONIGUARD_EXEC_PASSWORD'),
+    ('Ops User', 'operations', 'MONIGUARD_OPS_PASSWORD'),
+    ('Analyst User', 'analyst', 'MONIGUARD_ANALYST_PASSWORD'),
+]
+_HASH_PREFIXES = ('scrypt:', 'pbkdf2:')
+
+
+def _load_users() -> dict:
+    users = {}
+    for username, role, env_var in _DEMO_ACCOUNTS:
+        secret = os.getenv(env_var, '')
+        if not secret:
+            continue  # account disabled when its password is not configured
+        pw_hash = secret if secret.startswith(_HASH_PREFIXES) else generate_password_hash(secret)
+        users[username] = {'password_hash': pw_hash, 'role': role}
+    if not users:
+        logger.warning("No MONIGUARD_*_PASSWORD set: no dashboard user can log in.")
+    return users
+
+
+USERS = _load_users()
+_DUMMY_HASH = generate_password_hash(secrets.token_hex(16))  # equalises timing for unknown usernames
+
+
+def _public_users() -> dict:
+    """Safe view for templates: never includes password hashes."""
+    return {name: {'role': info['role']} for name, info in USERS.items()}
+
 
 # In-memory alert store (for demo purposes — would be DB-backed in production)
 _alerts_store = []
@@ -420,7 +446,7 @@ def role_required(roles):
 def check_auth():
     """Global authentication check."""
     # List of open endpoints
-    allowed_paths = ['/login', '/logout', '/forgot-password', '/health', '/api/health']
+    allowed_paths = ['/login', '/logout', '/health', '/api/health']
     
     # Check if request path is in allowed or starts with /static/
     current_path = request.path
@@ -986,10 +1012,10 @@ def alerts():
         # Process with standard builder to get top_features, consistent risk_scores, etc.
         alerts_data = _build_transactions(raw_results, sort_by='risk_score', sort_order='desc')
         
-        return render_template('alerts.html', page='alerts', alerts=alerts_data, USERS=USERS)
+        return render_template('alerts.html', page='alerts', alerts=alerts_data, USERNAMES=sorted(USERS))
     except Exception as e:
         logger.error(f"Error loading alerts: {e}")
-        return render_template('alerts.html', page='alerts', alerts=[], USERS=USERS)
+        return render_template('alerts.html', page='alerts', alerts=[], USERNAMES=sorted(USERS))
 
 @app.route('/settings')
 @login_required
@@ -1429,23 +1455,21 @@ def login():
     if request.method == 'POST':
         username = request.form.get('username', '')
         password = request.form.get('password', '')
-        role = request.form.get('role', '')
-        
         user = USERS.get(username)
-        if user and user['password'] == password:
+        ok = check_password_hash(user['password_hash'] if user else _DUMMY_HASH, password)
+        if user and ok:
+            session.clear()  # prevent session fixation
             session['username'] = username
-            session['role'] = role or user.get('role', 'analyst')
-            # Redirect based on role
+            session['role'] = user['role']  # ONLY from the stored user; any form 'role' is ignored
             role_map = {
                 'admin': '/admin',
                 'executive': '/executive',
                 'operations': '/operations',
             }
-            target = role_map.get(session['role'], '/')
-            return redirect(MONIGUARD_BASE_PATH + target)
-        
-        return render_template('login.html', error='Invalid credentials')
-    
+            return redirect(MONIGUARD_BASE_PATH + role_map.get(session['role'], '/'))
+
+        return render_template('login.html', error='Invalid credentials'), 401
+
     return render_template('login.html')
 
 @app.route('/logout')
@@ -1454,27 +1478,22 @@ def logout():
     session.clear()
     return redirect(MONIGUARD_BASE_PATH + '/login')
 
-@app.route('/forgot-password', methods=['GET', 'POST'])
-def forgot_password():
-    """Password reset page"""
-    message = None
-    if request.method == 'POST':
-        name = request.form.get('name', '')
-        new_password = request.form.get('new_password', '')
-        if name in USERS and new_password:
-            USERS[name]['password'] = new_password
-            message = 'Password updated successfully. You can now login.'
-        else:
-            message = 'User not found or invalid password.'
-    return render_template('password_reset.html', message=message)
-
+@app.cli.command('hash-password')
+def hash_password_cmd():
+    """Print a werkzeug hash to paste into MONIGUARD_<ROLE>_PASSWORD, then restart the dashboard."""
+    import getpass
+    import click
+    pw = getpass.getpass('New password: ')
+    if len(pw) < 12 or pw != getpass.getpass('Repeat: '):
+        raise click.ClickException('Passwords must match and be at least 12 characters.')
+    click.echo(generate_password_hash(pw))
 
 
 @app.route('/admin')
 @role_required(['admin'])
 def admin_dashboard():
     """Admin dashboard — system oversight"""
-    return render_template('admin_dashboard.html', page='admin', USERS=USERS)
+    return render_template('admin_dashboard.html', page='admin', USERS=_public_users())
 
 @app.route('/executive')
 @role_required(['executive', 'admin'])

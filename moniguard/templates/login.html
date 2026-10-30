@@ -41,29 +41,14 @@
                     required>
             </div>
 
-            <!-- Role Selection -->
-            <div class="form-group text-left">
-                <label class="block text-sm font-medium mb-1">Select Role</label>
-                <select name="role" class="w-full p-2 border rounded-lg" required>
-                    <option value="" disabled selected>Select your role...</option>
-                    <option value="analyst">Fraud Analyst</option>
-                    <option value="operations">Fraud Operations</option>
-                    <option value="executive">Executive</option>
-                    <option value="admin">Admin</option>
-                </select>
-            </div>
-
             <!-- Submit Button -->
             <button type="submit"
                 class="btn-primary w-full bg-blue-600 text-white p-2 rounded-lg font-semibold hover:bg-blue-700">
                 Login
             </button>
 
-            <!-- Forgot Password Link -->
-            <div class="text-sm mt-4 text-center">
-                <a href="{{ base_path }}/forgot-password" class="text-blue-600 hover:underline">
-                    Forgot Password?
-                </a>
+            <div class="text-sm mt-4 text-center text-gray-600">
+                Forgot your password? Ask an administrator to reset it.
             </div>
         </form>
     </div>
