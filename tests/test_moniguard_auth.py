@@ -179,3 +179,73 @@ def test_hash_password_cli(app_mod, monkeypatch):
     answers = iter(["long-enough-pass", "different-pass-xx"])
     monkeypatch.setattr(getpass, "getpass", lambda *a, **k: next(answers))
     assert runner.invoke(args=["hash-password"]).exit_code != 0
+
+
+# ---------------------------------------------------------------------------
+# Item 5: alert updates
+# ---------------------------------------------------------------------------
+def _client_as(mod, user, key):
+    client = mod.app.test_client()
+    assert _login(client, user, PASSWORDS[key]).status_code == 302
+    return client
+
+
+@pytest.fixture()
+def analyst(app_mod):
+    app_mod._alerts_store.clear()
+    return app_mod, _client_as(app_mod, "Analyst User", "MONIGUARD_ANALYST_PASSWORD")
+
+
+def test_executive_cannot_update_alert(app_mod):
+    app_mod._alerts_store.clear()
+    client = _client_as(app_mod, "Exec User", "MONIGUARD_EXEC_PASSWORD")
+    resp = client.post("/api/alerts/ALT-X1", json={"status": "Under Review"})
+    assert resp.status_code == 403
+    assert app_mod._alerts_store == []
+
+
+def test_unknown_status_rejected(analyst):
+    mod, client = analyst
+    resp = client.post("/api/alerts/ALT-X1", json={"status": "<img src=x onerror=alert(1)>"})
+    assert resp.status_code == 400
+    assert mod._alerts_store == []
+    assert client.post("/api/alerts/ALT-X1", json={"status": ["New"]}).status_code == 400
+
+
+def test_unknown_assignee_rejected(analyst):
+    mod, client = analyst
+    assert client.post("/api/alerts/ALT-X1", json={"assigned_to": "<b>Mallory</b>"}).status_code == 400
+    assert mod._alerts_store == []
+
+
+def test_known_assignee_accepted(analyst):
+    _, client = analyst
+    assert client.post("/api/alerts/ALT-X1", json={"assigned_to": "Ops User"}).status_code == 200
+
+
+def test_bad_alert_id_rejected(analyst):
+    _, client = analyst
+    assert client.post("/api/alerts/ALT-%3Cscript%3E", json={"status": "New"}).status_code == 400
+    assert client.post("/api/alerts/" + "A" * 200, json={"status": "New"}).status_code == 400
+
+
+def test_valid_update_by_analyst(analyst):
+    _, client = analyst
+    resp = client.post("/api/alerts/ALT-TXN_0A1B2C3D", json={"status": "Under Review"})
+    assert resp.status_code == 200
+    assert resp.get_json()["success"] is True
+
+
+def test_ops_can_confirm_fraud(app_mod):
+    client = _client_as(app_mod, "Ops User", "MONIGUARD_OPS_PASSWORD")
+    assert client.post("/api/alerts/ALT-OPS1", json={"status": "Confirmed Fraud"}).status_code == 200
+
+
+def test_alert_store_bounded(analyst, monkeypatch):
+    mod, client = analyst
+    monkeypatch.setattr(mod, "_MAX_ALERT_STATE", 3)
+    for i in range(3):
+        assert client.post(f"/api/alerts/ALT-{i}", json={"status": "New"}).status_code == 200
+    assert client.post("/api/alerts/ALT-3", json={"status": "New"}).status_code == 429
+    # updating an existing alert is still allowed at the limit
+    assert client.post("/api/alerts/ALT-0", json={"status": "Escalated"}).status_code == 200

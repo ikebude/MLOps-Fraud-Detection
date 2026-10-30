@@ -94,6 +94,12 @@ def _public_users() -> dict:
     return {name: {'role': info['role']} for name, info in USERS.items()}
 
 
+ALERT_STATUSES = {'New', 'Under Review', 'Confirmed Fraud', 'False Positive', 'Escalated'}
+ALERT_EDITOR_ROLES = {'analyst', 'operations', 'admin'}
+_ALERT_ID_RE = re.compile(r'^ALT-[A-Za-z0-9_-]{1,12}$')
+# Upper bound on in-memory alert state; further new alerts get 429 (no eviction).
+_MAX_ALERT_STATE = 10_000
+
 # In-memory alert store (for demo purposes — would be DB-backed in production)
 _alerts_store = []
 _integration_logs = []  # Simulated outbound API calls
@@ -1618,9 +1624,23 @@ def api_alert_detail(alert_id):
     
     elif request.method == 'POST':
         # Update alert status or assignment
-        data = request.get_json(silent=True) or {}
+        if session.get('role') not in ALERT_EDITOR_ROLES:
+            return jsonify({'error': 'forbidden'}), 403
+        if not _ALERT_ID_RE.match(alert_id):
+            return jsonify({'error': 'invalid alert id'}), 400
+        data = request.get_json(silent=True)
+        if not isinstance(data, dict):
+            data = {}
+        # Validate everything before mutating anything.
+        if 'status' in data and not (isinstance(data['status'], str) and data['status'] in ALERT_STATUSES):
+            return jsonify({'error': 'invalid status'}), 400
+        if 'assigned_to' in data and data['assigned_to'] not in (None, '') and not (
+                isinstance(data['assigned_to'], str) and data['assigned_to'] in USERS):
+            return jsonify({'error': 'invalid assignee'}), 400
         existing = next((a for a in _alerts_store if a['id'] == alert_id), None)
         if not existing:
+            if len(_alerts_store) >= _MAX_ALERT_STATE:
+                return jsonify({'error': 'alert state limit reached'}), 429
             existing = {'id': alert_id, 'status': 'New', 'assigned_to': None}
             _alerts_store.append(existing)
         

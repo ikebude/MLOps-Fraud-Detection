@@ -129,6 +129,10 @@
     const basePath = window.MONIGUARD_BASE_PATH || '';
     const USERS = JSON.parse(document.getElementById('users-data').textContent || '[]');
 
+    function esc(v) {
+        return String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+
     function severityBadge(sev) {
         const map = { critical: '🔴 Critical', high: '🟠 High', medium: '🟡 Medium', low: '🟢 Low' };
         return map[sev] || sev;
@@ -139,43 +143,43 @@
         <div class="bg-white p-6 rounded-xl shadow-sm border ${a.severity == 'critical' ? 'border-l-4 border-red-500' : a.severity == 'high' ? 'border-l-4 border-blue-500' : 'border-gray-100'} hover:shadow-md transition-shadow">
             <div class="flex justify-between items-start mb-3">
                 <div>
-                    <h3 class="text-lg font-bold text-gray-900 mb-1">${severityBadge(a.severity)} — ${a.reason}</h3>
-                    <div class="text-sm text-gray-600">Risk Score: <strong>${a.risk_score}/100</strong> &nbsp; • &nbsp; Fraud Prob: <strong>${(a.fraud_probability * 100).toFixed(1)}%</strong></div>
+                    <h3 class="text-lg font-bold text-gray-900 mb-1">${esc(severityBadge(a.severity))} — ${esc(a.reason)}</h3>
+                    <div class="text-sm text-gray-600">Risk Score: <strong>${esc(a.risk_score)}/100</strong> &nbsp; • &nbsp; Fraud Prob: <strong>${(a.fraud_probability * 100).toFixed(1)}%</strong></div>
                 </div>
                 <div class="text-sm text-gray-500">${new Date(a.created_at).toLocaleString()}</div>
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 <div class="text-sm text-gray-700">
-                    <div><strong>Transaction ID:</strong> ${a.transaction.transaction_id}</div>
-                    <div><strong>Customer:</strong> ${a.transaction.customer_id}</div>
+                    <div><strong>Transaction ID:</strong> ${esc(a.transaction.transaction_id)}</div>
+                    <div><strong>Customer:</strong> ${esc(a.transaction.customer_id)}</div>
                     <div><strong>Amount:</strong> ₦${parseFloat(a.transaction.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
-                    <div><strong>Merchant:</strong> ${a.transaction.merchant}</div>
+                    <div><strong>Merchant:</strong> ${esc(a.transaction.merchant)}</div>
                 </div>
                 <div class="text-sm text-gray-700">
-                    <div><strong>Channel:</strong> ${a.transaction.channel}</div>
-                    <div><strong>Location:</strong> ${a.transaction.location}</div>
-                    <div><strong>Device ID:</strong> ${a.transaction.device_id}</div>
+                    <div><strong>Channel:</strong> ${esc(a.transaction.channel)}</div>
+                    <div><strong>Location:</strong> ${esc(a.transaction.location)}</div>
+                    <div><strong>Device ID:</strong> ${esc(a.transaction.device_id)}</div>
                 </div>
             </div>
 
             <div class="flex items-center justify-between">
                 <div class="flex items-center gap-4">
-                    <div class="text-sm"><strong>Status:</strong> <span id="status-${a.id}">${a.status}</span></div>
+                    <div class="text-sm"><strong>Status:</strong> <span id="status-${esc(a.id)}">${esc(a.status)}</span></div>
                     <div>
                         <label class="text-sm">Assigned to:</label>
-                        <select id="assign-${a.id}" class="ml-2 px-2 py-1 border rounded text-sm">
+                        <select id="assign-${esc(a.id)}" class="ml-2 px-2 py-1 border rounded text-sm">
                             <option value="">Unassigned</option>
-                            ${USERS.map(u => `<option value="${u}" ${a.assigned_to == u ? 'selected' : ''}>${u}</option>`).join('')}
+                            ${USERS.map(u => `<option value="${esc(u)}" ${a.assigned_to == u ? 'selected' : ''}>${esc(u)}</option>`).join('')}
                         </select>
                     </div>
                 </div>
 
                 <div class="flex gap-2">
-                    <button class="px-3 py-1 bg-gray-900 text-white rounded text-sm hover:bg-gray-800" onclick="takeAction('${a.id}','Under Review')">Investigate</button>
-                    <button class="px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700" onclick="takeAction('${a.id}','Confirmed Fraud')">Mark as Fraud</button>
-                    <button class="px-3 py-1 border border-gray-300 rounded text-sm hover:bg-gray-50" onclick="takeAction('${a.id}','False Positive')">Mark as Safe</button>
-                    <button class="px-3 py-1 border border-gray-300 rounded text-sm ml-2 hover:bg-gray-50" onclick="showAlertDetails('${a.id}')">Details</button>
+                    <button class="px-3 py-1 bg-gray-900 text-white rounded text-sm hover:bg-gray-800" onclick="takeAction('${esc(a.id)}','Under Review')">Investigate</button>
+                    <button class="px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700" onclick="takeAction('${esc(a.id)}','Confirmed Fraud')">Mark as Fraud</button>
+                    <button class="px-3 py-1 border border-gray-300 rounded text-sm hover:bg-gray-50" onclick="takeAction('${esc(a.id)}','False Positive')">Mark as Safe</button>
+                    <button class="px-3 py-1 border border-gray-300 rounded text-sm ml-2 hover:bg-gray-50" onclick="showAlertDetails('${esc(a.id)}')">Details</button>
                 </div>
             </div>
         </div>`;
@@ -185,16 +189,16 @@
         return alerts.map(a => {
             return `
             <tr class="border-t hover:bg-gray-50">
-                <td class="p-2" data-label="Alert ID">${a.id}</td>
-                <td class="p-2" data-label="Txn ID">${a.transaction.transaction_id}</td>
-                <td class="p-2" data-label="Customer">${a.transaction.customer_id}</td>
+                <td class="p-2" data-label="Alert ID">${esc(a.id)}</td>
+                <td class="p-2" data-label="Txn ID">${esc(a.transaction.transaction_id)}</td>
+                <td class="p-2" data-label="Customer">${esc(a.transaction.customer_id)}</td>
                 <td class="p-2" data-label="Amount">₦${parseFloat(a.transaction.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
-                <td class="p-2" data-label="Risk Score">${a.risk_score}/100</td>
-                <td class="p-2" data-label="Severity">${a.severity}</td>
-                <td class="p-2" data-label="Status">${a.status}</td>
-                <td class="p-2" data-label="Analyst">${a.assigned_to || 'Unassigned'}</td>
+                <td class="p-2" data-label="Risk Score">${esc(a.risk_score)}/100</td>
+                <td class="p-2" data-label="Severity">${esc(a.severity)}</td>
+                <td class="p-2" data-label="Status">${esc(a.status)}</td>
+                <td class="p-2" data-label="Analyst">${esc(a.assigned_to || 'Unassigned')}</td>
                 <td class="p-2" data-label="Time">${new Date(a.created_at).toLocaleString()}</td>
-                <td class="p-2" data-label="Action"><button class="px-2 py-1 border rounded hover:bg-gray-50" onclick="showAlertDetails('${a.id}')">Open</button></td>
+                <td class="p-2" data-label="Action"><button class="px-2 py-1 border rounded hover:bg-gray-50" onclick="showAlertDetails('${esc(a.id)}')">Open</button></td>
             </tr>`;
         }).join('');
     }
@@ -265,20 +269,20 @@
         document.getElementById('modal-body').innerHTML = `
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                    <p><strong>Transaction ID:</strong> ${a.transaction.transaction_id}</p>
-                    <p><strong>Customer ID:</strong> ${a.transaction.customer_id}</p>
+                    <p><strong>Transaction ID:</strong> ${esc(a.transaction.transaction_id)}</p>
+                    <p><strong>Customer ID:</strong> ${esc(a.transaction.customer_id)}</p>
                     <p><strong>Amount:</strong> ₦${parseFloat(a.transaction.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
-                    <p><strong>Merchant:</strong> ${a.transaction.merchant}</p>
-                    <p><strong>Channel:</strong> ${a.transaction.channel}</p>
-                    <p><strong>Location:</strong> ${a.transaction.location}</p>
-                    <p><strong>Device ID:</strong> ${a.transaction.device_id}</p>
+                    <p><strong>Merchant:</strong> ${esc(a.transaction.merchant)}</p>
+                    <p><strong>Channel:</strong> ${esc(a.transaction.channel)}</p>
+                    <p><strong>Location:</strong> ${esc(a.transaction.location)}</p>
+                    <p><strong>Device ID:</strong> ${esc(a.transaction.device_id)}</p>
                 </div>
                 <div>
-                    <p><strong>Risk Score:</strong> ${a.risk_score}/100</p>
+                    <p><strong>Risk Score:</strong> ${esc(a.risk_score)}/100</p>
                     <p><strong>Fraud Probability:</strong> ${(a.fraud_probability * 100).toFixed(1)}%</p>
-                    <p><strong>Status:</strong> ${a.status}</p>
-                    <p><strong>Assigned to:</strong> ${a.assigned_to || 'Unassigned'}</p>
-                    <p><strong>Reason:</strong> ${a.reason}</p>
+                    <p><strong>Status:</strong> ${esc(a.status)}</p>
+                    <p><strong>Assigned to:</strong> ${esc(a.assigned_to || 'Unassigned')}</p>
+                    <p><strong>Reason:</strong> ${esc(a.reason)}</p>
                 </div>
             </div>
             <hr class="my-3" />
