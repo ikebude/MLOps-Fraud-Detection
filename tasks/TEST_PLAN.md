@@ -141,4 +141,43 @@ Fix small defects directly (commit `fix: …`). Write large ones below with file
 
 ## Tester findings
 
-(empty)
+Tester run 2026-10-30 on the builder's HEAD `541c338`, then on the tester fixes. Builder report checked: 41 passed,
+97.64% reproduced in a fresh clone via `make test-unit` (41 passed, 294.6 s, rc 0). §1-§3 checks pass as written.
+
+### Fixed by the tester (each has a test that fails on `541c338` and passes now)
+
+| # | Sev | Finding | Fix |
+|---|---|---|---|
+| T1 | HIGH | Stored XSS outside alerts.html. Transaction/log fields went into `innerHTML` unescaped in `templates/ops_dashboard.html` (buildRow), `templates/admin_dashboard.html` (integration logs), `templates/transactions.html`, `templates/base.html` (toast) and `static/js/dashboard-enhanced.js` (rows, details, error toast). Headless Chromium with a merchant name `<img src=x onerror=...>`: the payload ran 18 times on `/operations` and 15 times on `/admin` at `541c338`, and 0 times after the fix (rendered as text). | Global `window.esc` in base.html; every data interpolation wrapped. |
+| T2 | MED | No login throttling. 30 wrong passwords in a row all returned 401, then the right one worked. | 5 failures per (username, client IP) in 15 min, then 429 until the window passes. Per-process memory. |
+| T3 | MED | CSRF shape: a `text/plain` or form POST to `/api/alerts/<id>` created alert state (200). `/api/notification-settings` was the same. | State-changing API POSTs require an `application/json` object (400 otherwise). Cross-origin JSON needs a CORS preflight, and SameSite=Lax already blocks the cookie. |
+| T4 | LOW | `_ALERT_ID_RE.match` with `$` accepted `ALT-abc\n` (URL `ALT-abc%0A`). | `fullmatch`. |
+| T5 | MED (owner decision 1) | Every dashboard page's sidebar brand read "Fraud**Guard**" (`base.html:45`, `Fraud<span>Guard</span>`). The item-9 grep missed it because of the `<span>`. | Now "Moni**guard**". A test checks the rendered text of /login, /admin and /settings. |
+| T6 | MED (truth rule) | README said the numbers "reproduce" with `make demo`, but `make demo` ran 150,000 transactions (metrics.json is 60,000), and the pipeline is not deterministic (see T7). Coverage figure was 97%; TOTAL is now 98.83%. | README states the exact command and that reruns are close but not identical. `make demo` passes `--n-transactions 60000 --days 180 --seed 42`. Coverage says 98%. |
+| T7 | MED | `/v1/score` returned 500 (KeyError) with the committed artifacts. | Now 503 with "retrain with `make demo`". The README says to train before serving. |
+
+### Committed artifacts (`moniguard/models/offline_demo`): regeneration is NOT possible without changing metrics
+
+`feature_columns.json` lacks `iso_min`/`iso_max` (`scoring.py:51`). These are min/max of `-iso.score_samples(X_train)`,
+so they can't be recovered without the training matrix. Two runs of `scripts/offline_train_demo.py --n-transactions 3000 --seed 42`
+minutes apart gave PR-AUC 0.7786 and 0.7769, and different `xgb_model.json` sha256. The causes are `Faker('en_NG')`
+(`producer/main.py:119`), which is never seeded, and `datetime.now()` (`offline_train_demo.py:58`), which anchors the
+timestamps that `hour_of_day` and related features use. `p95_scoring_latency_ms` and `generated_at` are wall-clock in any case.
+So the artifacts were left unchanged, and no test asserts that they load (it would fail; skip/xfail is not allowed).
+**Owner action:** `make demo` (= `python3 scripts/offline_train_demo.py --n-transactions 60000 --days 180 --seed 42`,
+about 15 min). Impact: it overwrites `reports/metrics.json` and the 5 artifacts. Every Results number in the README
+(PR-AUC, ROC-AUC, recalls, p95, fraud rates) must then be updated from the new metrics.json. Optional first step: seed
+Faker and pin the timestamp anchor so the run becomes reproducible.
+
+### Open (not fixed; recorded for the owner)
+
+- LOW `scripts/setup-local.sh:34-37,87` and `.ps1:40-43,99` still write `minioadmin` and print `airflow/airflow` in the generated `src/.env` (the heredoc was fenced off because of `FRAUD_API_URL`).
+- LOW `GET /api/alerts/<id>` returns `str(e)` in 500 bodies (`moniguard/app.py`, `api_alert_detail`).
+- LOW No CSP. CDN scripts are unversioned and have no SRI (`base.html:11-13`: cdn.tailwindcss.com, unpkg phosphor, jsdelivr chart.js).
+- LOW `/logout` is a GET and `/login` has no CSRF token (logout/login CSRF). Low impact with SameSite=Lax.
+- LOW The throttle is per process and keyed on `remote_addr`. Behind a reverse proxy it becomes a per-account lockout, which lets anyone lock out a known username for 15 min. Use `ProxyFix` plus a shared store if deployed.
+- LOW `/api/notification-settings` stores unvalidated values (admin only, and rendered safely).
+- INFO Screenshots at 390/1280 light+dark were taken with headless Chromium, but the sandbox blocks the CDNs, so Tailwind did not load and the layout and overflow figures are not meaningful. The sidebar is a fixed `w-64` and is not responsive (pre-existing). There is no dark theme (pre-existing). Login: no role select, no forgot link, and the "ask an administrator" line is present.
+- INFO No Docker daemon, so `docker compose build` was not run. `config` checks pass: the Fernet key is required, the context is `…/moniguard`, and the image is `fraud-detection-moniguard:latest`. A single-quoted werkzeug hash in `src/.env` survives compose interpolation; an unquoted one is cut at the first `$`.
+- API key attacks (live uvicorn): an unset or blank key list gives 503. With a key configured, `demo-key`, an empty key, wrong case, the hash itself, padded spaces and a duplicate header all give 401. A lowercase header name works (HTTP headers are case-insensitive). The comparison is constant-time (`hmac.compare_digest` over sha256).
+

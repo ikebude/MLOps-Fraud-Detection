@@ -23,3 +23,9 @@ Final verification (2026-10-30), run with Python 3.13.17:
 - Compose: without `AIRFLOW__CORE__FERNET_KEY`, `docker compose config -q` fails with the Set-the-key message (rc=1);
   with it, `config --images` lists `fraud-detection-moniguard:latest`, build context `.../moniguard`.
 - README relative-link scan: 0 broken links.
+
+### Tester review (2026-10-30)
+
+Verdict: PASS-WITH-NOTES. Builder results reproduced (41 passed, 97.64%). The tester fixed T1-T7 (see TEST_PLAN.md
+"Tester findings"). Final CI command: **48 passed, 0 failed, TOTAL 98.83%** (score_api 99%, scoring 99%,
+feature_engineering 99%). The committed model artifacts still need an owner retrain (exact command in TEST_PLAN.md).
