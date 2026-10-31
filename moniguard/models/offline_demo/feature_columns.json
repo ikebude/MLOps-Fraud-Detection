@@ -76,5 +76,15 @@
     "payment_status",
     "country",
     "refund_status"
-  ]
+  ],
+  "iso_min": 0.3725575912801736,
+  "iso_max": 0.699042877524264,
+  "ensemble_weights": {
+    "xgb": 0.7,
+    "iso": 0.3
+  },
+  "decision_thresholds": {
+    "review": 300,
+    "block": 700
+  }
 }
