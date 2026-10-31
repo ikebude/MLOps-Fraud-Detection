@@ -1,7 +1,7 @@
 # Moniguard: fraud detection for Nigerian e-commerce
 
 > Scores pay-on-delivery transactions 0–1000 for fraud risk. On this repo's own synthetic
-> transaction generator, the ensemble reaches **PR-AUC 0.877** (95% CI 0.845–0.905) on a
+> transaction generator, the ensemble reaches **PR-AUC 0.875** (95% CI 0.841–0.898) on a
 > time-based held-out test set — see [Results](#results) for exactly how that number was
 > produced and what it does and doesn't tell you.
 
@@ -61,7 +61,7 @@ graph LR
   near-future information (a fraud ring active this week looks "normal" if some of its
   transactions are in the training set) — training uses the earliest 70% of the simulated
   period, testing uses the latest 30%.
-- **Ensemble, not a single model.** XGBoost (class-weighted for the ~2.7% fraud rate) carries
+- **Ensemble, not a single model.** XGBoost (class-weighted for the ~2.8% fraud rate) carries
   most of the signal; Isolation Forest adds an unsupervised anomaly signal that catches patterns
   the labelled classes didn't fully cover; isotonic calibration turns the blended score into a
   risk score where 0–1000 is meaningfully ordered, not just rank-ordered.
@@ -77,23 +77,24 @@ graph LR
 
 Real numbers from `reports/metrics.json`, produced by running `scripts/offline_train_demo.py`
 (60,000 synthetic transactions over a 180-day simulated period, seed 42; rerun with `make demo`).
-A rerun gives close but not bit-identical numbers: the generator's Faker fields and the "now" anchor for
-the simulated timestamps are not seeded, and latency is measured on the machine that runs it.
+The generator is seeded and the simulated period ends on a fixed date (2026-10-01), so a rerun reproduces
+these numbers exactly; CI's *Retrain demo model* workflow trains twice and fails if they differ. Only latency
+depends on the machine that runs it (this figure is from a GitHub Actions runner).
 
 | Metric | Value | 95% CI |
 |---|---|---|
-| PR-AUC (test) | **0.877** | 0.845 – 0.905 |
-| ROC-AUC (test) | **0.943** | 0.927 – 0.958 |
-| Recall @ 1% alert rate | **0.377** | — |
-| Recall @ 5% alert rate | **0.892** | — |
-| p95 scoring latency (single transaction, FastAPI path) | **47.9 ms** | — |
+| PR-AUC (test) | **0.875** | 0.841 – 0.898 |
+| ROC-AUC (test) | **0.945** | 0.930 – 0.956 |
+| Recall @ 1% alert rate | **0.341** | — |
+| Recall @ 5% alert rate | **0.895** | — |
+| p95 scoring latency (single transaction, FastAPI path) | **13.0 ms** | — |
 
-Train set: 42,000 transactions (2.68% fraud). Test set: 18,000 transactions from the later
-30% of the simulated period (2.62% fraud) — the model never saw these during training, and the
+Train set: 42,000 transactions (2.82% fraud). Test set: 18,000 transactions from the later
+30% of the simulated period (2.90% fraud) — the model never saw these during training, and the
 split respects time order.
 
-**Read honestly:** recall@1% of 0.38 means that if an analyst team can only review the top 1%
-highest-scored transactions, they'd catch about 38% of fraud at that alert volume — recall@5%
+**Read honestly:** recall@1% of 0.34 means that if an analyst team can only review the top 1%
+highest-scored transactions, they'd catch about 34% of fraud at that alert volume — recall@5%
 (0.89) is the more realistic operating point for a team with more review capacity. These numbers
 describe how well the ensemble separates this generator's six fraud patterns from its normal
 transactions — not how it would perform on fraud patterns it wasn't designed to produce.
