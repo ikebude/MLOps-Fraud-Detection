@@ -41,7 +41,6 @@ import json
 import random
 import logging
 import signal
-import uuid
 from datetime import datetime, timezone, timedelta
 from typing import Dict, Any, Optional, List
 from threading import Thread
@@ -117,6 +116,12 @@ if ENABLE_METRICS:
         logger.warning('Failed to start Prometheus client: %s', str(e))
 
 fake = Faker('en_NG')
+
+
+def _random_hex(n: int) -> str:
+    """n hex characters from the `random` module (unlike uuid4, which reads os.urandom),
+    so seeding `random` makes IDs repeat across runs."""
+    return f"{random.getrandbits(4 * n):0{n}x}"
 
 # Raw transaction schema (no feature engineering fields)
 RAW_TRANSACTION_SCHEMA = {
@@ -367,8 +372,18 @@ class TransactionGenerator:
     
     BROWSERS = ["Chrome", "Firefox", "Safari", "Edge", "Opera"]
     
-    def __init__(self):
-        """Initialize transaction generator."""
+    def __init__(self, seed: Optional[int] = None, anchor: Optional[datetime] = None):
+        """Initialize transaction generator.
+
+        seed:   seeds `random` and Faker so the same users, devices and transactions come out
+                every run (used by scripts/offline_train_demo.py; the live stream leaves it None).
+        anchor: the "now" that registration dates are measured back from. Defaults to the
+                real current time; the offline demo pins it so features don't drift by date.
+        """
+        if seed is not None:
+            random.seed(seed)
+            Faker.seed(seed)
+        self.anchor = anchor or datetime.now(timezone.utc)
         self.user_pool = self._create_user_pool(500)
         self.device_pool = self._create_device_pool(300)
         self.vendor_pool = [f"VENDOR_{i:04d}" for i in range(1, 51)]
@@ -377,7 +392,9 @@ class TransactionGenerator:
         """Create a pool of realistic users."""
         users = []
         for i in range(size):
-            reg_date = fake.date_time_between(start_date='-3y', end_date='now', tzinfo=timezone.utc)
+            reg_date = fake.date_time_between(
+                start_date=self.anchor - timedelta(days=3 * 365), end_date=self.anchor, tzinfo=timezone.utc
+            )
             users.append({
                 'user_id': f"USER_{i:06d}",
                 'full_name': fake.name(),
@@ -399,7 +416,7 @@ class TransactionGenerator:
         for i in range(size):
             device_type = random.choice(['Mobile', 'Desktop', 'Tablet'])
             devices.append({
-                'device_id': f"DEV_{uuid.uuid4().hex[:12]}",
+                'device_id': f"DEV_{_random_hex(12)}",
                 'device_type': device_type,
                 'browser': random.choice(self.BROWSERS)
             })
@@ -416,14 +433,14 @@ class TransactionGenerator:
         device = random.choice(self.device_pool)
         
         # Generate transaction basics
-        transaction_id = f"TXN_{uuid.uuid4().hex[:16].upper()}"
-        order_id = f"ORD_{uuid.uuid4().hex[:12].upper()}"
-        session_id = f"SES_{uuid.uuid4().hex[:12]}"
+        transaction_id = f"TXN_{_random_hex(16).upper()}"
+        order_id = f"ORD_{_random_hex(12).upper()}"
+        session_id = f"SES_{_random_hex(12)}"
         
         # Select product
         category = random.choice(list(self.PRODUCT_CATEGORIES.keys()))
         product_name = random.choice(self.PRODUCT_CATEGORIES[category])
-        product_id = f"PRD_{uuid.uuid4().hex[:8].upper()}"
+        product_id = f"PRD_{_random_hex(8).upper()}"
         
         # Pricing
         if category == "Electronics":

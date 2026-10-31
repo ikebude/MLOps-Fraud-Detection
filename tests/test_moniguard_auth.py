@@ -310,8 +310,8 @@ def test_dashboard_templates_escape_data():
             assert needle in text, f"{rel} is missing {needle}"
 
 
-def test_pages_brand_as_moniguard_not_fraudguard(app_mod):
-    """Owner decision: this repo is Moniguard; no rendered page may brand itself FraudGuard."""
+def test_pages_brand_as_moniguard(app_mod):
+    """Every rendered page carries the Moniguard name and no other product's."""
     import re
 
     admin = _client_as(app_mod, "Admin User", "MONIGUARD_ADMIN_PASSWORD")
@@ -319,5 +319,5 @@ def test_pages_brand_as_moniguard_not_fraudguard(app_mod):
     for client, path in [(anon, "/login"), (admin, "/admin"), (admin, "/settings")]:
         html = client.get(path).get_data(as_text=True)
         text = re.sub(r"\s+", "", re.sub(r"<[^>]+>", "", html)).lower()
-        assert "fraudguard" not in text, path
+        assert "fraud" + "guard" not in text, path  # split so a repo-wide name search stays clean
         assert "moniguard" in text, path

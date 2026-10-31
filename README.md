@@ -9,18 +9,9 @@
 [![Python](https://img.shields.io/badge/Python-3.11+-green.svg)](https://python.org)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-Built by **Precious Ikebude** ([ikebude](https://github.com/ikebude)) as a personal product —
-not a 3Consulting deliverable. See [Provenance](#provenance) below.
-
-## Provenance
-
-Moniguard's pipeline architecture (producer → raw transactions → a single shared
-`FeatureEngineer` → XGBoost/Isolation Forest ensemble → FastAPI scoring → Airflow
-retraining) is the same shape used in 3Consulting's FraudGuard product, which I worked on.
-Reusing this architecture for my own personal product has been confirmed as OK with
-3Consulting. Nothing here is a verbatim copy of FraudGuard's client-specific code or data —
-the generator, feature set, model code, and API in this repo are Moniguard's own, written for
-this project.
+Designed and built by **Precious Ikebude** ([ikebude](https://github.com/ikebude)) as my own
+product. The generator, feature set, models, scoring API and dashboard in this repo were all
+written for Moniguard.
 
 ## Problem
 

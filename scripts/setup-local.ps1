@@ -43,7 +43,7 @@ AWS_ACCESS_KEY_ID=minioadmin
 AWS_SECRET_ACCESS_KEY=minioadmin
 
 # Fraud Detection API
-FRAUD_API_URL=https://3consult-ng.com/fraud_api.php
+FRAUD_API_URL=
 FRAUD_API_MAX_RECORDS=100000
 
 # Inference Service

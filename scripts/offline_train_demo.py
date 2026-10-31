@@ -44,18 +44,23 @@ from producer.main import TransactionGenerator  # noqa: E402
 from src.utils.feature_engineering import FeatureEngineer  # noqa: E402
 
 
-def generate_historical_dataset(n_transactions: int, days: int, seed: int = 42) -> pd.DataFrame:
+# Fixed reference date for the demo dataset. Measuring timestamps back from the real "now" made
+# hour-of-day / weekday / account-age features (and so every metric) change from run to run.
+DEFAULT_ANCHOR = "2026-10-01T00:00:00+00:00"
+
+
+def generate_historical_dataset(
+    n_transactions: int, days: int, seed: int = 42, anchor: str = DEFAULT_ANCHOR
+) -> pd.DataFrame:
     """Generate `n_transactions` using the real TransactionGenerator, with
-    timestamps spread uniformly at random over the last `days` days instead
-    of all being "now" (the generator's live-streaming default), so a
-    genuine time-based split is possible."""
+    timestamps spread uniformly at random over the `days` days before `anchor`
+    instead of all being "now" (the generator's live-streaming default), so a
+    genuine time-based split is possible. Same seed + anchor -> identical rows."""
     import random
 
-    random.seed(seed)
     np.random.seed(seed)
-
-    gen = TransactionGenerator()
-    now = datetime.now(timezone.utc)
+    now = datetime.fromisoformat(anchor)
+    gen = TransactionGenerator(seed=seed, anchor=now)
     rows = []
     attempts = 0
     while len(rows) < n_transactions and attempts < n_transactions * 2:
@@ -111,6 +116,10 @@ def main() -> None:
     parser.add_argument("--days", type=int, default=180)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument(
+        "--anchor", type=str, default=DEFAULT_ANCHOR,
+        help="ISO date the synthetic history ends at (fixed so reruns reproduce the same data).",
+    )
+    parser.add_argument(
         "--output-dir", type=str, default=None,
         help="Override output root (default: the repo itself — reports/ and "
              "moniguard/models/offline_demo/ under it). Tests point this at a "
@@ -121,7 +130,7 @@ def main() -> None:
 
     t0 = time.time()
     print(f"[1/5] Generating {args.n_transactions} synthetic transactions over {args.days} days...")
-    df = generate_historical_dataset(args.n_transactions, args.days, seed=args.seed)
+    df = generate_historical_dataset(args.n_transactions, args.days, seed=args.seed, anchor=args.anchor)
     fraud_rate = df["is_fraud"].mean()
     print(f"      {len(df)} rows generated, fraud rate = {fraud_rate:.4%}")
 
@@ -241,6 +250,7 @@ def main() -> None:
                        "see README Provenance / Data sections",
             "n_transactions": int(len(df)),
             "days_spanned": args.days,
+            "anchor": args.anchor,
             "fraud_rate_overall": float(fraud_rate),
             "n_train": int(len(train_df)),
             "n_test": int(len(test_df)),

@@ -9,7 +9,7 @@ mlflow:
 
 # API configuration for inference service (FRAUD_API_URL in env overrides)
 api:
-  url: "https://3consult-ng.com/fraud_api.php"
+  url: ""  # optional external transaction feed; empty = built-in generator
   max_batch_size: 10000
   max_records_per_run: 150000
   timeout_seconds: 60
