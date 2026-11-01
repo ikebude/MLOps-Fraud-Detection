@@ -34,7 +34,7 @@ x-airflow-common: &airflow-common
     TRANSACTIONS_PORT: ${POSTGRES_PORT:-5432}
     TRANSACTIONS_DB: ${POSTGRES_TRANSACTIONS_DB:-transactions_db}
     TRANSACTIONS_USER: ${POSTGRES_TRANSACTIONS_USER:-fraud_training}
-    TRANSACTIONS_PASSWORD: ${POSTGRES_TRANSACTIONS_PASSWORD:-training_password}
+    TRANSACTIONS_PASSWORD: ${POSTGRES_TRANSACTIONS_PASSWORD:?set POSTGRES_TRANSACTIONS_PASSWORD in src/.env}
 
     # Increase heartbeat interval and timeout to tolerate transient DB/network issues in long-running tasks
     # During hyperparameter tuning, CV folds may temporarily lock many connections
@@ -79,7 +79,7 @@ services:
     container_name: postgres
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-airflow}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-airflow}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in src/.env}
       POSTGRES_DB: ${POSTGRES_DB:-airflow}
       POSTGRES_INITDB_ARGS: "-c shared_buffers=256MB -c max_connections=500"
     volumes:
@@ -230,7 +230,7 @@ services:
       _AIRFLOW_DB_MIGRATE: 'true'
       _AIRFLOW_WWW_USER_CREATE: 'true'
       _AIRFLOW_WWW_USER_USERNAME: ${_AIRFLOW_WWW_USER_USERNAME:-airflow}
-      _AIRFLOW_WWW_USER_PASSWORD: ${_AIRFLOW_WWW_USER_PASSWORD:-airflow}
+      _AIRFLOW_WWW_USER_PASSWORD: ${_AIRFLOW_WWW_USER_PASSWORD:?set _AIRFLOW_WWW_USER_PASSWORD in src/.env}
     user: "0:0"
     volumes:
       - ${AIRFLOW_PROJ_DIR:-.}:/sources
@@ -304,7 +304,7 @@ services:
       - MLFLOW_S3_ENDPOINT_URL=http://minio:9000
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
-      - 'MLFLOW_BACKEND_STORE_URI=postgresql+psycopg2://${MLFLOW_DB_USER:-mlflow}:${MLFLOW_DB_PASSWORD:-mlflow}@postgres:${POSTGRES_PORT:-5432}/${MLFLOW_DB_NAME:-mlflow}?sslmode=${DB_SSLMODE:-prefer}'
+      - 'MLFLOW_BACKEND_STORE_URI=postgresql+psycopg2://${MLFLOW_DB_USER:-mlflow}:${MLFLOW_DB_PASSWORD:?set MLFLOW_DB_PASSWORD in src/.env}@postgres:${POSTGRES_PORT:-5432}/${MLFLOW_DB_NAME:-mlflow}?sslmode=${DB_SSLMODE:-prefer}'
       - 'MLFLOW_ARTIFACTS_DESTINATION=s3://mlflow/fraud_detection'
       - MLFLOW_SERVER_HOST=0.0.0.0
       - SERVER_NAME=mlflow-server
@@ -329,7 +329,7 @@ services:
       - DB_PORT=${POSTGRES_PORT:-5432}
       - DB_NAME=${POSTGRES_TRANSACTIONS_DB:-transactions_db}
       - DB_USER=${POSTGRES_TRANSACTIONS_USER:-fraud_producer}
-      - DB_PASSWORD=${POSTGRES_TRANSACTIONS_PASSWORD:-producer_password}
+      - DB_PASSWORD=${POSTGRES_TRANSACTIONS_PASSWORD:?set POSTGRES_TRANSACTIONS_PASSWORD in src/.env}
       - CONTINUOUS_INFERENCE_INTERVAL=0.2
     ports:
       - "127.0.0.1:8000:8000"
@@ -367,7 +367,7 @@ services:
       - DB_PORT=${POSTGRES_PORT:-5432}
       - DB_NAME=${POSTGRES_TRANSACTIONS_DB:-transactions_db}
       - DB_USER=${POSTGRES_TRANSACTIONS_USER:-fraud_producer}
-      - DB_PASSWORD=${POSTGRES_TRANSACTIONS_PASSWORD:-producer_password}
+      - DB_PASSWORD=${POSTGRES_TRANSACTIONS_PASSWORD:?set POSTGRES_TRANSACTIONS_PASSWORD in src/.env}
       - CONTINUOUS_INFERENCE_INTERVAL=0.2
     ports:
       - "5000:5000"
@@ -401,7 +401,7 @@ services:
       DB_PORT: 5432
       DB_NAME: ${POSTGRES_TRANSACTIONS_DB:-transactions_db}
       DB_USER: ${POSTGRES_TRANSACTIONS_USER:-fraud_producer}
-      DB_PASSWORD: ${POSTGRES_TRANSACTIONS_PASSWORD:-producer_password}
+      DB_PASSWORD: ${POSTGRES_TRANSACTIONS_PASSWORD:?set POSTGRES_TRANSACTIONS_PASSWORD in src/.env}
       PRODUCER_INTERVAL: 0.5
       PRODUCER_BATCH_SIZE: ${PRODUCER_BATCH_SIZE:-1}
       PYTHONUNBUFFERED: "1"
@@ -445,7 +445,7 @@ services:
     container_name: grafana
     environment:
       - GF_SECURITY_ADMIN_USER=${GRAFANA_USER:-admin}
-      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:?set GRAFANA_PASSWORD in src/.env}
       - GF_INSTALL_PLUGINS=grafana-clock-panel
       - GF_SERVER_ROOT_URL=http://localhost:3000
     volumes:
