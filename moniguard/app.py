@@ -142,6 +142,10 @@ _notification_settings = {
 
 # Configuration from environment variables
 INFERENCE_SERVICE_URL = os.getenv('INFERENCE_SERVICE_URL', 'http://inference:8000')
+# The inference service requires an X-API-Key. MONIGUARD_INFERENCE_API_KEY is the plaintext key the
+# dashboard sends; if unset, it uses the first entry of MONIGUARD_API_KEYS (which must then be plaintext).
+_INFERENCE_HEADERS = {'X-API-Key': os.getenv('MONIGUARD_INFERENCE_API_KEY') or next(
+    (k.strip() for k in os.getenv('MONIGUARD_API_KEYS', '').split(',') if k.strip()), '')}
 MLFLOW_TRACKING_URI = os.getenv('MLFLOW_TRACKING_URI', 'http://mlflow:5000')
 AIRFLOW_WEBSERVER_URL = os.getenv('AIRFLOW_WEBSERVER_URL', 'http://airflow-webserver:8080')
 MONIGUARD_BASE_PATH = os.getenv('MONIGUARD_BASE_PATH', '').rstrip('/')
@@ -1226,9 +1230,11 @@ def api_data():
             logger.info("Database empty or unavailable, falling back to Inference API")
             try:
                 with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
-                    stats_future = executor.submit(requests.get, f"{INFERENCE_SERVICE_URL}/inference/stats", timeout=15)
+                    stats_future = executor.submit(requests.get, f"{INFERENCE_SERVICE_URL}/inference/stats",
+                                                   headers=_INFERENCE_HEADERS, timeout=15)
                     results_future = executor.submit(requests.get, f"{INFERENCE_SERVICE_URL}/inference/results", 
-                                                      params={'page': 1, 'per_page': 1000}, timeout=15)
+                                                      params={'page': 1, 'per_page': 1000}, headers=_INFERENCE_HEADERS,
+                                                      timeout=15)
                     
                     stats_response = stats_future.result()
                     results_response = results_future.result()
@@ -1405,10 +1411,11 @@ def api_stream():
                     # FALLBACK: Use Inference API
                     try:
                         with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
-                            stats_future = executor.submit(requests.get, f"{INFERENCE_SERVICE_URL}/inference/stats", timeout=3)
+                            stats_future = executor.submit(requests.get, f"{INFERENCE_SERVICE_URL}/inference/stats",
+                                                          headers=_INFERENCE_HEADERS, timeout=3)
                             results_future = executor.submit(requests.get, 
                                                             f"{INFERENCE_SERVICE_URL}/inference/results?page=1&per_page=10",
-                                                            timeout=3)
+                                                            headers=_INFERENCE_HEADERS, timeout=3)
                             stats_response = stats_future.result()
                             results_response = results_future.result()
 

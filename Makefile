@@ -78,14 +78,15 @@ train: ## Trigger training DAG in Airflow
 
 inference: ## Run inference via API
 	@curl -X POST http://localhost:8000/inference/run \
+		-H "X-API-Key: $${MONIGUARD_API_KEY:?set MONIGUARD_API_KEY to one of MONIGUARD_API_KEYS}" \
 		-H "Content-Type: application/json" \
 		-d '{"max_records": 1000}'
 
 results: ## Get inference results
-	@curl http://localhost:8000/inference/results | python -m json.tool
+	@curl -H "X-API-Key: $${MONIGUARD_API_KEY:?set MONIGUARD_API_KEY to one of MONIGUARD_API_KEYS}" http://localhost:8000/inference/results | python -m json.tool
 
 stats: ## Get inference statistics
-	@curl http://localhost:8000/inference/stats | python -m json.tool
+	@curl -H "X-API-Key: $${MONIGUARD_API_KEY:?set MONIGUARD_API_KEY to one of MONIGUARD_API_KEYS}" http://localhost:8000/inference/stats | python -m json.tool
 
 VENV ?= .venv
 PY   := $(VENV)/bin/python

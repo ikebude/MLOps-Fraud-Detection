@@ -185,6 +185,8 @@ corrupts the hash (checked with `docker compose config`).
 `POST /v1/score` — `{"transaction": {...}}` → `{score: 0-1000, probability, decision, reasons[],
 model_version, latency_ms}`. `POST /v1/labels` — `{"transaction_id", "is_fraud"}`, logged for the
 retrain DAG to pick up. Both require an `X-API-Key` header (see `MONIGUARD_API_KEYS` env var); there is no default key.
+Generate keys with `python -c "import secrets; print(secrets.token_urlsafe(32))"`. A 64-character hex entry is read as
+a sha256 digest of the key, not as the key itself.
 
 ---
 
@@ -201,9 +203,13 @@ code in `src/`, `producer/`, and `moniguard/`, kept here as infrastructure refer
 |---------|-----|-------------|
 | Moniguard Dashboard | http://localhost:5000 | `MONIGUARD_*_PASSWORD` in `src/.env` |
 | Airflow | http://localhost:8080 | set in `src/.env` |
-| MLflow | http://localhost:5500 | — |
+| MLflow | http://localhost:5500 (this host only) | none; reach it remotely through an SSH tunnel |
 | MinIO | http://localhost:9001 | set in `src/.env` |
-| Inference API (legacy Flask) | http://localhost:8000 | — |
+| Inference API (legacy Flask) | http://localhost:8000 (this host only) | `X-API-Key` header, a key from `MONIGUARD_API_KEYS` |
+
+Services without their own login (MLflow, the legacy inference API, Prometheus, Flower, the
+exporters, the producer) and Postgres publish their ports on 127.0.0.1 only. From another machine,
+use an SSH tunnel, for example `ssh -L 5500:localhost:5500 user@vm`.
 
 ### Architecture (full stack)
 

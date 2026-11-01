@@ -9,7 +9,10 @@ Exposes HTTP endpoints for:
 
 Cumulative totals are persisted to file to survive restarts and provide real-time tracking.
 """
+import hashlib
+import hmac
 import os
+import re
 import json
 import logging
 import pandas as pd
@@ -34,6 +37,34 @@ from utils.logging_config import setup_structured_logging
 logger = setup_structured_logging('inference-api', logging.INFO)
 
 app = Flask(__name__)
+
+# Every endpoint except health, metrics and the index needs an X-API-Key header matching one of
+# MONIGUARD_API_KEYS, read the same way as the v2 scoring API (comma-separated; each entry a
+# plaintext key or its sha256 hex digest). With no key configured, those endpoints refuse every
+# request rather than run open.
+_OPEN_PATHS = {'/', '/health', '/inference/health', '/metrics'}
+_API_KEY_HASHES = {
+    k.lower() if re.fullmatch(r'[0-9a-fA-F]{64}', k) else hashlib.sha256(k.encode()).hexdigest()
+    for k in (part.strip() for part in os.getenv('MONIGUARD_API_KEYS', '').split(',')) if k
+}
+
+
+@app.before_request
+def require_api_key():
+    if request.path in _OPEN_PATHS:
+        return None
+    if not _API_KEY_HASHES:
+        return jsonify({'error': 'MONIGUARD_API_KEYS is not configured', 'status': 'unavailable'}), 503
+    supplied = hashlib.sha256(request.headers.get('X-API-Key', '').encode()).hexdigest()
+    if not any(hmac.compare_digest(supplied, h) for h in _API_KEY_HASHES):
+        return jsonify({'error': 'missing or invalid X-API-Key', 'status': 'unauthorized'}), 401
+    return None
+    if not _API_KEYS:
+        return jsonify({'error': 'MONIGUARD_API_KEYS is not configured', 'status': 'unavailable'}), 503
+    supplied = request.headers.get('X-API-Key', '')
+    if not any(hmac.compare_digest(supplied.encode(), k.encode()) for k in _API_KEYS):
+        return jsonify({'error': 'missing or invalid X-API-Key', 'status': 'unauthorized'}), 401
+    return None
 
 # Global inference instance (initialized on startup)
 inference_pipeline = None
@@ -198,7 +229,7 @@ def health_check():
         logger.error('Health check failed: %s', str(e), exc_info=True)
         return jsonify({
             'status': 'unhealthy',
-            'error': str(e),
+            'error': 'internal error; see the server log',
             'timestamp': datetime.now().isoformat()
         }), 503
 
@@ -277,7 +308,7 @@ def run_inference():
     except Exception as e:
         logger.error('Inference failed: %s', str(e), exc_info=True)
         return jsonify({
-            'error': str(e),
+            'error': 'internal error; see the server log',
             'status': 'error'
         }), 500
 
@@ -346,7 +377,7 @@ def predict_realtime():
     except Exception as e:
         logger.error('Realtime inference failed: %s', str(e), exc_info=True)
         return jsonify({
-            'error': str(e),
+            'error': 'internal error; see the server log',
             'status': 'error'
         }), 500
 
@@ -413,7 +444,7 @@ def predict_from_api():
     except Exception as e:
         logger.error('Realtime inference (from API) failed: %s', str(e), exc_info=True)
         return jsonify({
-            'error': str(e),
+            'error': 'internal error; see the server log',
             'status': 'error'
         }), 500
 
@@ -457,7 +488,7 @@ def get_results():
     except Exception as e:
         logger.error('Error retrieving results: %s', str(e))
         return jsonify({
-            'error': str(e),
+            'error': 'internal error; see the server log',
             'status': 'error'
         }), 500
 
@@ -517,7 +548,7 @@ def get_stats():
         inference_errors_total.labels(error_type='stats_retrieval').inc()
         logger.error('Error retrieving stats: %s', str(e), exc_info=True)
         return jsonify({
-            'error': str(e),
+            'error': 'internal error; see the server log',
             'status': 'error'
         }), 500
 
@@ -529,7 +560,7 @@ def get_metrics():
         return get_metrics_exposition(), 200, {'Content-Type': 'text/plain; version=0.0.4'}
     except Exception as e:
         logger.error('Error generating metrics: %s', str(e), exc_info=True)
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'internal error; see the server log'}), 500
 
 
 

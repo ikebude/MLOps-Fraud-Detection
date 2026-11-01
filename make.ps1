@@ -71,11 +71,11 @@ Examples:
         Invoke-InSrc { docker compose exec airflow-webserver airflow dags trigger fraud_detection_training }
     }
     "inference" {
-        Invoke-RestMethod -Uri "http://localhost:8000/inference/run" -Method POST `
+        Invoke-RestMethod -Uri "http://localhost:8000/inference/run" -Method POST -Headers @{ "X-API-Key" = $env:MONIGUARD_API_KEY } `
             -ContentType "application/json" -Body '{"max_records": 1000}'
     }
-    "results"  { (Invoke-RestMethod "http://localhost:8000/inference/results") | ConvertTo-Json -Depth 10 }
-    "stats"    { (Invoke-RestMethod "http://localhost:8000/inference/stats") | ConvertTo-Json -Depth 10 }
+    "results"  { (Invoke-RestMethod "http://localhost:8000/inference/results" -Headers @{ "X-API-Key" = $env:MONIGUARD_API_KEY }) | ConvertTo-Json -Depth 10 }
+    "stats"    { (Invoke-RestMethod "http://localhost:8000/inference/stats" -Headers @{ "X-API-Key" = $env:MONIGUARD_API_KEY }) | ConvertTo-Json -Depth 10 }
     "test"     {
         Write-Host "Testing service health..."
         $checks = @(
