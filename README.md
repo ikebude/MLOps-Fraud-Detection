@@ -1,138 +1,140 @@
-# Moniguard: fraud detection for Nigerian e-commerce
+# Moniguard: fraud scoring for Nigerian pay-on-delivery e-commerce
 
-> Scores pay-on-delivery transactions 0–1000 for fraud risk. On this repo's own synthetic
-> transaction generator, the ensemble reaches **PR-AUC 0.875** (95% CI 0.841–0.898) on a
-> time-based held-out test set — see [Results](#results) for exactly how that number was
-> produced and what it does and doesn't tell you.
+Moniguard gives each pay-on-delivery order a fraud risk score from 0 to 1000, a decision
+(approve, review or block) and the features that drove the score. It is my own product, built
+end to end: synthetic data generator, feature pipeline, XGBoost + Isolation Forest ensemble,
+FastAPI scoring service, analyst dashboard, and a Docker Compose stack with Airflow, MLflow,
+Postgres, Prometheus and Grafana.
 
 [![CI](https://github.com/ikebude/mlops-fraud-detection/actions/workflows/ci.yml/badge.svg)](https://github.com/ikebude/mlops-fraud-detection/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/Python-3.11+-green.svg)](https://python.org)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-Designed and built by **Precious Ikebude** ([ikebude](https://github.com/ikebude)) as my own
-product. The generator, feature set, models, scoring API and dashboard in this repo were all
-written for Moniguard.
+Designed and built by **Precious Chidiebere Ikebude** ([ikebude](https://github.com/ikebude)).
+
+**At a glance (synthetic data only, see [Results](#results)):**
+
+| | |
+|---|---|
+| Data | 60,000 synthetic transactions over 180 days, 2.8% fraud, six injected fraud patterns |
+| Split | time-based: train on the first 70% of the period, test on the last 30% |
+| Test PR-AUC | **0.959** (95% CI 0.942–0.972), batch features |
+| Test PR-AUC through the live API path | **0.837** on 3,000 transactions scored one at a time |
+| Recall if analysts review the top 5% | 0.994 |
+| Reproduce | `make demo` (no Docker, no database); CI retrains twice and fails if the numbers differ |
 
 ## Problem
 
 Nigerian pay-on-delivery (PoD) e-commerce carries fraud patterns that differ from card-present
 fraud elsewhere: phone-number recycling, delivery-address clustering, account takeovers on a
 new device right before a high-value order, and "friendly fraud" (a successful order followed
-by a refund request). A merchant needs a score per transaction they can act on in real time —
-not a monthly report.
+by a refund request). A merchant needs a score per transaction they can act on before the
+rider leaves, not a monthly report.
 
 ## Data
 
-**Primary (current demo): a synthetic generator, not a public benchmark.** `producer/main.py`'s
-`TransactionGenerator` creates realistic Nigerian e-commerce transactions (500 users, 300
-devices, 50 vendors, Nigerian cities, NGN pricing by category) with six labelled fraud
-patterns injected at a ~2.8% base rate (`card_fraud`, `account_takeover`, `refund_abuse`,
-`identity_theft`, `triangulation`, `friendly_fraud` — see the generator for exactly how each
-pattern is constructed). `scripts/offline_train_demo.py` spreads these over a configurable
-historical window (180 days by default) so a genuine time-based split is possible.
+**A synthetic generator, not a public benchmark.** `producer/main.py`'s `TransactionGenerator`
+creates Nigerian e-commerce transactions (500 users, 300 devices, 50 vendors, Nigerian cities,
+NGN pricing by category) with six labelled fraud patterns injected at a ~2.8% base rate
+(`card_fraud`, `account_takeover`, `refund_abuse`, `identity_theft`, `triangulation`,
+`friendly_fraud`). `scripts/offline_train_demo.py` spreads the transactions over a 180-day window
+ending on a fixed date, so a real time-based split is possible and every run is identical.
 
-**Why not PaySim or IEEE-CIS yet:** the approved spec (the Moniguard v2 product spec, kept in the owner's private planning notes, not in this repo) calls for the public
-PaySim mobile-money dataset and/or the IEEE-CIS Fraud Detection dataset (both on Kaggle) as the
-primary benchmark. Pulling either requires a Kaggle API token, which wasn't available when this
-run was produced. **The metrics below are measured on synthetic data only** — real, reproducible,
-and honestly labelled as such, but not evidence of performance on real transaction data or a
-public benchmark. Swapping in PaySim/IEEE-CIS once a token is available is the top item in
-[What I'd do next](#what-id-do-next).
+The planned public benchmarks are PaySim (mobile money) and IEEE-CIS (card-not-present), both on
+Kaggle. They need a Kaggle API token, which this run did not have. **Every number below is on
+synthetic data.** It shows the pipeline works and is evaluated correctly; it is not evidence of
+performance on real transactions.
 
 ## Approach
 
 ```mermaid
 graph LR
-    A[producer: TransactionGenerator] --> B[FeatureEngineer<br/>74 shared features]
+    A[TransactionGenerator<br/>synthetic, seeded] --> B[FeatureEngineer<br/>73 model inputs]
     B --> C1[XGBoost<br/>class-weighted]
     B --> C2[Isolation Forest<br/>anomaly score]
-    C1 --> D[Ensemble<br/>0.7 XGB + 0.3 IsoForest]
+    C1 --> D[0.7 XGB + 0.3 IsoForest]
     C2 --> D
-    D --> E[Isotonic calibration]
+    D --> E[Isotonic calibration<br/>fit on a held-out slice]
     E --> F[Risk score 0-1000]
     F --> G[FastAPI POST /v1/score]
-    G --> H[decision: approve / review / block]
+    G --> H[approve / review / block<br/>+ reason codes]
 ```
 
-- **One feature source of truth**: `src/utils/feature_engineering.FeatureEngineer` is imported
-  by both the offline training script and the live scoring path (`src/inference/scoring.py`) —
-  the same 74 features, computed the same way, so training/serving skew isn't a silent risk.
-- **Time-based split, never a random shuffle.** Random-shuffling fraud data leaks
-  near-future information (a fraud ring active this week looks "normal" if some of its
-  transactions are in the training set) — training uses the earliest 70% of the simulated
-  period, testing uses the latest 30%.
-- **Ensemble, not a single model.** XGBoost (class-weighted for the ~2.8% fraud rate) carries
-  most of the signal; Isolation Forest adds an unsupervised anomaly signal that catches patterns
-  the labelled classes didn't fully cover; isotonic calibration turns the blended score into a
-  risk score where 0–1000 is meaningfully ordered, not just rank-ordered.
-- **What I tried and didn't ship**: a GraphSAGE fraud-ring model and a Flink real-time feature
-  stream were in an earlier draft of this repo's docs. Both were cut for this version — they
-  need infrastructure (Spark/Flink cluster, a graph DB) this personal project doesn't run, and
-  the simpler shared-device/IP graph feature in `FeatureEngineer` (`fraud_ring_score`,
-  `shared_ip_count`, `shared_phone_number_count`) already captures the same signal at a
-  fraction of the operational cost. Full graph neural net fraud-ring detection is a "what's
-  next," not a "already built."
+- **One feature module for training and serving.** `src/utils/feature_engineering.FeatureEngineer`
+  is imported by the training script and by the scoring path (`src/inference/scoring.py`). It never
+  reads the label, and a test checks that.
+- **Time-based split, never a random shuffle.** Shuffling fraud data lets the model see a fraud
+  ring's later transactions while training. Train is the earliest 70% of the period, test the latest 30%.
+- **Calibration on data the models did not train on.** The last 15% of the training period is held
+  back to fit the isotonic calibrator, so a score of 700 means roughly a 70% chance of fraud on
+  this data, and the ranking survives calibration.
+- **Ensemble.** XGBoost carries most of the signal; Isolation Forest adds an unsupervised anomaly
+  score for patterns the labels cover poorly.
+- **Tried and cut:** a GraphSAGE fraud-ring model and a Flink feature stream. Both need
+  infrastructure this project does not run; simple shared-device/IP/phone counts
+  (`fraud_ring_score`, `shared_ip_count`, `shared_phone_number_count`) carry the same signal here.
 
 ## Results
 
-Real numbers from `reports/metrics.json`, produced by running `scripts/offline_train_demo.py`
-(60,000 synthetic transactions over a 180-day simulated period, seed 42; rerun with `make demo`).
-The generator is seeded and the simulated period ends on a fixed date (2026-10-01), so a rerun reproduces
-these numbers exactly; CI's *Retrain demo model* workflow trains twice and fails if they differ. Only latency
-depends on the machine that runs it (this figure is from a GitHub Actions runner).
+From `reports/metrics.json`, written by `scripts/offline_train_demo.py --n-transactions 60000 --days 180 --seed 42`
+(`make demo`). With the versions in `constraints-demo.txt`, a rerun gives the same numbers; only
+the latency figures depend on the machine.
 
-| Metric | Value | 95% CI |
+| Metric (test set: 18,000 transactions, 2.9% fraud) | Value | 95% CI |
 |---|---|---|
-| PR-AUC (test) | **0.875** | 0.841 – 0.898 |
-| ROC-AUC (test) | **0.945** | 0.930 – 0.956 |
-| Recall @ 1% alert rate | **0.341** | — |
-| Recall @ 5% alert rate | **0.895** | — |
-| p95 scoring latency (single transaction, FastAPI path) | **13.0 ms** | — |
+| PR-AUC | **0.959** | 0.942 – 0.972 |
+| ROC-AUC | **0.996** | 0.992 – 0.999 |
+| Recall if the top 1% of scores are reviewed | 0.339 (the most possible is 0.345) | — |
+| Recall if the top 5% are reviewed | 0.994 | — |
+| Review threshold (score ≥ 300): alert rate / precision / recall | 2.7% / 0.956 / 0.881 | — |
+| Block threshold (score ≥ 700): alert rate / precision / recall | 2.5% / 0.982 / 0.837 | — |
+| p95 model latency, one transaction, features precomputed | 61 ms | — |
 
-Train set: 42,000 transactions (2.82% fraud). Test set: 18,000 transactions from the later
-30% of the simulated period (2.90% fraud) — the model never saw these during training, and the
-split respects time order.
+**The live API path.** `/v1/score` receives one transaction and has no history store, so per-user,
+per-device and per-IP aggregates are computed over that single row. Scoring 3,000 test transactions
+(83 frauds) that way, through the same `FraudScorer` the API uses, gives **PR-AUC 0.837**,
+ROC-AUC 0.921 and recall@5% 0.843, with p95 end-to-end latency 145 ms. The gap from the
+batch figures is the cost of serving without a feature store; closing it is the first item below.
 
-**Read honestly:** recall@1% of 0.34 means that if an analyst team can only review the top 1%
-highest-scored transactions, they'd catch about 34% of fraud at that alert volume — recall@5%
-(0.89) is the more realistic operating point for a team with more review capacity. These numbers
-describe how well the ensemble separates this generator's six fraud patterns from its normal
-transactions — not how it would perform on fraud patterns it wasn't designed to produce.
+**Read honestly.** Fraud is 2.9% of the test set, so reviewing the top 1% of scores can
+catch at most 0.345 of it; 0.339 is close to that ceiling. These numbers describe how well
+the model separates this generator's six patterns from its normal traffic. The generator was
+written by me, so it is easier than real fraud, and the figures say nothing about patterns it does
+not produce.
 
 ## What I'd do next
 
-1. Get a Kaggle API token and re-run against PaySim and/or IEEE-CIS for a real public-benchmark
-   number, per the original spec — this is the most important gap above.
-2. Replace the feature-importance-weighted reason codes in `/v1/score` with real SHAP
-   TreeExplainer values (noted as the honest interim choice in `src/inference/scoring.py`).
-3. Wire the Airflow DAG in `src/dags/` to retrain on this pipeline with the
-   skip-if-fewer-than-500-new-labels rule from the spec, and add a PSI drift check.
-4. Add industry packs (feature and threshold presets), scoped to e-commerce and mobile money first.
-5. Fairness slices by channel/region once there's a real dataset to slice (synthetic data's
-   "regions" are just Nigerian city labels with no demographic signal attached).
+1. Serve from a feature store (or a Redis lookup of each user's, device's and IP's recent history)
+   so `/v1/score` sees the same aggregates as training, and compute those aggregates point-in-time.
+2. Re-run on PaySim and IEEE-CIS for a public-benchmark number.
+3. Set the review and block thresholds from the cost of a missed fraud versus an analyst review,
+   not fixed at 300 and 700.
+4. Replace the importance-weighted reason codes with SHAP TreeExplainer values.
+5. Wire the Airflow DAG in `src/dags/` to this pipeline: retrain when 500+ new labels arrive, with a
+   PSI drift check.
+6. Fairness slices by channel and region once a real dataset exists.
 
 ## How to run
 
 **Fast path (no Docker, no database) — retrains the model and re-measures the numbers above:**
 ```bash
-pip install -r requirements-demo.txt
+pip install -r requirements-demo.txt -c constraints-demo.txt   # exact versions the numbers were produced with
 python3 scripts/offline_train_demo.py --n-transactions 60000 --days 180 --seed 42   # overwrites reports/metrics.json and the model
 MONIGUARD_API_KEYS=dev-key uvicorn src.inference.score_api:app --reload --port 8000   # serves POST /v1/score
 ```
 or simply `make demo` (which creates `.venv`). The API refuses every request (503) when no key is configured.
-Run the training step before serving `/v1/score`: the committed `moniguard/models/offline_demo/` artifacts come
-from an earlier training run that did not save the `iso_min`/`iso_max` bounds `scoring.py` needs, so with them
-`/v1/score` returns 503 until you retrain.
+The committed `moniguard/models/offline_demo/` artifacts are the output of that same command, so `/v1/score`
+also works straight after a clone, without retraining.
 
 **Tests** (feature engineering + ensemble scoring + FastAPI contract, plus dashboard auth;
-**98% line coverage** of `src/utils/feature_engineering.py`, `src/inference/scoring.py` and
+**99% line coverage** of `src/utils/feature_engineering.py`, `src/inference/scoring.py` and
 `src/inference/score_api.py`, the modules CI measures; Moniguard dashboard auth is covered by
 `tests/test_moniguard_auth.py` but not included in that figure):
 ```bash
 make test-unit
 ```
 
-**Full production-shaped stack** (producer → Kafka → Postgres → Airflow → MLflow → dashboard —
+**Full production-shaped stack** (producer → Postgres → Airflow → MLflow → inference → dashboard —
 see architecture diagram further below): `make build && make up && make init-db`. This needs
 Docker and is meant for an Always-Free-tier VM, not CI.
 
@@ -192,7 +194,7 @@ a sha256 digest of the key, not as the key itself.
 
 ## Full infrastructure reference (production-shaped stack)
 
-The sections below describe the full docker-compose stack (producer, Kafka, Postgres, Airflow,
+The sections below describe the full docker-compose stack (producer, Postgres, Airflow,
 MLflow, Redis, the analyst dashboard) and predate the write-up above — they're accurate to the
 code in `src/`, `producer/`, and `moniguard/`, kept here as infrastructure reference. The
 **Results** section above, not this one, is where the measured model numbers live.
