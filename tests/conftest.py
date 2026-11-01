@@ -24,7 +24,7 @@ def tiny_model_dir(tmp_path_factory):
     subprocess.run(
         [
             sys.executable, str(script),
-            "--n-transactions", "4000", "--days", "60",
+            "--n-transactions", "4000", "--days", "60", "--serving-sample", "100",
             "--output-dir", str(out_root),
         ],
         check=True,

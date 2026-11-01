@@ -22,7 +22,7 @@ jobs:
         with:
           python-version: "3.11"
       - name: Install dependencies
-        run: pip install -r requirements-demo.txt pytest pytest-cov httpx
+        run: pip install -r requirements-demo.txt pytest pytest-cov httpx -c constraints-demo.txt
 
       - name: Train (run 1, written to the repo)
         run: python scripts/offline_train_demo.py --n-transactions 60000 --days 180 --seed 42
@@ -39,6 +39,7 @@ jobs:
           # Timing fields depend on the machine's load, not on the data or model.
           for m in (a, b):
               m.pop("generated_at"); m["run"].pop("elapsed_seconds"); m["metrics"].pop("p95_scoring_latency_ms")
+              m["serving_path"].pop("p95_latency_ms")
           def walk(x, y, path="$"):
               if isinstance(x, dict):
                   for k in x: walk(x[k], y[k], f"{path}.{k}")

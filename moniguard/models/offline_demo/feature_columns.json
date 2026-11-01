@@ -39,7 +39,6 @@
     "payment_anomaly_score",
     "payment_status_risk",
     "fraud_ring_score",
-    "vendor_risk_score",
     "user_reputation_score",
     "shared_ip_count",
     "shared_phone_number_count",
@@ -77,8 +76,8 @@
     "country",
     "refund_status"
   ],
-  "iso_min": 0.3725575912801736,
-  "iso_max": 0.699042877524264,
+  "iso_min": 0.37722934421415577,
+  "iso_max": 0.6813166449237951,
   "ensemble_weights": {
     "xgb": 0.7,
     "iso": 0.3

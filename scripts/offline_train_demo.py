@@ -5,7 +5,7 @@ offline_train_demo.py — the `make demo` pipeline for Moniguard v2.
 Generates synthetic historical transactions (reusing the real
 `TransactionGenerator` from `producer/main.py` — the same generator that
 feeds the live Kafka/Postgres stream, just given historical timestamps
-instead of "now"), engineers the 74 features from
+instead of "now"), engineers the features from
 `src/utils/feature_engineering.py` (the same module imported by both
 training and inference, per architecture rule: one feature source of
 truth), trains the XGBoost + Isolation Forest ensemble described in
@@ -120,6 +120,10 @@ def main() -> None:
         help="ISO date the synthetic history ends at (fixed so reruns reproduce the same data).",
     )
     parser.add_argument(
+        "--serving-sample", type=int, default=3000,
+        help="Test-period transactions scored one at a time through the API's scoring path (step 6).",
+    )
+    parser.add_argument(
         "--output-dir", type=str, default=None,
         help="Override output root (default: the repo itself — reports/ and "
              "moniguard/models/offline_demo/ under it). Tests point this at a "
@@ -129,22 +133,29 @@ def main() -> None:
     output_root = Path(args.output_dir) if args.output_dir else REPO_ROOT
 
     t0 = time.time()
-    print(f"[1/5] Generating {args.n_transactions} synthetic transactions over {args.days} days...")
+    print(f"[1/6] Generating {args.n_transactions} synthetic transactions over {args.days} days...")
     df = generate_historical_dataset(args.n_transactions, args.days, seed=args.seed, anchor=args.anchor)
     fraud_rate = df["is_fraud"].mean()
     print(f"      {len(df)} rows generated, fraud rate = {fraud_rate:.4%}")
 
-    print("[2/5] Engineering features (src/utils/feature_engineering.FeatureEngineer)...")
+    print("[2/6] Engineering features (src/utils/feature_engineering.FeatureEngineer)...")
     fe = FeatureEngineer()
     df_feat = fe.engineer_features(df)
 
-    print("[3/5] Time-based split (first 70% of the period = train, last 30% = test)...")
+    print("[3/6] Time-based split (first 70% of the period = train, last 30% = test)...")
     df_feat = df_feat.sort_values("timestamp").reset_index(drop=True)
     split_idx = int(len(df_feat) * 0.7)
     split_ts = df_feat.iloc[split_idx]["timestamp"]
     train_df = df_feat[df_feat["timestamp"] < split_ts].copy()
     test_df = df_feat[df_feat["timestamp"] >= split_ts].copy()
-    print(f"      train={len(train_df)} rows (fraud={train_df['is_fraud'].mean():.4%}), "
+    # The last 15% of the training period is held out to fit the calibrator. Fitting isotonic
+    # regression on the models' own training predictions (which are near-perfect in-sample) flattens
+    # the score into a few steps and throws away most of the ranking.
+    calib_ts = train_df.iloc[int(len(train_df) * 0.85)]["timestamp"]
+    fit_df = train_df[train_df["timestamp"] < calib_ts].copy()
+    calib_df = train_df[train_df["timestamp"] >= calib_ts].copy()
+    print(f"      train={len(train_df)} rows (fraud={train_df['is_fraud'].mean():.4%}; "
+          f"{len(fit_df)} fit the models, {len(calib_df)} fit the calibrator), "
           f"test={len(test_df)} rows (fraud={test_df['is_fraud'].mean():.4%})")
 
     drop_cols = [
@@ -152,6 +163,7 @@ def main() -> None:
         "session_id", "timestamp", "registration_date", "device_id", "ip_address",
         "delivery_address", "product_id", "product_name", "vendor_id", "fraud_type",
         "is_fraud", "rating", "currency", "geo_location", "location",
+        "vendor_risk_score",  # constant placeholder (see FeatureEngineer), not a model input
     ]
     categorical_cols = [
         "gender", "account_status", "action", "device_type", "browser", "category",
@@ -165,7 +177,7 @@ def main() -> None:
     num_present = [c for c in feature_cols if c not in cat_present]
 
     encoder = OrdinalEncoder(handle_unknown="use_encoded_value", unknown_value=-1)
-    encoder.fit(train_df[cat_present].astype(str))
+    encoder.fit(fit_df[cat_present].astype(str))
 
     def build_matrix(d: pd.DataFrame) -> pd.DataFrame:
         X_num = d[num_present].apply(pd.to_numeric, errors="coerce").fillna(0.0)
@@ -174,10 +186,11 @@ def main() -> None:
         )
         return pd.concat([X_num, X_cat], axis=1)
 
-    X_train, y_train = build_matrix(train_df), train_df["is_fraud"].astype(int).values
+    X_train, y_train = build_matrix(fit_df), fit_df["is_fraud"].astype(int).values
+    X_calib, y_calib = build_matrix(calib_df), calib_df["is_fraud"].astype(int).values
     X_test, y_test = build_matrix(test_df), test_df["is_fraud"].astype(int).values
 
-    print("[4/5] Training XGBoost (class-weighted) + Isolation Forest, calibrating ensemble...")
+    print("[4/6] Training XGBoost (class-weighted) + Isolation Forest, calibrating ensemble...")
     import xgboost as xgb
     from sklearn.ensemble import IsolationForest
     from sklearn.isotonic import IsotonicRegression
@@ -196,8 +209,6 @@ def main() -> None:
         n_jobs=-1,
     )
     xgb_model.fit(X_train, y_train)
-    xgb_train_proba = xgb_model.predict_proba(X_train)[:, 1]
-    xgb_test_proba = xgb_model.predict_proba(X_test)[:, 1]
 
     iso_model = IsolationForest(
         n_estimators=200, contamination=float(y_train.mean()), random_state=args.seed, n_jobs=-1
@@ -205,29 +216,41 @@ def main() -> None:
     iso_model.fit(X_train)
     # Isolation Forest: more negative score = more anomalous. Flip + min-max scale to [0, 1].
     iso_train_raw = -iso_model.score_samples(X_train)
-    iso_test_raw = -iso_model.score_samples(X_test)
     iso_min, iso_max = iso_train_raw.min(), iso_train_raw.max()
-    iso_train_norm = (iso_train_raw - iso_min) / (iso_max - iso_min + 1e-9)
-    iso_test_norm = (iso_test_raw - iso_min) / (iso_max - iso_min + 1e-9)
 
-    ensemble_train = 0.7 * xgb_train_proba + 0.3 * iso_train_norm
-    ensemble_test = 0.7 * xgb_test_proba + 0.3 * iso_test_norm
+    def ensemble(X: pd.DataFrame) -> np.ndarray:
+        iso_norm = (-iso_model.score_samples(X) - iso_min) / (iso_max - iso_min + 1e-9)
+        return 0.7 * xgb_model.predict_proba(X)[:, 1] + 0.3 * iso_norm
 
     calibrator = IsotonicRegression(out_of_bounds="clip")
-    calibrator.fit(ensemble_train, y_train)
-    calibrated_test = calibrator.predict(ensemble_test)
+    calibrator.fit(ensemble(X_calib), y_calib)
+    calibrated_test = calibrator.predict(ensemble(X_test))
     risk_score_test = (calibrated_test * 1000).round().astype(int)
 
-    print("[5/5] Evaluating on the held-out (later-in-time) test set...")
+    print("[5/6] Evaluating on the held-out (later-in-time) test set...")
     pr_auc = average_precision_score(y_test, calibrated_test)
     roc_auc = roc_auc_score(y_test, calibrated_test)
     recall_at_1pct = recall_at_alert_rate(y_test, calibrated_test, 0.01)
     recall_at_5pct = recall_at_alert_rate(y_test, calibrated_test, 0.05)
 
+    # At a 1% alert rate the best possible recall is (1% of the test set) / (number of frauds).
+    recall_ceiling_1pct = min(1.0, np.ceil(len(y_test) * 0.01) / max(1, int(y_test.sum())))
+    thresholds = {"review": 300, "block": 700}
+    operating_points = {}
+    for name, thr in thresholds.items():
+        alerted = risk_score_test >= thr
+        tp = int((alerted & (y_test == 1)).sum())
+        operating_points[f"{name}_at_{thr}"] = {
+            "alert_rate": float(alerted.mean()),
+            "precision": float(tp / alerted.sum()) if alerted.sum() else None,
+            "recall": float(tp / max(1, int(y_test.sum()))),
+        }
+
     pr_auc_ci = bootstrap_ci(y_test, calibrated_test, average_precision_score)
     roc_auc_ci = bootstrap_ci(y_test, calibrated_test, roc_auc_score)
 
-    # Scoring latency (p95), single-row at a time, matching the FastAPI /v1/score path.
+    # Model-only latency (p95): one prebuilt feature row at a time, without feature engineering.
+    # The end-to-end /v1/score latency is measured in step 6.
     sample_idx = np.random.RandomState(args.seed).choice(len(X_test), size=min(500, len(X_test)), replace=False)
     latencies_ms = []
     for i in sample_idx:
@@ -253,15 +276,18 @@ def main() -> None:
             "anchor": args.anchor,
             "fraud_rate_overall": float(fraud_rate),
             "n_train": int(len(train_df)),
+            "n_train_model_fit": int(len(fit_df)),
+            "n_train_calibration": int(len(calib_df)),
             "n_test": int(len(test_df)),
             "fraud_rate_train": float(train_df["is_fraud"].mean()),
             "fraud_rate_test": float(test_df["is_fraud"].mean()),
             "split_method": "time-based (train = earliest 70% of the period, "
-                             "test = latest 30%; never shuffled)",
+                             "test = latest 30%; never shuffled). The last 15% of the training "
+                             "period fits the calibrator only.",
         },
         "model": {
             "ensemble": "0.7 * XGBoost (class-weighted) + 0.3 * Isolation Forest (min-max normalized), "
-                        "isotonic-calibrated, scaled to a 0-1000 risk score",
+                        "isotonic-calibrated on a held-out slice, scaled to a 0-1000 risk score",
             "n_features": int(X_train.shape[1]),
         },
         "metrics": {
@@ -269,6 +295,8 @@ def main() -> None:
             "roc_auc": {"value": float(roc_auc), "ci95": roc_auc_ci},
             "recall_at_1pct_alert_rate": recall_at_1pct,
             "recall_at_5pct_alert_rate": recall_at_5pct,
+            "recall_ceiling_at_1pct_alert_rate": float(recall_ceiling_1pct),
+            "operating_points": operating_points,
             "p95_scoring_latency_ms": p95_latency_ms,
         },
         "run": {
@@ -301,11 +329,44 @@ def main() -> None:
                 "iso_min": float(iso_min),
                 "iso_max": float(iso_max),
                 "ensemble_weights": {"xgb": 0.7, "iso": 0.3},
-                "decision_thresholds": {"review": 300, "block": 700},
+                "decision_thresholds": thresholds,
             },
             f,
             indent=2,
         )
+
+    # The figures above use features computed over the whole frame, as in batch training. The live
+    # API (/v1/score) sees one transaction at a time, so per-user/device/IP aggregates are computed
+    # over that single row. Score a fixed sample of the test period exactly that way, through the
+    # same FraudScorer the API uses, to report what the served model actually achieves.
+    print(f"[6/6] Scoring {args.serving_sample} test transactions one at a time through FraudScorer (the /v1/score path)...")
+    from src.inference.scoring import FraudScorer
+
+    scorer = FraudScorer(models_dir=models_dir)
+    raw_test = df[pd.to_datetime(df["timestamp"]) >= split_ts].reset_index(drop=True)
+    pick = np.sort(np.random.RandomState(args.seed).choice(len(raw_test), size=min(args.serving_sample, len(raw_test)),
+                                                           replace=False))
+    serve_p, serve_y, serve_ms = [], [], []
+    for i in pick:
+        txn = raw_test.iloc[i].to_dict()
+        serve_y.append(int(txn.pop("is_fraud")))
+        txn.pop("fraud_type", None)
+        t_start = time.perf_counter()
+        serve_p.append(scorer.score(txn)["probability"])
+        serve_ms.append((time.perf_counter() - t_start) * 1000)
+    serve_p, serve_y = np.array(serve_p), np.array(serve_y)
+    metrics["serving_path"] = {
+        "description": "test-period sample scored one transaction at a time via src/inference/scoring.FraudScorer, "
+                       "as /v1/score does; per-entity aggregate features see only that one row",
+        "n_transactions": int(len(pick)),
+        "n_fraud": int(serve_y.sum()),
+        "pr_auc": float(average_precision_score(serve_y, serve_p)),
+        "roc_auc": float(roc_auc_score(serve_y, serve_p)),
+        "recall_at_5pct_alert_rate": recall_at_alert_rate(serve_y, serve_p, 0.05),
+        "p95_latency_ms": float(np.percentile(serve_ms, 95)),
+    }
+    with open(reports_dir / "metrics.json", "w") as f:
+        json.dump(metrics, f, indent=2)
 
     print()
     print("=" * 72)
@@ -313,7 +374,10 @@ def main() -> None:
     print(f"ROC-AUC:                 {roc_auc:.4f}  (95% CI {roc_auc_ci})")
     print(f"Recall @ 1% alert rate:  {recall_at_1pct:.4f}")
     print(f"Recall @ 5% alert rate:  {recall_at_5pct:.4f}")
-    print(f"p95 scoring latency:     {p95_latency_ms:.2f} ms")
+    print(f"p95 scoring latency:     {p95_latency_ms:.2f} ms (model only)")
+    sp = metrics["serving_path"]
+    print(f"Serving path (n={sp['n_transactions']}): PR-AUC {sp['pr_auc']:.4f}, ROC-AUC {sp['roc_auc']:.4f}, "
+          f"recall@5% {sp['recall_at_5pct_alert_rate']:.4f}, p95 {sp['p95_latency_ms']:.1f} ms")
     print(f"Wall-clock time:         {elapsed:.1f}s")
     print(f"Metrics written to:      {reports_dir / 'metrics.json'}")
     print("=" * 72)

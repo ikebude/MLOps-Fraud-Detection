@@ -57,3 +57,14 @@ def test_fraud_rate_is_within_generator_spec(raw_batch):
     # within a generous statistical band, not exactly 2.8%.
     rate = raw_batch["is_fraud"].mean()
     assert 0.0 <= rate <= 0.15
+
+
+def test_features_do_not_depend_on_the_label(raw_batch):
+    """Training frames carry is_fraud, serving payloads do not; the features must be identical."""
+    fe = FeatureEngineer()
+    with_label = fe.engineer_features(raw_batch)
+    flipped = raw_batch.assign(is_fraud=1 - raw_batch["is_fraud"])
+    without_label = fe.engineer_features(raw_batch.drop(columns=["is_fraud"]))
+    feature_cols = [c for c in without_label.columns]
+    pd.testing.assert_frame_equal(with_label[feature_cols], without_label[feature_cols])
+    pd.testing.assert_frame_equal(fe.engineer_features(flipped)[feature_cols], without_label[feature_cols])

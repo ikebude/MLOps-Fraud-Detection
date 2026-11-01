@@ -7,13 +7,13 @@ logger = logging.getLogger(__name__)
 class FeatureEngineer:
     """
     Unified feature engineering for both training and inference.
-    Creates 74 features (54 engineered + 20 raw).
+    Never reads the label (`is_fraud`), so training and serving compute the same thing.
     """
 
     def engineer_features(self, df: pd.DataFrame) -> pd.DataFrame:
         """
         Input: Raw DataFrame from Postgres or API payload.
-        Output: DataFrame with 74 features ready for XGBoost.
+        Output: DataFrame with the engineered columns added (the training script decides which are model inputs).
         """
         df = df.copy()
         
@@ -169,12 +169,11 @@ class FeatureEngineer:
         device_user_count_net = df.groupby('device_id')['user_id'].transform('nunique')
         df['fraud_ring_score'] = ((ip_user_count > 5) | (device_user_count_net > 3)).astype(float) * 0.7
         
-        # 31. Vendor risk score
-        if 'is_fraud' in df.columns:
-            vendor_fraud_rate = df.groupby('vendor_id')['is_fraud'].transform('mean')
-            df['vendor_risk_score'] = vendor_fraud_rate.fillna(0.0)
-        else:
-            df['vendor_risk_score'] = 0.0 # Default for fresh inference
+        # 31. Vendor risk score. A vendor's past fraud rate needs labels known *before* each
+        # transaction (point-in-time). It used to be the vendor's fraud rate over the whole frame,
+        # including the row's own label and later rows: target leakage in training, and always 0 at
+        # serving. Kept as a constant placeholder until a point-in-time label store exists.
+        df['vendor_risk_score'] = 0.0
             
         # 32. User reputation score
         df['user_reputation_score'] = 0.7

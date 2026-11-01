@@ -99,7 +99,7 @@ $(PY):
 	$(PY) -m pip install -q --upgrade pip
 
 venv: $(PY) ## Create .venv and install the demo/test dependencies
-	$(PY) -m pip install -q -r requirements-demo.txt pytest pytest-cov httpx
+	$(PY) -m pip install -q -r requirements-demo.txt pytest pytest-cov httpx -c constraints-demo.txt
 
 demo: venv ## Train the offline demo model and write real metrics to reports/metrics.json (no Docker/DB needed)
 	$(PY) scripts/offline_train_demo.py --n-transactions 60000 --days 180 --seed 42

@@ -1,6 +1,7 @@
 # Dependencies for `make demo` and `make test-unit` — the fast, Docker/DB-free
 # path (see scripts/offline_train_demo.py). The full production stack's
 # pinned requirements live in src/, producer/, and moniguard/ respectively.
+# Install with -c constraints-demo.txt for the exact versions reports/metrics.json was produced with.
 pandas>=2.0
 numpy>=1.24
 scikit-learn>=1.3
