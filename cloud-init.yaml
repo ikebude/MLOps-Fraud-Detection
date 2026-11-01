@@ -13,8 +13,6 @@ runcmd:
   - systemctl enable docker
   - systemctl start docker
   - usermod -aG docker ubuntu
-  - curl -fsSL https://deb.nodesource.com/setup_16.x | bash -
-  - apt-get install -y nodejs
   - mkdir -p /opt/fraud-detection
   - cd /opt/fraud-detection
   - git clone https://github.com/ikebude/MLOps-Fraud-Detection.git .
