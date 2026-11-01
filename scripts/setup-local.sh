@@ -14,40 +14,12 @@ echo -e "${GREEN}Setting up local development environment...${NC}"
 # Check if .env file exists
 if [ ! -f src/.env ]; then
     echo -e "${YELLOW}Creating .env file from .env.example...${NC}"
-    if [ -f src/.env.example ]; then
-        cp src/.env.example src/.env
-        echo -e "${GREEN}.env file created. Please update it with your values.${NC}"
-    else
-        echo -e "${YELLOW}.env.example not found. Creating basic .env file...${NC}"
-        cat > src/.env << EOF
-# Airflow Configuration
-AIRFLOW_UID=50000
-POSTGRES_USER=airflow
-POSTGRES_PASSWORD=airflow
-POSTGRES_DB=airflow
-
-# MLflow Configuration
-MLFLOW_TRACKING_URI=http://mlflow-server:5500
-MLFLOW_S3_ENDPOINT_URL=http://minio:9000
-
-# MinIO Configuration
-MINIO_USERNAME=minioadmin
-MINIO_PASSWORD=minioadmin
-AWS_ACCESS_KEY_ID=minioadmin
-AWS_SECRET_ACCESS_KEY=minioadmin
-
-# Fraud Detection API
-FRAUD_API_URL=
-FRAUD_API_MAX_RECORDS=100000
-
-# Inference Service
-INFERENCE_PORT=8000
-INFERENCE_SERVICE_URL=http://inference:8000
-
-# Moniguard
-FLASK_DEBUG=False
-EOF
+    if [ ! -f src/.env.example ]; then
+        echo -e "${YELLOW}src/.env.example not found; restore it from git (git checkout -- src/.env.example).${NC}"
+        exit 1
     fi
+    cp src/.env.example src/.env
+    echo -e "${GREEN}src/.env created. Replace every change-me value with your own secret before 'make up'.${NC}"
 else
     echo -e "${GREEN}.env file already exists.${NC}"
 fi
@@ -58,8 +30,8 @@ mkdir -p src/models
 mkdir -p src/logs
 mkdir -p src/state
 mkdir -p src/config
-mkdir -p Moniguard/data
-mkdir -p Moniguard/static
+mkdir -p moniguard/data
+mkdir -p moniguard/static
 
 # Set proper permissions
 echo -e "${YELLOW}Setting permissions...${NC}"
@@ -84,7 +56,7 @@ echo "  1. (Optional) Review src/.env"
 echo "  2. make build   # or: cd src && docker compose build"
 echo "  3. make up     # or: cd src && docker compose up -d"
 echo "  4. make init-db   # first time only"
-echo "  5. Open Airflow http://localhost:8080 (airflow/airflow), enable fraud_detection_training DAG"
+echo "  5. Open Airflow http://localhost:8080 (user and password from src/.env), enable fraud_detection_training DAG"
 echo "  6. Open Moniguard http://localhost:5000"
 
 
