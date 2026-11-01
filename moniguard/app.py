@@ -102,6 +102,9 @@ _MAX_ALERT_STATE = 10_000
 
 # Login throttling: after this many failed attempts for one (username, client IP)
 # within the window, further attempts get 429 until the window passes.
+# The counter lives in this process's memory. The container runs a single process
+# (`python app.py`), so that is enough here; with several workers or replicas, move it
+# to a shared store such as the stack's Redis, or each process allows its own 5 attempts.
 _LOGIN_MAX_FAILURES = 5
 _LOGIN_WINDOW_SECONDS = 15 * 60
 _login_failures = {}  # (username, ip) -> [monotonic timestamps of recent failures]
@@ -506,6 +509,32 @@ DEFAULT_DATA = {
     },
     'transactions': []
 }
+
+# The Tailwind Play CDN compiles styles in the browser and injects <style> tags, which is
+# why script-src and style-src allow 'unsafe-inline' (and 'unsafe-eval' for the compiler).
+# Building the CSS ahead of time would let both be dropped. Everything else is locked down.
+_CSP = "; ".join([
+    "default-src 'self'",
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.tailwindcss.com https://cdn.jsdelivr.net",
+    "style-src 'self' 'unsafe-inline' https://unpkg.com https://fonts.googleapis.com",
+    "font-src 'self' data: https://unpkg.com https://fonts.gstatic.com",
+    "img-src 'self' data:",
+    "connect-src 'self'",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "frame-ancestors 'none'",
+])
+
+
+@app.after_request
+def set_security_headers(response):
+    response.headers.setdefault('Content-Security-Policy', _CSP)
+    response.headers.setdefault('X-Content-Type-Options', 'nosniff')
+    response.headers.setdefault('X-Frame-Options', 'DENY')
+    response.headers.setdefault('Referrer-Policy', 'same-origin')
+    return response
+
 
 @app.context_processor
 def inject_base_path():
@@ -1107,7 +1136,7 @@ def api_transactions():
         logger.error(f"Error serving transactions API: {e}")
         return jsonify({
             'status': 'error',
-            'message': str(e),
+            'message': 'Could not load transactions; see the server log.',
             'transactions': [],
             'pagination': {
                 'total': 0,
@@ -1285,7 +1314,7 @@ def api_data():
         traceback.print_exc()
         return jsonify({
             'status': 'error',
-            'error': str(e),
+            'error': 'Could not load dashboard data; see the server log.',
             'metrics': {
                 'total_transactions': 0,
                 'fraud_rate': 0.0,
@@ -1518,9 +1547,10 @@ def login():
 
     return render_template('login.html')
 
-@app.route('/logout')
+@app.route('/logout', methods=['POST'])
 def logout():
-    """Logout and clear session"""
+    """Log out and clear the session. POST only, so a link or image on another site cannot log a user out
+    (the session cookie is SameSite=Lax, so it is not sent on cross-site POSTs)."""
     session.clear()
     return redirect(MONIGUARD_BASE_PATH + '/login')
 
@@ -1659,8 +1689,9 @@ def api_alert_detail(alert_id):
             if alert:
                 return jsonify(alert)
             return jsonify({'error': 'Alert not found'}), 404
-        except Exception as e:
-            return jsonify({'error': str(e)}), 500
+        except Exception:
+            logger.exception("Error loading alert %s", alert_id)
+            return jsonify({'error': 'Could not load the alert; see the server log.'}), 500
     
     elif request.method == 'POST':
         # Update alert status or assignment

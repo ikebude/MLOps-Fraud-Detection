@@ -143,7 +143,7 @@ def test_forgot_password_removed(app_mod):
     assert _login(client, "Admin User", PASSWORDS["MONIGUARD_ADMIN_PASSWORD"]).status_code == 302
     assert client.get("/forgot-password").status_code == 404
     client.post("/forgot-password", data={"name": "Admin User", "new_password": "pwned"})
-    client.get("/logout")
+    client.post("/logout")
     assert _login(client, "Admin User", "pwned").status_code == 401
     assert _login(client, "Admin User", PASSWORDS["MONIGUARD_ADMIN_PASSWORD"]).status_code == 302
 
@@ -321,3 +321,50 @@ def test_pages_brand_as_moniguard(app_mod):
         text = re.sub(r"\s+", "", re.sub(r"<[^>]+>", "", html)).lower()
         assert "fraud" + "guard" not in text, path  # split so a repo-wide name search stays clean
         assert "moniguard" in text, path
+
+
+# ---------------------------------------------------------------------------
+# Audit 2026-11-01: logout method, error bodies, security headers, pinned CDN assets
+# ---------------------------------------------------------------------------
+def test_logout_requires_post(app_mod):
+    client = _client_as(app_mod, "Admin User", "MONIGUARD_ADMIN_PASSWORD")
+    assert client.get("/logout").status_code == 405
+    assert client.get("/admin").status_code == 200  # a GET (e.g. a cross-site <img>) did not log out
+    resp = client.post("/logout")
+    assert resp.status_code == 302 and resp.headers["Location"].endswith("/login")
+    assert client.get("/admin").status_code == 302
+
+
+def test_errors_do_not_leak_exception_text(app_mod, monkeypatch):
+    secret = "relation fraud_predictions does not exist at host db-internal"
+
+    def boom(*a, **k):
+        raise RuntimeError(secret)
+
+    monkeypatch.setattr(app_mod, "get_live_fraud_feed", boom)
+    monkeypatch.setattr(app_mod, "get_all_predictions_feed", boom)
+    client = _client_as(app_mod, "Admin User", "MONIGUARD_ADMIN_PASSWORD")
+    for path in ("/api/alerts/ALT-1", "/api/transactions"):
+        resp = client.get(path)
+        assert resp.status_code == 500, path
+        assert secret not in resp.get_data(as_text=True), path
+
+
+def test_security_headers(app_mod):
+    resp = app_mod.app.test_client().get("/login")
+    csp = resp.headers["Content-Security-Policy"]
+    for directive in ("default-src 'self'", "object-src 'none'", "frame-ancestors 'none'", "base-uri 'self'"):
+        assert directive in csp
+    assert resp.headers["X-Content-Type-Options"] == "nosniff"
+    assert resp.headers["X-Frame-Options"] == "DENY"
+
+
+def test_versioned_cdn_assets_have_sri():
+    """Chart.js and the icon font are pinned and integrity-checked. The Tailwind Play CDN cannot be
+    (it compiles in the browser); it is listed as an open item in tasks/AUDIT_2026-11-01.md."""
+    import re
+
+    base = (REPO_ROOT / "moniguard" / "templates" / "base.html").read_text(encoding="utf-8")
+    for tag in re.findall(r"<(?:script|link)[^>]+(?:unpkg\.com|jsdelivr\.net)[^>]*>", base):
+        assert re.search(r"@\d+\.\d+\.\d+/", tag), tag
+        assert 'integrity="sha384-' in tag and 'crossorigin="anonymous"' in tag, tag
